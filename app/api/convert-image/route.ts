@@ -3,6 +3,7 @@ import CloudConvert from 'cloudconvert';
 
 const ALLOWED_ORIGINS = [
   'https://modoouniform.com',
+  'https://admin.modoogoods.com',
   'http://localhost:3000',
   'http://localhost:3001',
 ];
