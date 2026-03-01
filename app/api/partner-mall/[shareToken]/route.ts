@@ -13,10 +13,8 @@ export async function GET(
 
   const supabase = createAnonClient();
 
-  const { data: mall, error } = await supabase
-    .from('partner_malls')
-    .select(`
-      id, name, logo_url, is_active,
+  const selectQuery = `
+      id, name, logo_url, is_active, slug,
       partner_mall_products (
         id, partner_mall_id, product_id,
         display_name, color_hex, color_name, color_code,
@@ -27,10 +25,32 @@ export async function GET(
           thumbnail_image_link
         )
       )
-    `)
-    .eq('share_token', shareToken)
+    `;
+
+  // Try slug first, then share_token
+  let mall = null;
+  let error = null;
+
+  const { data: slugResult, error: slugError } = await supabase
+    .from('partner_malls')
+    .select(selectQuery)
+    .eq('slug', shareToken)
     .eq('is_active', true)
-    .single();
+    .maybeSingle();
+
+  if (slugResult) {
+    mall = slugResult;
+  } else {
+    const { data: tokenResult, error: tokenError } = await supabase
+      .from('partner_malls')
+      .select(selectQuery)
+      .eq('share_token', shareToken)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    mall = tokenResult;
+    error = tokenError;
+  }
 
   if (error || !mall) {
     return NextResponse.json({ error: '찾을 수 없는 페이지입니다.' }, { status: 404 });
