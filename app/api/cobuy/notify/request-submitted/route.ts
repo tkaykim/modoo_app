@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendMailjetEmail } from '@/lib/mailjet';
+import { getPricingInfo } from '@/lib/cobuyPricing';
 
 interface RequestSubmittedBody {
   title: string;
@@ -10,14 +11,6 @@ interface RequestSubmittedBody {
   submitterName: string;
   shareToken: string;
   estimatedQuantity: number;
-}
-
-function getPricingInfo(qty: number): { unitPrice: number; totalPrice: number; note?: string } | null {
-  if (qty < 20) return null; // 1~19: 성수기 제작불가
-  if (qty <= 30) return { unitPrice: Math.round(1800000 / qty), totalPrice: 1800000, note: '(고정가)' };
-  if (qty <= 50) return { unitPrice: 58000, totalPrice: qty * 58000 };
-  if (qty <= 70) return { unitPrice: 56000, totalPrice: qty * 56000 };
-  return { unitPrice: 53000, totalPrice: qty * 53000 };
 }
 
 export async function POST(request: NextRequest) {
@@ -93,20 +86,20 @@ export async function POST(request: NextRequest) {
         <p style="font-size: 17px; color: #222; line-height: 1.7; margin: 0 0 8px 0;"><strong>안녕하세요,</strong></p>
         <p style="font-size: 17px; color: #222; line-height: 1.7; margin: 0 0 24px 0;"><strong>모두의 유니폼입니다.</strong></p>
 
-        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0 0 12px 0;">저희 모두의 유니폼에 ${productName} 제작을 문의해 주셔서 진심으로 감사드립니다.</p>
-        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0 0 24px 0;">현재 접수해주신 내용을 바탕으로 상세 견적을 검토 중입니다. 아래 <strong>'견적 확인하기'</strong>를 통해 디자인을 선택하시면 더욱 빠른 안내가 가능합니다.</p>
+        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0 0 12px 0;">과잠 공동구매 요청이 정상적으로 접수되었습니다.</p>
+        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0 0 24px 0;">접수해주신 내용을 확인 후 빠르게 연락드리겠습니다. 아래 <strong>'요청 확인하기'</strong>에서 접수 내용을 확인하실 수 있습니다.</p>
 
         ${pricingHtml}
 
         <!-- Buttons -->
         <div style="text-align: center; margin: 28px 0;">
-          <a href="${submitterLink}" style="display: block; width: 80%; max-width: 360px; margin: 0 auto 10px auto; padding: 14px 0; background-color: #3B55A5; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 15px; text-decoration: none; text-align: center;">견적 확인하기</a>
+          <a href="${submitterLink}" style="display: block; width: 80%; max-width: 360px; margin: 0 auto 10px auto; padding: 14px 0; background-color: #3B55A5; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 15px; text-decoration: none; text-align: center;">요청 확인하기</a>
           <a href="http://pf.kakao.com/_xjSdYG/chat" target="_blank" rel="noopener noreferrer" style="display: block; width: 80%; max-width: 360px; margin: 0 auto 10px auto; padding: 14px 0; background-color: #FEE500; color: #191919; border-radius: 8px; font-weight: bold; font-size: 15px; text-decoration: none; text-align: center;">카카오톡 채팅 상담</a>
           <a href="tel:01081400621" style="display: block; width: 80%; max-width: 360px; margin: 0 auto 6px auto; padding: 14px 0; background-color: #ffffff; color: #333; border: 1.5px solid #ddd; border-radius: 8px; font-weight: bold; font-size: 15px; text-decoration: none; text-align: center;">전화 상담 (010-8140-0621)</a>
           <p style="margin: 0; font-size: 12px; color: #999;">모바일에서 클릭 시 바로 전화가 연결됩니다.</p>
         </div>
 
-        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 24px 0 4px 0;">최고의 퀄리티로 우리 과만의 특별한 과잠을 완성해 드리겠습니다.</p>
+        <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 24px 0 4px 0;">궁금하신 점이 있으시면 카카오톡 또는 전화로 편하게 문의해주세요.</p>
         <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0;">감사합니다.</p>
       </div>
 
