@@ -418,6 +418,7 @@ export default function CreateCoBuyRequestPage() {
       if (!contactName.trim()) { alert('이름을 입력해주세요.'); return; }
       if (!contactEmail.trim()) { alert('이메일을 입력해주세요.'); return; }
       if (!contactPhone.trim()) { alert('연락처를 입력해주세요.'); return; }
+      if (expectedQuantity === '' || Number(expectedQuantity) < 1) { alert('예상 수량을 입력해주세요.'); return; }
       if (!privacyConsent) { alert('개인정보 수집 동의가 필요합니다.'); return; }
 
       // Background draft save
@@ -428,7 +429,7 @@ export default function CreateCoBuyRequestPage() {
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
           contactPhone: contactPhone.trim(),
-          estimatedQuantity: expectedQuantity === '' ? undefined : Number(expectedQuantity),
+          estimatedQuantity: Number(expectedQuantity),
         }).then(result => {
           if (result) setDraftRequestId(result.id);
         });
@@ -597,6 +598,7 @@ export default function CreateCoBuyRequestPage() {
           submitterEmail,
           submitterName,
           shareToken: result.share_token,
+          estimatedQuantity: Number(expectedQuantity),
         }),
       }).catch(err => console.error('Failed to send notification emails:', err));
     } catch (error) {
@@ -1074,7 +1076,7 @@ export default function CreateCoBuyRequestPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">예상 수량</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">예상 수량 <span className="text-red-500">*</span></label>
                       <input
                         type="number"
                         inputMode="numeric"
@@ -1489,6 +1491,13 @@ export default function CreateCoBuyRequestPage() {
                   >
                     <img src="/icons/kakaotalk_channel.png" alt="카카오톡" className="w-5 h-5" />
                     카카오톡으로 문의하기
+                  </a>
+                  <a
+                    href="tel:01081400621"
+                    className="flex items-center justify-center gap-2 w-full max-w-sm mt-2 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-2xl font-semibold text-sm hover:bg-gray-50 transition"
+                  >
+                    <Phone className="w-4 h-4" />
+                    전화로 문의하기
                   </a>
                 </div>
               )}
