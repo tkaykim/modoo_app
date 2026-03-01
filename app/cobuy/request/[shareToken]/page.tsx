@@ -243,20 +243,38 @@ export default function CoBuyRequestFeedbackPage() {
         {/* Progress Steps */}
         {!isRejected && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-            <p className="text-xs font-medium text-gray-500 mb-3">진행 상태</p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-start">
               {statusOrder.map((status, idx) => {
-                const isActive = idx <= currentStepIndex;
+                const isDone = idx < currentStepIndex;
                 const isCurrent = idx === currentStepIndex;
+                const isActive = isDone || isCurrent;
+                const isLast = idx === statusOrder.length - 1;
                 return (
-                  <div key={status} className="flex-1 flex flex-col items-center">
-                    <div className={`w-full h-1.5 rounded-full transition-colors ${
-                      isActive ? 'bg-[#3B55A5]' : 'bg-gray-200'
-                    }`} />
-                    {isCurrent && (
-                      <p className="text-[9px] text-[#3B55A5] font-medium mt-1 text-center leading-tight">
+                  <div key={status} className={`flex items-start ${isLast ? '' : 'flex-1'}`}>
+                    {/* Circle + Label */}
+                    <div className="flex flex-col items-center" style={{ width: 28 }}>
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isCurrent
+                          ? 'bg-[#3B55A5] text-white animate-pulse'
+                          : isDone
+                            ? 'bg-gray-300 text-white'
+                            : 'border-2 border-dashed border-gray-300 text-gray-400'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <p className={`text-[9px] mt-1.5 text-center leading-tight whitespace-nowrap ${
+                        isCurrent ? 'text-[#3B55A5] font-semibold' : isDone ? 'text-gray-400 font-medium' : 'text-gray-400'
+                      }`}>
                         {statusConfig[status].label}
                       </p>
+                    </div>
+                    {/* Dashed connector */}
+                    {!isLast && (
+                      <div className="flex-1 flex items-center" style={{ height: 28 }}>
+                        <div className={`w-full border-t-2 border-dashed mx-1 ${
+                          isDone ? 'border-[#3B55A5]' : 'border-gray-300'
+                        }`} />
+                      </div>
                     )}
                   </div>
                 );
