@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   MessageSquare, Send, CheckCircle, Clock, Pencil, Eye,
-  ThumbsUp, XCircle, Package, ArrowLeft,
+  ThumbsUp, XCircle, Package,
 } from 'lucide-react';
-import { CoBuyRequest, CoBuyRequestComment, CoBuyRequestStatus, ProductConfig } from '@/types/types';
+import { CoBuyRequest, CoBuyRequestComment, CoBuyRequestStatus, CoBuyRequestQuantityExpectations, ProductConfig } from '@/types/types';
 import Header from '@/app/components/Header';
 import DesignEditorViewer from '@/app/components/cobuy/DesignEditorViewer';
+import { getPricingInfo } from '@/lib/cobuyPricing';
 
 type RequestWithProduct = CoBuyRequest & {
   product?: {
@@ -58,28 +59,37 @@ export default function CoBuyRequestFeedbackPage() {
   const [isSending, setIsSending] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch request data
-  useEffect(() => {
+  // Fetch request data + poll every 15s for updates (admin design, status changes)
+  const fetchRequestData = useCallback(async () => {
     if (!shareToken) return;
-
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const res = await fetch(`/api/cobuy/request/${shareToken}`);
-        if (!res.ok) throw new Error('Request not found');
-        const data = await res.json();
-        setRequest(data);
-      } catch {
+    try {
+      const res = await fetch(`/api/cobuy/request/${shareToken}`);
+      if (!res.ok) throw new Error('Request not found');
+      const data = await res.json();
+      setRequest(prev => {
+        if (!prev) return data;
+        // Only update state if meaningful fields changed (prevents canvas re-render flicker)
+        const designChanged = JSON.stringify(prev.admin_design) !== JSON.stringify(data.admin_design);
+        const statusChanged = prev.status !== data.status;
+        const priceChanged = prev.confirmed_price !== data.confirmed_price;
+        const sessionChanged = prev.cobuy_session_id !== data.cobuy_session_id;
+        if (designChanged || statusChanged || priceChanged || sessionChanged) return data;
+        return prev;
+      });
+      if (isLoading) setIsLoading(false);
+    } catch {
+      if (isLoading) {
         setError('요청 정보를 찾을 수 없습니다.');
+        setIsLoading(false);
       }
+    }
+  }, [shareToken, isLoading]);
 
-      setIsLoading(false);
-    };
-
-    fetchData();
-  }, [shareToken]);
+  useEffect(() => {
+    fetchRequestData();
+    const interval = setInterval(fetchRequestData, 15000);
+    return () => clearInterval(interval);
+  }, [fetchRequestData]);
 
   // Fetch comments
   const fetchComments = async () => {
@@ -140,10 +150,47 @@ export default function CoBuyRequestFeedbackPage() {
     return { productId: request.product.id, sides: request.product.configuration };
   }, [request?.product]);
 
-  const designProductColor = useMemo(() => {
-    const colorSelections = request?.admin_design?.color_selections as { productColor?: string } | null;
-    return colorSelections?.productColor || '#FFFFFF';
-  }, [request?.admin_design]);
+  // Unified canvas: show admin design if exists, otherwise user's freeform sketch
+  const unifiedCanvas = useMemo(() => {
+    if (!productConfig) return null;
+
+    if (request?.admin_design?.canvas_state) {
+      const colorSelections = request.admin_design.color_selections as { productColor?: string } | null;
+      // Ensure values are strings for DesignEditorViewer
+      const canvasState: Record<string, string> = {};
+      Object.entries(request.admin_design.canvas_state).forEach(([sideId, val]) => {
+        canvasState[sideId] = typeof val === 'string' ? val : JSON.stringify(val);
+      });
+      return {
+        source: 'admin' as const,
+        canvasState,
+        productColor: colorSelections?.productColor || '#FFFFFF',
+      };
+    }
+
+    if (request?.freeform_canvas_state && Object.keys(request.freeform_canvas_state).length > 0) {
+      const colorSelections = request.freeform_color_selections as Record<string, any> | null;
+      const productColor = colorSelections?._productColor?.hex || '#FFFFFF';
+      const canvasState: Record<string, string> = {};
+      Object.entries(request.freeform_canvas_state).forEach(([sideId, val]) => {
+        canvasState[sideId] = typeof val === 'string' ? val : JSON.stringify(val);
+      });
+      return {
+        source: 'freeform' as const,
+        canvasState,
+        productColor,
+      };
+    }
+
+    return null;
+  }, [request?.admin_design, request?.freeform_canvas_state, request?.freeform_color_selections, productConfig]);
+
+  // Estimated pricing from quantity expectations
+  const estimatedPricing = useMemo(() => {
+    const qty = (request?.quantity_expectations as CoBuyRequestQuantityExpectations)?.estimatedQuantity;
+    if (!qty) return null;
+    return { qty, pricing: getPricingInfo(qty) };
+  }, [request?.quantity_expectations]);
 
   if (isLoading) {
     return (
@@ -173,7 +220,6 @@ export default function CoBuyRequestFeedbackPage() {
   const StatusIcon = currentStatus.icon;
   const currentStepIndex = statusOrder.indexOf(request.status);
   const isRejected = request.status === 'rejected';
-  const hasCanvasDesign = !!(request.admin_design?.canvas_state && productConfig);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -219,8 +265,36 @@ export default function CoBuyRequestFeedbackPage() {
           </div>
         )}
 
-        {/* User's Freeform Design */}
-        {request.freeform_preview_url && (
+        {/* Unified Design Canvas */}
+        {unifiedCanvas && productConfig && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+            <div className="flex items-center justify-between px-4 pt-3">
+              <p className="text-xs font-medium text-gray-500">
+                {unifiedCanvas.source === 'admin' ? '디자인 미리보기' : '내 디자인 스케치'}
+              </p>
+              {unifiedCanvas.source === 'admin' && (
+                <span className="text-[10px] text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded-full">
+                  관리자 작업
+                </span>
+              )}
+            </div>
+            <div className="px-2 pb-2 pt-1">
+              <DesignEditorViewer
+                config={productConfig}
+                canvasState={unifiedCanvas.canvasState}
+                productColor={unifiedCanvas.productColor}
+              />
+            </div>
+            {request.status === 'design_shared' && (
+              <p className="text-xs text-purple-600 px-4 pb-3">
+                디자인을 확인하고 아래에 피드백을 남겨주세요.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Fallback: preview image if no canvas data */}
+        {!unifiedCanvas && request.freeform_preview_url && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
             <p className="text-xs font-medium text-gray-500 mb-2">내 디자인 스케치</p>
             <div className="rounded-lg bg-gray-50 border border-gray-100 overflow-hidden">
@@ -233,32 +307,33 @@ export default function CoBuyRequestFeedbackPage() {
           </div>
         )}
 
-        {/* Admin Design Preview */}
-        {(hasCanvasDesign || request.admin_design_preview_url) && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
-            <p className="text-xs font-medium text-gray-500 px-4 pt-4 mb-2">관리자 디자인</p>
-            {hasCanvasDesign ? (
-              <div className="px-2 pb-2">
-                <DesignEditorViewer
-                  config={productConfig!}
-                  canvasState={request.admin_design!.canvas_state}
-                  productColor={designProductColor}
-                />
-              </div>
-            ) : request.admin_design_preview_url ? (
-              <div className="px-4 pb-4">
-                <div className="rounded-lg bg-gray-50 border border-gray-100 overflow-hidden">
-                  <img
-                    src={request.admin_design_preview_url}
-                    alt="관리자 디자인"
-                    className="w-full h-auto object-contain max-h-64"
-                  />
+        {/* Estimated Pricing */}
+        {estimatedPricing && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <p className="text-xs font-medium text-gray-500 mb-2">예상 견적</p>
+            {estimatedPricing.pricing ? (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">예상 수량</span>
+                  <span className="font-medium text-gray-900">{estimatedPricing.qty}벌</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">벌당 단가</span>
+                  <span className="font-medium text-gray-900">
+                    {estimatedPricing.pricing.unitPrice.toLocaleString()}원 {estimatedPricing.pricing.note || ''}
+                  </span>
+                </div>
+                <div className="border-t border-gray-100 pt-1.5 flex justify-between text-sm">
+                  <span className="text-gray-700 font-medium">예상 합계</span>
+                  <span className="font-bold text-[#3B55A5]">
+                    {estimatedPricing.pricing.totalPrice.toLocaleString()}원
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
               </div>
-            ) : null}
-            {request.status === 'design_shared' && (
-              <p className="text-xs text-purple-600 px-4 pb-4 pt-2">
-                디자인을 확인하고 아래에 피드백을 남겨주세요.
+            ) : (
+              <p className="text-xs text-red-500">
+                예상 수량 {estimatedPricing.qty}벌은 최소 주문 수량(20벌) 미만입니다.
               </p>
             )}
           </div>
