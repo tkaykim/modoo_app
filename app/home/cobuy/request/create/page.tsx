@@ -431,7 +431,22 @@ export default function CreateCoBuyRequestPage() {
           contactPhone: contactPhone.trim(),
           estimatedQuantity: Number(expectedQuantity),
         }).then(result => {
-          if (result) setDraftRequestId(result.id);
+          if (result) {
+            setDraftRequestId(result.id);
+            // Notify admin (fire-and-forget)
+            fetch('/api/cobuy/notify/draft-created', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: title.trim(),
+                contactName: contactName.trim(),
+                contactEmail: contactEmail.trim(),
+                contactPhone: contactPhone.trim(),
+                estimatedQuantity: Number(expectedQuantity),
+                productName: selectedProduct.title,
+              }),
+            }).catch(() => {});
+          }
         });
       }
     }
