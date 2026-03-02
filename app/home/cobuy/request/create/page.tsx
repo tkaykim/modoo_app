@@ -9,7 +9,7 @@ import {
   Search, Calendar, Tag,
   Sparkles, ChevronRight, Check, Copy, ShoppingBag,
   TextCursor, ImagePlus, Trash2, Palette, UserCircle, Mail, Phone, Pencil,
-  Undo2, Redo2, Replace, Eye,
+  Undo2, Redo2, Replace, Eye, MessageSquare, PaintBucket,
 } from 'lucide-react';
 import {
   Product, ProductSide, CoBuyCustomField, CoBuyDeliverySettings, CoBuyAddressInfo,
@@ -35,6 +35,7 @@ const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSid
 
 type Step =
   | 'basic-info'
+  | 'design-choice'
   | 'color-select'
   | 'freeform-front'
   | 'freeform-back'
@@ -42,8 +43,11 @@ type Step =
   | 'schedule-address'
   | 'success';
 
+type RequestType = 'design' | 'consultation';
+
 const STEPS: { id: Step; label: string; icon: React.ReactNode }[] = [
   { id: 'basic-info', label: '기본 정보', icon: <UserCircle className="w-4 h-4" /> },
+  { id: 'design-choice', label: '진행 방식', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'color-select', label: '색상 선택', icon: <Palette className="w-4 h-4" /> },
   { id: 'freeform-front', label: '앞면 디자인', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'freeform-back', label: '뒷면 디자인', icon: <Sparkles className="w-4 h-4" /> },
@@ -71,6 +75,9 @@ export default function CreateCoBuyRequestPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [privacyConsent, setPrivacyConsent] = useState(false);
 
+  // Design choice: 'design' = self-design, 'consultation' = skip design, request consultation
+  const [requestType, setRequestType] = useState<RequestType | null>(null);
+
   // Product selection (fixed to a single product)
   const FIXED_PRODUCT_ID = '0d8f53fa-bac2-4f0a-8eb4-870a70e072eb';
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -90,6 +97,8 @@ export default function CreateCoBuyRequestPage() {
   const minQuantity: number | '' = '';
   const maxQuantity: number | '' = '';
   const [uploadedImagePaths, setUploadedImagePaths] = useState<string[]>([]);
+  const [referenceFiles, setReferenceFiles] = useState<{ path: string; name: string; url: string }[]>([]);
+  const [isUploadingRef, setIsUploadingRef] = useState(false);
   const [customFields, setCustomFields] = useState<CoBuyCustomField[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<CoBuyDeliverySettings>({
     enabled: false,
@@ -148,11 +157,23 @@ export default function CreateCoBuyRequestPage() {
   const productSides = selectedProduct?.configuration ?? [];
   const hasBackSide = productSides.length > 1;
 
+  const isConsultation = requestType === 'consultation';
+  const designSteps: Step[] = ['color-select', 'freeform-front', 'freeform-back', 'design-review'];
+
+  const canProceed = useMemo(() => {
+    if (currentStep === 'basic-info') {
+      return !!(title.trim() && contactName.trim() && contactEmail.trim() && contactPhone.trim() && (expectedQuantity !== '' && Number(expectedQuantity) >= 1) && privacyConsent);
+    }
+    if (currentStep === 'design-choice') return !!requestType;
+    return true;
+  }, [currentStep, title, contactName, contactEmail, contactPhone, expectedQuantity, privacyConsent, requestType]);
+
   const visibleSteps = useMemo(() => {
     let steps = STEPS.filter(s => s.id !== 'color-select' || hasColorOptions);
     if (!hasBackSide) steps = steps.filter(s => s.id !== 'freeform-back');
+    if (isConsultation) steps = steps.filter(s => !designSteps.includes(s.id));
     return steps;
-  }, [hasColorOptions, hasBackSide]);
+  }, [hasColorOptions, hasBackSide, isConsultation]);
 
   const currentStepIndex = visibleSteps.findIndex(s => s.id === currentStep);
   const progress = currentStep === 'success' ? 100 : ((currentStepIndex) / visibleSteps.length) * 100;
@@ -390,13 +411,14 @@ export default function CreateCoBuyRequestPage() {
   }, []);
 
   const stepOrder: Step[] = [
-    'basic-info', 'color-select', 'freeform-front', 'freeform-back', 'design-review',
+    'basic-info', 'design-choice', 'color-select', 'freeform-front', 'freeform-back', 'design-review',
     'schedule-address'
   ];
 
   const shouldSkipStep = (step: Step): boolean => {
     if (step === 'color-select' && !hasColorOptions) return true;
     if (step === 'freeform-back' && !hasBackSide) return true;
+    if (isConsultation && designSteps.includes(step)) return true;
     return false;
   };
 
@@ -454,6 +476,24 @@ export default function CreateCoBuyRequestPage() {
             }).catch(() => {});
           }
         });
+      }
+    }
+
+    // Design choice validation
+    if (currentStep === 'design-choice') {
+      if (!requestType) { alert('진행 방식을 선택해주세요.'); return; }
+      gtagEvent('공구_진행방식_선택', { type: requestType });
+
+      // For consultation, save the premade template canvas state directly
+      if (requestType === 'consultation' && cobuyPreset?.canvas_state) {
+        const states: Record<string, string> = {};
+        for (const [sideId, raw] of Object.entries(cobuyPreset.canvas_state)) {
+          states[sideId] = typeof raw === 'string' ? raw : JSON.stringify(raw);
+        }
+        setSavedCanvasState(states);
+        if (cobuyPreset.layer_colors) {
+          setSavedColorSelections(cobuyPreset.layer_colors as Record<string, Record<string, string>>);
+        }
       }
     }
 
@@ -591,6 +631,7 @@ export default function CreateCoBuyRequestPage() {
         guestName: contactName.trim(),
         guestEmail: contactEmail.trim(),
         guestPhone: contactPhone.trim() || undefined,
+        requestType: requestType || 'design',
       };
 
       let result;
@@ -778,6 +819,37 @@ export default function CreateCoBuyRequestPage() {
       }
     };
     input.click();
+  };
+
+  const handleReferenceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploadingRef(true);
+    try {
+      const supabase = createClient();
+      for (const file of Array.from(files)) {
+        const ext = file.name.split('.').pop() || 'png';
+        const fileName = `ref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { data, error } = await supabase.storage
+          .from('user-designs')
+          .upload(`references/${fileName}`, file, { contentType: file.type });
+        if (error) { alert('파일 업로드에 실패했습니다.'); continue; }
+        setUploadedImagePaths(prev => [...prev, data.path]);
+        const { data: urlData } = supabase.storage.from('user-designs').getPublicUrl(data.path);
+        setReferenceFiles(prev => [...prev, { path: data.path, name: file.name, url: urlData.publicUrl }]);
+      }
+    } catch (err) {
+      console.error('Error uploading reference file:', err);
+      alert('파일 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploadingRef(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeReferenceFile = (path: string) => {
+    setReferenceFiles(prev => prev.filter(f => f.path !== path));
+    setUploadedImagePaths(prev => prev.filter(p => p !== path));
   };
 
   // Undo/redo: only track user-added objects
@@ -1132,6 +1204,76 @@ export default function CreateCoBuyRequestPage() {
                 </div>
               )}
 
+              {/* Step: Design Choice */}
+              {currentStep === 'design-choice' && (
+                <div className="max-w-lg mx-auto py-8 px-4">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-1">어떻게 진행할까요?</h2>
+                    <p className="text-sm text-gray-500">디자인 진행 방식을 선택해주세요.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Option 1: Self-design */}
+                    <button
+                      onClick={() => setRequestType('design')}
+                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                        requestType === 'design'
+                          ? 'border-[#3B55A5] bg-[#3B55A5]/5 shadow-md'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          requestType === 'design' ? 'bg-[#3B55A5]/20' : 'bg-gray-100'
+                        }`}>
+                          <PaintBucket className={`w-5 h-5 ${requestType === 'design' ? 'text-[#3B55A5]' : 'text-gray-400'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${requestType === 'design' ? 'text-[#3B55A5]' : 'text-gray-900'}`}>
+                            직접 디자인하기
+                          </p>
+                          <p className="text-xs text-gray-500 leading-relaxed">
+                            색상을 선택하고 텍스트/이미지를 직접 배치해서 디자인해보세요.
+                          </p>
+                        </div>
+                        {requestType === 'design' && (
+                          <Check className="w-5 h-5 text-[#3B55A5] shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Option 2: Consultation */}
+                    <button
+                      onClick={() => setRequestType('consultation')}
+                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                        requestType === 'consultation'
+                          ? 'border-orange-500 bg-orange-50 shadow-md'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          requestType === 'consultation' ? 'bg-orange-100' : 'bg-gray-100'
+                        }`}>
+                          <MessageSquare className={`w-5 h-5 ${requestType === 'consultation' ? 'text-orange-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${requestType === 'consultation' ? 'text-orange-600' : 'text-gray-900'}`}>
+                            상담 요청하기
+                          </p>
+                          <p className="text-xs text-gray-500 leading-relaxed">
+                            디자인은 건너뛰고, 담당자에게 직접 상담을 요청합니다.
+                          </p>
+                        </div>
+                        {requestType === 'consultation' && (
+                          <Check className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Step 2: Color Selection */}
               {currentStep === 'color-select' && selectedProduct && (
                 <div className="max-w-lg mx-auto py-6 px-4 md:py-10 md:px-6">
@@ -1424,6 +1566,35 @@ export default function CreateCoBuyRequestPage() {
                     />
                     <p className="text-xs text-gray-500 mt-1">{description.length}/500자</p>
                   </div>
+
+                  {/* Reference file upload */}
+                  <div className="mt-4">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">참고 파일 첨부 (선택)</label>
+                    <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-[#3B55A5] hover:text-[#3B55A5] transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-[#3B55A5] rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                      {isUploadingRef ? '업로드 중...' : '파일 선택'}
+                      <input type="file" accept="image/*,.pdf,.ai,.psd,.zip" multiple className="hidden" onChange={handleReferenceFileUpload} />
+                    </label>
+                    {referenceFiles.length > 0 && (
+                      <div className="mt-2 space-y-1.5">
+                        {referenceFiles.map(f => (
+                          <div key={f.path} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                            {f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                              <img src={f.url} alt={f.name} className="w-8 h-8 rounded object-cover shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center shrink-0">
+                                <Tag className="w-3.5 h-3.5 text-gray-400" />
+                              </div>
+                            )}
+                            <span className="text-xs text-gray-600 truncate flex-1">{f.name}</span>
+                            <button onClick={() => removeReferenceFile(f.path)} className="text-gray-400 hover:text-red-500 transition shrink-0">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1437,6 +1608,47 @@ export default function CreateCoBuyRequestPage() {
                     <h2 className="text-xl font-bold text-gray-900 mb-2">일정 및 배송</h2>
                   </div>
                   <div className="space-y-6">
+                    {/* Consultation notes */}
+                    {isConsultation && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">참고사항</p>
+                        <textarea
+                          value={description}
+                          onChange={e => setDescription(e.target.value)}
+                          placeholder="원하시는 디자인, 참고 이미지 링크 등 자유롭게 남겨주세요."
+                          className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 resize-none"
+                          rows={3}
+                          maxLength={500}
+                        />
+                        <p className="text-xs text-gray-400">{description.length}/500자</p>
+
+                        <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-orange-500 hover:text-orange-500 transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-orange-500 rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                          {isUploadingRef ? '업로드 중...' : '참고 파일 첨부'}
+                          <input type="file" accept="image/*,.pdf,.ai,.psd,.zip" multiple className="hidden" onChange={handleReferenceFileUpload} />
+                        </label>
+                        {referenceFiles.length > 0 && (
+                          <div className="space-y-1.5">
+                            {referenceFiles.map(f => (
+                              <div key={f.path} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                                {f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                                  <img src={f.url} alt={f.name} className="w-8 h-8 rounded object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center shrink-0">
+                                    <Tag className="w-3.5 h-3.5 text-gray-400" />
+                                  </div>
+                                )}
+                                <span className="text-xs text-gray-600 truncate flex-1">{f.name}</span>
+                                <button onClick={() => removeReferenceFile(f.path)} className="text-gray-400 hover:text-red-500 transition shrink-0">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Schedule */}
                     <div className="space-y-3">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">일정</p>
@@ -1496,8 +1708,12 @@ export default function CreateCoBuyRequestPage() {
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center mb-6 shadow-lg shadow-green-500/25">
                     <CheckCircle2 className="w-8 h-8 text-white" />
                   </div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-3">요청이 제출되었어요!</h1>
-                  <p className="text-base text-gray-600 mb-6">관리자가 디자인을 제작한 후 알려드릴게요.</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                    {isConsultation ? '상담 요청이 제출되었어요!' : '요청이 제출되었어요!'}
+                  </h1>
+                  <p className="text-base text-gray-600 mb-6">
+                    {isConsultation ? '담당자가 확인 후 연락드릴게요.' : '관리자가 디자인을 제작한 후 알려드릴게요.'}
+                  </p>
                   <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-3 mb-6">
                     <p className="text-[10px] font-medium text-gray-500 mb-1.5">요청 확인 링크</p>
                     <div className="flex items-center gap-2">
@@ -1551,8 +1767,12 @@ export default function CreateCoBuyRequestPage() {
                       {isCreating ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 제출 중...</> : <><Sparkles className="w-4 h-4" /> 제출하기</>}
                     </button>
                   ) : (
-                    <button onClick={handleNext}
-                      className="flex-1 py-3 bg-gradient-to-r from-[#3B55A5] to-[#2D4280] text-white rounded-2xl font-semibold hover:from-[#2D4280] hover:to-[#243366] shadow-lg shadow-[#3B55A5]/25 flex items-center justify-center gap-1.5 text-sm">
+                    <button onClick={handleNext} disabled={!canProceed}
+                      className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-1.5 text-sm transition-all ${
+                        canProceed
+                          ? 'bg-gradient-to-r from-[#3B55A5] to-[#2D4280] text-white hover:from-[#2D4280] hover:to-[#243366] shadow-lg shadow-[#3B55A5]/25'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}>
                       다음 <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
