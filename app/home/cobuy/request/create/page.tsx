@@ -16,7 +16,10 @@ import {
   CoBuyRequestSchedulePreferences, CoBuyRequestQuantityExpectations,
 } from '@/types/types';
 import { createCoBuyRequest, createDraftCoBuyRequest, updateCoBuyRequest } from '@/lib/cobuyRequestService';
-import { track } from '@vercel/analytics';
+declare global { interface Window { gtag?: (...args: any[]) => void } }
+const gtagEvent = (name: string, params?: Record<string, any>) => {
+  window.gtag?.('event', name, params);
+};
 import { getCobuyPreset } from '@/lib/templateService';
 import LayerColorSelector from '@/app/components/canvas/LayerColorSelector';
 import { createClient } from '@/lib/supabase-client';
@@ -377,7 +380,7 @@ export default function CreateCoBuyRequestPage() {
   };
 
   const navigateToStep = useCallback((newStep: Step, direction: 'left' | 'right') => {
-    track('공구_단계이동', { step: newStep, direction });
+    gtagEvent('공구_단계이동', { step: newStep, direction });
     setSlideDirection(direction);
     setIsAnimating(true);
     setTimeout(() => {
@@ -424,7 +427,7 @@ export default function CreateCoBuyRequestPage() {
       if (!privacyConsent) { alert('개인정보 수집 동의가 필요합니다.'); return; }
 
       // Background draft save
-      track('공구_기본정보_완료', { 예상수량: Number(expectedQuantity) });
+      gtagEvent('공구_기본정보_완료', { 예상수량: Number(expectedQuantity) });
       if (!draftRequestId && selectedProduct) {
         createDraftCoBuyRequest({
           productId: selectedProduct.id,
@@ -599,7 +602,7 @@ export default function CreateCoBuyRequestPage() {
 
       if (!result) throw new Error('Failed to create request');
 
-      track('공구_요청_제출완료', { 예상수량: Number(expectedQuantity) });
+      gtagEvent('공구_요청_제출완료', { 예상수량: Number(expectedQuantity) });
       setCreatedShareToken(result.share_token);
       navigateToStep('success' as Step, 'right');
 
@@ -622,7 +625,7 @@ export default function CreateCoBuyRequestPage() {
       }).catch(err => console.error('Failed to send notification emails:', err));
     } catch (error) {
       console.error('Error creating CoBuy request:', error);
-      track('공구_요청_제출실패');
+      gtagEvent('공구_요청_제출실패');
       alert('요청 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsCreating(false);
@@ -631,7 +634,7 @@ export default function CreateCoBuyRequestPage() {
 
   const handleShare = async () => {
     if (!createdShareToken) return;
-    track('공구_링크공유');
+    gtagEvent('공구_링크공유');
     const shareUrl = `${window.location.origin}/cobuy/request/${createdShareToken}`;
     try {
       if (navigator.share) {
@@ -654,7 +657,7 @@ export default function CreateCoBuyRequestPage() {
   const addFreeformText = async () => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
-    track('공구_디자인_텍스트추가');
+    gtagEvent('공구_디자인_텍스트추가');
     const fabric = await import('fabric');
     const text = new fabric.IText('텍스트', {
       left: canvas.width / 2,
@@ -674,7 +677,7 @@ export default function CreateCoBuyRequestPage() {
   const addFreeformImage = () => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
-    track('공구_디자인_이미지추가');
+    gtagEvent('공구_디자인_이미지추가');
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -716,7 +719,7 @@ export default function CreateCoBuyRequestPage() {
   const deleteFreeformObject = () => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
-    track('공구_디자인_객체삭제');
+    gtagEvent('공구_디자인_객체삭제');
     const active = canvas.getActiveObjects();
     if (active.length > 0) {
       active.forEach(obj => canvas.remove(obj));
@@ -1180,7 +1183,7 @@ export default function CreateCoBuyRequestPage() {
                             onClick={() => {
                               setSelectedColorHex(color.hex);
                               setProductColor(color.hex);
-                              track('공구_색상_선택', { 색상: color.name });
+                              gtagEvent('공구_색상_선택', { 색상: color.name });
                             }}
                           />
                         ))}
@@ -1207,7 +1210,7 @@ export default function CreateCoBuyRequestPage() {
                       <span className="text-xs text-gray-500 whitespace-nowrap">디자인 파일이 없으세요?</span>
                       <button
                         onClick={() => {
-                          track('공구_디자인_건너뛰기');
+                          gtagEvent('공구_디자인_건너뛰기');
                           // Generate preview data URLs before jumping to design-review
                           const previews: Record<string, string> = {};
                           for (const [sideId, canvas] of Object.entries(canvasMap)) {
@@ -1513,7 +1516,7 @@ export default function CreateCoBuyRequestPage() {
                     href="http://pf.kakao.com/_xjSdYG/chat"
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => track('공구_완료_카카오톡문의')}
+                    onClick={() => gtagEvent('공구_완료_카카오톡문의')}
                     className="flex items-center justify-center gap-2 w-full max-w-sm mt-3 py-3 bg-[#FEE500] text-[#191919] rounded-2xl font-semibold text-sm hover:brightness-95 transition"
                   >
                     <img src="/icons/kakaotalk_channel.png" alt="카카오톡" className="w-5 h-5" />
@@ -1521,7 +1524,7 @@ export default function CreateCoBuyRequestPage() {
                   </a>
                   <a
                     href="tel:01081400621"
-                    onClick={() => track('공구_완료_전화문의')}
+                    onClick={() => gtagEvent('공구_완료_전화문의')}
                     className="flex items-center justify-center gap-2 w-full max-w-sm mt-2 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-2xl font-semibold text-sm hover:bg-gray-50 transition"
                   >
                     <Phone className="w-4 h-4" />
@@ -1584,7 +1587,7 @@ export default function CreateCoBuyRequestPage() {
             </div>
             <div className="px-6 pb-6 animate-[slideUp_0.4s_ease-out_0.5s_both]">
               <button
-                onClick={() => { setShowWelcome(false); track('공구_시작하기_클릭'); }}
+                onClick={() => { setShowWelcome(false); gtagEvent('공구_시작하기_클릭'); }}
                 className="w-full py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-[#3B55A5] to-indigo-500 hover:from-[#2f4584] hover:to-indigo-600 rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-[#3B55A5]/25"
               >
                 시작하기
