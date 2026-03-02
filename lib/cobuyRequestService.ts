@@ -30,6 +30,7 @@ export interface CreateCoBuyRequestData {
   guestName?: string;
   guestEmail?: string;
   guestPhone?: string;
+  requestType?: 'design' | 'consultation';
 }
 
 // ============================================================================
@@ -104,6 +105,7 @@ export async function updateCoBuyRequest(
       guest_name: data.guestName || null,
       guest_email: data.guestEmail || null,
       guest_phone: data.guestPhone || null,
+      request_type: data.requestType || 'design',
       updated_at: new Date().toISOString(),
     };
 
@@ -152,6 +154,7 @@ export async function createCoBuyRequest(
       guest_name: data.guestName || null,
       guest_email: data.guestEmail || null,
       guest_phone: data.guestPhone || null,
+      request_type: data.requestType || 'design',
     };
 
     const { data: request, error } = await supabase
