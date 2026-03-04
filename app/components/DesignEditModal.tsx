@@ -449,7 +449,6 @@ export default function DesignEditModal({
         const objData = obj.get('data') as { id?: string } | undefined;
         return objData?.id === 'background-product-image' ||
                objData?.id === 'center-line' ||
-               objData?.id === 'visual-guide-box' ||
                obj.get('excludeFromExport') === true;
       });
       const maxSystemIndex = Math.max(...systemObjects.map(obj => objects.indexOf(obj)), -1);
@@ -482,7 +481,6 @@ export default function DesignEditModal({
         const objData = obj.get('data') as { id?: string } | undefined;
         return objData?.id === 'background-product-image' ||
                objData?.id === 'center-line' ||
-               objData?.id === 'visual-guide-box' ||
                obj.get('excludeFromExport') === true;
       });
       const maxSystemIndex = Math.max(...systemObjects.map(obj => objects.indexOf(obj)), -1);

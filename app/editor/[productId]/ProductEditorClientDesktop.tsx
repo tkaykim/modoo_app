@@ -98,7 +98,6 @@ export default function ProductEditorClientDesktop({ product }: ProductEditorCli
         const objData = obj.get('data') as { id?: string } | undefined;
         return objData?.id === 'background-product-image' ||
                objData?.id === 'center-line' ||
-               objData?.id === 'visual-guide-box' ||
                obj.get('excludeFromExport') === true;
       });
 
@@ -133,7 +132,6 @@ export default function ProductEditorClientDesktop({ product }: ProductEditorCli
         const objData = obj.get('data') as { id?: string } | undefined;
         return objData?.id === 'background-product-image' ||
                objData?.id === 'center-line' ||
-               objData?.id === 'visual-guide-box' ||
                obj.get('excludeFromExport') === true;
       });
 

@@ -1236,7 +1236,6 @@ export default function CreateCoBuyRequestPage() {
                                 width={400}
                                 height={500}
                                 isEdit={false}
-                                freeform={true}
                               />
                             </div>
                           </div>
@@ -1338,7 +1337,6 @@ export default function CreateCoBuyRequestPage() {
                           width={400}
                           height={500}
                           isEdit={true}
-                          freeform={true}
                         />
                       </div>
                     ))}

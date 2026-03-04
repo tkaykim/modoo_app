@@ -15,7 +15,6 @@ interface SingleSideCanvasProps {
   width?: number; // these are optional because there will be a default value
   height?: number; // ''
   isEdit?: boolean; // whether canvas is in edit mode
-  freeform?: boolean; // skip clipping, guide box, print area — for freeform design sketches
   onCanvasReady?: (canvas: fabric.Canvas, sideId: string, canvasScale: number) => void;
   productColor?: string; // override color for standalone use (e.g. logo placement)
   showScaleBox?: boolean;
@@ -26,7 +25,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   width = 500,
   height = 500,
   isEdit = false,
-  freeform = false,
   onCanvasReady,
   productColor: productColorProp,
   showScaleBox = true,
@@ -426,49 +424,9 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     canvas.add(verticalSnapLine)
 
 
-    // Creating the clipping mask(invisible, stricly designes where ink can go)
-    // Define this area using the printArea data (will be updated when image loads)
-    const clipPath = new fabric.Rect({
-      left: tempCenteredLeft,
-      top: tempCenteredTop,
-      width: side.printArea.width,
-      height: side.printArea.height,
-      absolutePositioned: true, // fixes the mask to the canvas ignoring zoom/pan
-    })
-
-    // Apply the clipping to the entire canvas (skip in freeform mode)
-    if (!freeform) {
-      canvas.clipPath = clipPath;
-    }
-
-    // Create the visual guide box (dashed border) — skip in freeform mode
-    const guideBox = new fabric.Rect({
-      left: tempCenteredLeft,
-      top: tempCenteredTop,
-      width: side.printArea.width,
-      height: side.printArea.height,
-      fill: 'transparent',
-      stroke: '#fffff',     // Blue border
-      strokeWidth: 1,
-      strokeDashArray: [5, 5], // Dashed line
-      selectable: false,     // Users cannot click/move the border itself
-      evented: false,        // Clicks pass through it
-      visible: false,        // Hidden by default
-      excludeFromExport: true, // Don't include this box in the final saved image
-      data: {id: 'visual-guide-box'}
-    });
-
-    if (!freeform) {
-      canvas.add(guideBox);
-    }
-
     if (hasLayers) {
       // Multi-layer mode: Initialize layer colors and load all layers
       initializeLayerColors(side.id, side.layers!);
-
-      // Disable canvas-level clipping for multi-layer mode
-      // Individual objects will be clipped via object:added event handler
-      canvas.clipPath = undefined;
 
       // Sort layers by zIndex
       const sortedLayers = [...side.layers!].sort((a, b) => a.zIndex - b.zIndex);
@@ -662,22 +620,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         const printAreaTop = imageTop + scaledPrintY;
         const printCenterX = printAreaLeft + (scaledPrintW / 2);
 
-        // Update guide box position
-        guideBox.set({
-          left: printAreaLeft,
-          top: printAreaTop,
-          width: scaledPrintW,
-          height: scaledPrintH,
-        });
-
-        // Update clip path position
-        clipPath.set({
-          left: printAreaLeft,
-          top: printAreaTop,
-          width: scaledPrintW,
-          height: scaledPrintH,
-        });
-
         // Update vertical snap line
         // For multi-layer mode, keep it at canvas center spanning full height
         verticalSnapLine.set({
@@ -712,9 +654,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         // For multi-layer mode, store canvas center as the snap center
         // @ts-expect-error - Custom property
         canvas.printCenterX = width / 2;
-
-        // Don't add guide box for multi-layer mode
-        // canvas.add(guideBox); // Skipped for multi-layer mode
 
         // Force a render to ensure all objects are processed by Fabric.js
         canvas.requestRenderAll();
@@ -837,8 +776,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         // Store reference to the product image
         productImageRef.current = img;
 
-        canvas.clipPath = undefined;
-
         canvas.add(img);
         canvas.sendObjectToBack(img); // ensure it stays behind design elements
 
@@ -880,22 +817,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         const printAreaTop = imageTop + scaledPrintY;
         const printCenterX = printAreaLeft + (scaledPrintW / 2);
 
-        // Update guide box position to be relative to product image
-        guideBox.set({
-          left: printAreaLeft,
-          top: printAreaTop,
-          width: scaledPrintW,
-          height: scaledPrintH,
-        });
-
-        // Update clip path position
-        clipPath.set({
-          left: printAreaLeft,
-          top: printAreaTop,
-          width: scaledPrintW,
-          height: scaledPrintH,
-        });
-
         // Update vertical snap line
         verticalSnapLine.set({
           x1: printCenterX,
@@ -927,10 +848,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         canvas.scaledImageHeight = imgHeight * scale;
         // @ts-expect-error - Custom property
         canvas.realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
-
-        if (!freeform) {
-          canvas.add(guideBox);
-        }
 
         // Force a render to ensure all objects are processed by Fabric.js
         canvas.requestRenderAll();
@@ -997,25 +914,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         setScaleBoxVisible(true);
     };
 
-    // 4. Event Listeners for Visibility Logic
-    // Only show guide box for single-image mode (not multi-layer mode)
-    const showGuide = () => {
-        if (!hasLayers) {
-          guideBox.set('visible', true);
-          canvas.requestRenderAll();
-        }
-    };
-
-    const hideGuide = () => {
-        if (!hasLayers) {
-          guideBox.set('visible', false);
-          canvas.requestRenderAll();
-        }
-    };
-
     // Show when an object is selected
     canvas.on('selection:created', () => {
-        showGuide();
         // Get the active object (which could be a single object or ActiveSelection for multiple)
         const activeObject = canvas.getActiveObject();
         if (activeObject) {
@@ -1024,7 +924,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     });
 
     canvas.on('selection:updated', () => {
-        showGuide();
         // Get the active object (which could be a single object or ActiveSelection for multiple)
         const activeObject = canvas.getActiveObject();
         if (activeObject) {
@@ -1034,13 +933,9 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
 
     // Hide when selection is cleared
     canvas.on('selection:cleared', () => {
-        hideGuide();
         setScaleBoxVisible(false);
     });
 
-    // 5. Enforce Clipping on Added Objects
-    // Whenever an object is added (Text, Shape, Logo), we apply the clipPath to IT.
-    // Skip clipping entirely for multi-layer mode
     canvas.on('object:added', (e) => {
         const obj = e.target;
         // Skip guide boxes, snap lines, and background product image
@@ -1077,27 +972,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
         if (scaledImageWidth) {
           updateObjectDimensionsData(obj, scaledImageWidth, realWorldProductWidth);
-        }
-
-        // Only apply clipping in single-image mode (not multi-layer mode, not freeform mode)
-        if (!hasLayers && !freeform) {
-          // Apply the specific clip area to this object (using values relative to product image)
-          // @ts-expect-error - Custom property
-          const printLeft = canvas.printAreaLeft || tempCenteredLeft;
-          // @ts-expect-error - Custom property
-          const printTop = canvas.printAreaTop || tempCenteredTop;
-          // @ts-expect-error - Custom property
-          const printWidth = canvas.printAreaWidth || side.printArea.width;
-          // @ts-expect-error - Custom property
-          const printHeight = canvas.printAreaHeight || side.printArea.height;
-
-          obj.clipPath = new fabric.Rect({
-            left: printLeft,
-            top: printTop,
-            width: printWidth,
-            height: printHeight,
-            absolutePositioned: true,
-          });
         }
 
         // Make objects selectable based on current edit mode
@@ -1213,7 +1087,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       canvas.dispose();
       canvasRef.current = null;
     };
-  }, [side, height, width, freeform, registerCanvas, unregisterCanvas, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor]);
+  }, [side, height, width, registerCanvas, unregisterCanvas, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor]);
 
   // Separate effect to update selection state when isEdit changes
   useEffect(() => {

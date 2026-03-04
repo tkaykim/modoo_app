@@ -341,7 +341,6 @@ export default function DesignEditorViewer({
                     width={CANVAS_W}
                     height={CANVAS_H}
                     isEdit={false}
-                    freeform
                   />
                 </div>
               </div>
