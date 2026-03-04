@@ -16,6 +16,7 @@ import {
   CoBuyRequestSchedulePreferences, CoBuyRequestQuantityExpectations,
 } from '@/types/types';
 import { createCoBuyRequest, createDraftCoBuyRequest, updateCoBuyRequest } from '@/lib/cobuyRequestService';
+import { getPricingInfo } from '@/lib/cobuyPricing';
 declare global { interface Window { gtag?: (...args: any[]) => void } }
 const gtagEvent = (name: string, params?: Record<string, any>) => {
   window.gtag?.('event', name, params);
@@ -26,6 +27,7 @@ import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { isCurvedText } from '@/lib/curvedText';
+import { motion, AnimatePresence } from 'motion/react';
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
   ssr: false,
@@ -45,7 +47,7 @@ type Step =
 type RequestType = 'design' | 'consultation';
 
 const STEPS: { id: Step; label: string; icon: React.ReactNode }[] = [
-  { id: 'basic-info', label: '기본 정보', icon: <UserCircle className="w-4 h-4" /> },
+  { id: 'basic-info', label: '수량 선택', icon: <ShoppingBag className="w-4 h-4" /> },
   { id: 'color-select', label: '색상 선택', icon: <Palette className="w-4 h-4" /> },
   { id: 'freeform-front', label: '앞면 디자인', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'freeform-back', label: '뒷면 디자인', icon: <Sparkles className="w-4 h-4" /> },
@@ -138,6 +140,17 @@ export default function CreateCoBuyRequestPage() {
   const [isUndoRedoing, setIsUndoRedoing] = useState(false);
   const isLoadingPresetsRef = useRef(false);
 
+  // Tutorial guide state
+  const [tutorialStep, setTutorialStep] = useState<number>(-1);
+  const [tutorialDismissed, setTutorialDismissed] = useState(false);
+  const tutorialHasRun = useRef(false);
+  const tutorialReadyAt = useRef(0);
+
+  // Color step tutorial
+  const [colorTutorialStep, setColorTutorialStep] = useState<number>(-1);
+  const [colorTutorialDismissed, setColorTutorialDismissed] = useState(false);
+  const colorTutorialHasRun = useRef(false);
+
   // Animation
   const [isAnimating, setIsAnimating] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
@@ -162,10 +175,10 @@ export default function CreateCoBuyRequestPage() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basic-info') {
-      return !!(title.trim() && contactName.trim() && contactEmail.trim() && contactPhone.trim() && (expectedQuantity !== '' && Number(expectedQuantity) >= 1) && privacyConsent);
+      return !!(expectedQuantity !== '' && Number(expectedQuantity) >= 1);
     }
     return true;
-  }, [currentStep, title, contactName, contactEmail, contactPhone, expectedQuantity, privacyConsent]);
+  }, [currentStep, expectedQuantity]);
 
   const visibleSteps = useMemo(() => {
     let steps = STEPS.filter(s => s.id !== 'color-select' || hasColorOptions);
@@ -454,44 +467,11 @@ export default function CreateCoBuyRequestPage() {
   };
 
   const handleNext = async () => {
-    // Step 1 validation & draft save
+    // Step 1 validation
     if (currentStep === 'basic-info') {
-      if (!title.trim()) { alert('단체명을 입력해주세요.'); return; }
-      if (!contactName.trim()) { alert('이름을 입력해주세요.'); return; }
-      if (!contactEmail.trim()) { alert('이메일을 입력해주세요.'); return; }
-      if (!contactPhone.trim()) { alert('연락처를 입력해주세요.'); return; }
       if (expectedQuantity === '' || Number(expectedQuantity) < 1) { alert('예상 수량을 입력해주세요.'); return; }
-      if (!privacyConsent) { alert('개인정보 수집 동의가 필요합니다.'); return; }
 
-      // Background draft save
       gtagEvent('공구_기본정보_완료', { 예상수량: Number(expectedQuantity) });
-      if (!draftRequestId && selectedProduct) {
-        createDraftCoBuyRequest({
-          productId: selectedProduct.id,
-          title: title.trim(),
-          contactName: contactName.trim(),
-          contactEmail: contactEmail.trim(),
-          contactPhone: contactPhone.trim(),
-          estimatedQuantity: Number(expectedQuantity),
-        }).then(result => {
-          if (result) {
-            setDraftRequestId(result.id);
-            // Notify admin (fire-and-forget)
-            fetch('/api/cobuy/notify/draft-created', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: title.trim(),
-                contactName: contactName.trim(),
-                contactEmail: contactEmail.trim(),
-                contactPhone: contactPhone.trim(),
-                estimatedQuantity: Number(expectedQuantity),
-                productName: selectedProduct.title,
-              }),
-            }).catch(() => {});
-          }
-        });
-      }
 
       // Show design choice modal instead of advancing directly
       setShowDesignChoice(true);
@@ -613,12 +593,41 @@ export default function CreateCoBuyRequestPage() {
   };
 
   const handleSubmit = async (skipDelivery = false) => {
-    if (!skipDelivery) {
-      // Validate delivery if not skipping
-      if (receiveByDate && deliverySettings.deliveryAddress?.roadAddress) {
-        // All good, has both
-      }
+    // Validate contact fields
+    if (!title.trim()) { alert('단체명을 입력해주세요.'); return; }
+    if (!contactName.trim()) { alert('이름을 입력해주세요.'); return; }
+    if (!contactEmail.trim()) { alert('이메일을 입력해주세요.'); return; }
+    if (!contactPhone.trim()) { alert('연락처를 입력해주세요.'); return; }
+    if (!privacyConsent) { alert('개인정보 수집 동의가 필요합니다.'); return; }
+
+    // Background draft save (if not already saved)
+    if (!draftRequestId && selectedProduct) {
+      createDraftCoBuyRequest({
+        productId: selectedProduct.id,
+        title: title.trim(),
+        contactName: contactName.trim(),
+        contactEmail: contactEmail.trim(),
+        contactPhone: contactPhone.trim(),
+        estimatedQuantity: Number(expectedQuantity),
+      }).then(result => {
+        if (result) {
+          setDraftRequestId(result.id);
+          fetch('/api/cobuy/notify/draft-created', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: title.trim(),
+              contactName: contactName.trim(),
+              contactEmail: contactEmail.trim(),
+              contactPhone: contactPhone.trim(),
+              estimatedQuantity: Number(expectedQuantity),
+              productName: selectedProduct.title,
+            }),
+          }).catch(() => {});
+        }
+      });
     }
+
     await handleCreate();
   };
 
@@ -998,6 +1007,226 @@ export default function CreateCoBuyRequestPage() {
     };
   }, [activeCanvas, currentStep]);
 
+  // ============================================================================
+  // Tutorial guide — tours preset objects then teaches editing tools
+  // ============================================================================
+
+  type TutorialStep = { text: string; position: 'top' | 'center' | 'above-toolbar'; objectIndex?: number };
+  const [tutorialSteps, setTutorialSteps] = useState<TutorialStep[]>([]);
+
+  const dismissTutorial = useCallback(() => {
+    setTutorialStep(-1);
+    setTutorialDismissed(true);
+    localStorage.setItem('modoo_cobuy_editor_tutorial_seen', 'true');
+    const canvas = getActiveCanvas();
+    if (canvas) canvas.discardActiveObject?.();
+  }, [getActiveCanvas]);
+
+  // Build tutorial steps dynamically from preset objects on canvas
+  const buildTutorialSteps = useCallback(() => {
+    const canvas = getActiveCanvas();
+    if (!canvas) return [];
+    const objects = canvas.getObjects().filter((obj: any) => isUserObject(obj));
+
+    const steps: TutorialStep[] = [
+      { text: '안녕하세요! 여기서 디자인을 꾸밀 수 있어요!\n하나씩 알려드릴게요 🎨', position: 'top' },
+    ];
+
+    // Descriptions for preset objects in order
+    const textDescriptions = [
+      '이건 학교 이니셜이에요!\n눌러서 원하는 글자로 바꿔보세요 ✏️',
+      '이건 학번이에요!\n눌러서 본인 학번으로 수정할 수 있어요 🔢',
+    ];
+    const imageDescriptions = [
+      '이건 학교 로고예요!\n눌러서 다른 이미지로 교체할 수 있어요 🏫',
+    ];
+
+    let textIdx = 0;
+    let imageIdx = 0;
+    objects.forEach((obj: any, i: number) => {
+      const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox' || isCurvedText(obj);
+      const isImage = obj.type === 'image';
+      if (isText) {
+        const desc = textDescriptions[textIdx] || `이건 텍스트예요!\n눌러서 내용을 수정할 수 있어요 ✏️`;
+        textIdx++;
+        steps.push({ text: desc, position: 'top', objectIndex: i });
+      } else if (isImage) {
+        const desc = imageDescriptions[imageIdx] || `이건 이미지예요!\n눌러서 다른 이미지로 교체할 수 있어요 🖼️`;
+        imageIdx++;
+        steps.push({ text: desc, position: 'top', objectIndex: i });
+      }
+    });
+
+    // Editing tool tips + reassuring message
+    steps.push(
+      { text: '아래에서 텍스트나 이미지를\n새로 추가할 수도 있어요!', position: 'above-toolbar' },
+      { text: '드래그로 위치를 옮기고\n모서리를 잡아 크기를 조절해보세요!', position: 'top' },
+      { text: '실수하셔도 되돌리기 버튼으로\n이전으로 돌아갈 수 있어요!', position: 'above-toolbar' },
+      { text: '이미지 파일이 없어도 괜찮아요!\n나중에 추가사항에 적어주시면 돼요 😊', position: 'top' },
+      { text: '자유롭게 꾸미시고\n완성되면 "다음"을 눌러주세요! 화이팅! 🎉', position: 'top' },
+    );
+
+    return steps;
+  }, [getActiveCanvas]);
+
+  const restartTutorial = useCallback(() => {
+    // Rebuild steps, or reuse existing if canvas isn't ready
+    const steps = buildTutorialSteps();
+    const stepsToUse = steps.length > 0 ? steps : tutorialSteps;
+    if (stepsToUse.length > 0) {
+      // Clear localStorage so the init useEffect won't immediately re-dismiss
+      localStorage.removeItem('modoo_cobuy_editor_tutorial_seen');
+      tutorialHasRun.current = true;
+      setTutorialSteps(stepsToUse);
+      setTutorialDismissed(false);
+      setTutorialStep(0);
+      setSpotlightRect(null);
+      tutorialReadyAt.current = Date.now() + 500;
+    }
+  }, [buildTutorialSteps, tutorialSteps]);
+
+  // Start tutorial on first freeform-front entry (poll until preset objects are loaded)
+  useEffect(() => {
+    if (currentStep !== 'freeform-front') return;
+    if (tutorialHasRun.current || tutorialDismissed) return;
+    const seen = localStorage.getItem('modoo_cobuy_editor_tutorial_seen');
+    if (seen === 'true') {
+      setTutorialDismissed(true);
+      return;
+    }
+    // Poll until preset objects are on the canvas (preset loading is async)
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (attempts > 30) { clearInterval(interval); return; } // give up after 15s
+      if (isLoadingPresetsRef.current) return; // still loading
+      const canvas = getActiveCanvas();
+      if (!canvas) return;
+      const userObjs = canvas.getObjects().filter((obj: any) => isUserObject(obj));
+      if (userObjs.length === 0 && attempts < 10) return; // wait for objects (up to 5s)
+      clearInterval(interval);
+      const steps = buildTutorialSteps();
+      if (steps.length > 0) {
+        setTutorialSteps(steps);
+        setTutorialStep(0);
+        tutorialHasRun.current = true;
+        tutorialReadyAt.current = Date.now() + 500;
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [currentStep, tutorialDismissed, buildTutorialSteps, getActiveCanvas]);
+
+  // Highlight rect for spotlight cutout (screen coordinates)
+  const [spotlightRect, setSpotlightRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  // Highlight the relevant canvas object when tutorial step changes
+  useEffect(() => {
+    if (tutorialStep < 0 || tutorialDismissed) return;
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+    const step = tutorialSteps[tutorialStep];
+    if (!step) return;
+
+    if (step.objectIndex !== undefined) {
+      const objects = canvas.getObjects().filter((obj: any) => isUserObject(obj));
+      const target = objects[step.objectIndex];
+      if (target) {
+        canvas.setActiveObject(target);
+        canvas.renderAll();
+        // Calculate screen position for spotlight
+        const canvasEl = (canvas as any).lowerCanvasEl || (canvas as any).getElement?.();
+        if (canvasEl) {
+          const canvasRect = canvasEl.getBoundingClientRect();
+          const objBound = target.getBoundingRect();
+          const scaleX = canvasRect.width / canvas.width;
+          const scaleY = canvasRect.height / canvas.height;
+          const pad = 8;
+          setSpotlightRect({
+            x: canvasRect.left + objBound.left * scaleX - pad,
+            y: canvasRect.top + objBound.top * scaleY - pad,
+            w: objBound.width * scaleX + pad * 2,
+            h: objBound.height * scaleY + pad * 2,
+          });
+        }
+      } else {
+        setSpotlightRect(null);
+      }
+    } else {
+      canvas.discardActiveObject?.();
+      canvas.renderAll();
+      setSpotlightRect(null);
+    }
+  }, [tutorialStep, tutorialSteps, tutorialDismissed, getActiveCanvas]);
+
+  // Auto-advance for steps without objectIndex (timed tips)
+  useEffect(() => {
+    if (tutorialStep < 0 || tutorialDismissed) return;
+    const step = tutorialSteps[tutorialStep];
+    if (!step) return;
+    // Only auto-advance non-object steps (welcome, tool tips, final)
+    if (step.objectIndex !== undefined) return;
+    const isLast = tutorialStep >= tutorialSteps.length - 1;
+    const timer = setTimeout(() => {
+      if (isLast) dismissTutorial();
+      else setTutorialStep(prev => prev + 1);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [tutorialStep, tutorialSteps, tutorialDismissed, dismissTutorial]);
+
+  // ============================================================================
+  // Color step tutorial
+  // ============================================================================
+
+  const COLOR_TUTORIAL_STEPS = [
+    { text: '여기서 원하시는 색상을 골라보세요!\n색상에 따라 미리보기가 바뀌어요 🎨', position: 'center' as const },
+    { text: '아래 색상을 눌러보세요!\n선택하면 위 미리보기에 바로 반영돼요 👆', position: 'bottom' as const },
+    { text: '마음에 드는 색상을 고르셨으면\n"다음"을 눌러주세요! 😊', position: 'center' as const },
+  ];
+
+  const dismissColorTutorial = useCallback(() => {
+    setColorTutorialStep(-1);
+    setColorTutorialDismissed(true);
+    localStorage.setItem('modoo_cobuy_color_tutorial_seen', 'true');
+  }, []);
+
+  // Start color tutorial on first color-select entry
+  useEffect(() => {
+    if (currentStep !== 'color-select') return;
+    if (colorTutorialHasRun.current || colorTutorialDismissed) return;
+    const seen = localStorage.getItem('modoo_cobuy_color_tutorial_seen');
+    if (seen === 'true') {
+      setColorTutorialDismissed(true);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setColorTutorialStep(0);
+      colorTutorialHasRun.current = true;
+      tutorialReadyAt.current = Date.now() + 500;
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [currentStep, colorTutorialDismissed]);
+
+  // Auto-advance color tutorial timed steps
+  useEffect(() => {
+    if (colorTutorialStep < 0 || colorTutorialDismissed) return;
+    // Step 1 (pick color) waits for user action — don't auto-advance
+    if (colorTutorialStep === 1) return;
+    const isLast = colorTutorialStep >= COLOR_TUTORIAL_STEPS.length - 1;
+    const timer = setTimeout(() => {
+      if (isLast) dismissColorTutorial();
+      else setColorTutorialStep(prev => prev + 1);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [colorTutorialStep, colorTutorialDismissed, dismissColorTutorial]);
+
+  // Advance color tutorial step 1 when user picks a color
+  useEffect(() => {
+    if (colorTutorialStep !== 1 || colorTutorialDismissed) return;
+    if (selectedColorHex) {
+      setColorTutorialStep(2);
+    }
+  }, [selectedColorHex, colorTutorialStep, colorTutorialDismissed]);
+
   const changeTextColor = (color: string) => {
     setTextColor(color);
     const canvas = getActiveCanvas();
@@ -1107,8 +1336,18 @@ export default function CreateCoBuyRequestPage() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Header — hidden during freeform steps */}
-          {!isFreeformStep && (
+          {/* Logo header for first step */}
+          {currentStep === 'basic-info' && (
+            <header className="shrink-0 bg-white px-4 py-3 flex items-center justify-between">
+              <img src="/icons/modoo_logo.png" alt="modoo" className="h-6" />
+              <button onClick={() => router.push('/home')} disabled={isCreating} className="p-1.5 rounded-xl hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </header>
+          )}
+
+          {/* Header — hidden during freeform steps and first step */}
+          {!isFreeformStep && currentStep !== 'basic-info' && (
             <header className="shrink-0 border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
               <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
                 <div>
@@ -1138,99 +1377,85 @@ export default function CreateCoBuyRequestPage() {
           <main className={`flex-1 overflow-y-auto ${isFreeformStep ? 'flex flex-col' : ''}`}>
             <div className={`transition-all duration-150 ease-out ${animationClass} ${isFreeformStep ? 'flex-1 flex flex-col' : ''}`}>
 
-              {/* Step 1: Basic Info */}
+              {/* Step 1: Quantity Selection */}
               {currentStep === 'basic-info' && (
-                <div className="max-w-lg mx-auto py-8 px-4">
-                  <div className="mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center mb-3">
-                      <UserCircle className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">기본 정보를 입력해주세요</h2>
-                    <p className="text-sm text-gray-600">요청 확인 및 연락을 위해 필요해요.</p>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">단체명 <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        placeholder="예: 서울대학교 컴퓨터공학과"
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        maxLength={100}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">이름 <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="text"
-                          value={contactName}
-                          onChange={e => setContactName(e.target.value)}
-                          placeholder="홍길동"
-                          className="w-full pl-9 pr-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">이메일 <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="email"
-                          value={contactEmail}
-                          onChange={e => setContactEmail(e.target.value)}
-                          placeholder="example@email.com"
-                          className="w-full pl-9 pr-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">연락처 <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          value={contactPhone}
-                          onChange={e => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-                            const formatted = digits.length <= 3 ? digits : digits.length <= 7 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-                            setContactPhone(formatted);
-                          }}
-                          placeholder="010-0000-0000"
-                          className="w-full pl-9 pr-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">예상 수량 <span className="text-red-500">*</span></label>
+                <div className="max-w-lg mx-auto py-6 px-4">
+                  <p className="text-center text-sm font-semibold text-gray-700 mb-5">
+                    예상 수량을 입력하고 바로 견적을 받아보세요!
+                  </p>
+
+                  {/* Receipt card */}
+                  <div className="bg-white border border-gray-300 rounded-lg p-5 mb-5">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <span className="text-sm text-gray-600 font-medium">제작 수량 :</span>
                       <input
                         type="number"
                         inputMode="numeric"
                         value={expectedQuantity}
                         onChange={e => setExpectedQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                        placeholder="예: 30"
                         min={1}
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="w-20 px-2 py-1 text-xl font-bold text-center border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#3B55A5] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
-                      <p className="text-xs text-gray-400 mt-1">변동이 있어도 괜찮습니다</p>
+                      <span className="text-sm text-gray-600 font-medium">벌</span>
                     </div>
-                    <div className="pt-2">
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={privacyConsent}
-                          onChange={e => setPrivacyConsent(e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-xs text-gray-700">
-                          <span className="font-semibold text-red-500">[필수]</span> 개인정보 수집 및 이용에 동의합니다. 입력하신 이름, 연락처, 주소 정보는 공동구매 요청 처리 및 배송 목적으로만 사용됩니다.
-                        </span>
-                      </label>
+                    <div className="flex items-center justify-center mb-6">
+                      <input
+                        type="range"
+                        min={10}
+                        max={200}
+                        step={1}
+                        value={expectedQuantity === '' ? 20 : Number(expectedQuantity)}
+                        onChange={e => setExpectedQuantity(parseInt(e.target.value))}
+                        className="w-48 h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#3B55A5] [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#3B55A5] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-md"
+                      />
                     </div>
+                    {(() => {
+                      const qty = expectedQuantity === '' ? 0 : Number(expectedQuantity);
+                      const pricing = getPricingInfo(qty);
+                      if (qty < 1) return null;
+                      if (!pricing) return (
+                        <p className="text-xs text-red-500 text-center">최소 20벌부터 제작 가능합니다.</p>
+                      );
+                      return (
+                        <>
+                          <p className="text-center text-base font-bold text-gray-900 mb-3">
+                            예상 벌당 단가 : <SlotNumber value={pricing.unitPrice} className="text-gray-900" />원
+                          </p>
+                          <div className="text-[11px] text-gray-500 space-y-0.5">
+                            <p>*수량이 많아질수록 개당 단가가 줄어듭니다</p>
+                            <p>*기본 단가로, 디자인이 복잡해지거나</p>
+                            <p>&nbsp;개별 이니셜등이 필요한 경우 소정의 비용이 추가될 수 있습니다.</p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
+
+                  {/* Promotional banner */}
+                  {(() => {
+                    const qty = expectedQuantity === '' ? 0 : Number(expectedQuantity);
+                    const pricing = getPricingInfo(qty);
+                    if (!pricing) return null;
+                    const discount = Math.round(pricing.totalPrice * 0.1);
+                    return (
+                      <div className="rounded-2xl overflow-hidden mb-5 relative" style={{ aspectRatio: '4/3' }}>
+                        {/* Background gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#5C6DB5] via-[#7B8CC9] to-[#A8B4D8]" />
+                        {/* Decorative circle */}
+                        <div className="absolute -bottom-16 -right-10 w-56 h-56 rounded-full bg-white/10" />
+                        <div className="absolute -bottom-20 -right-6 w-48 h-48 rounded-full bg-white/5" />
+                        {/* Content */}
+                        <div className="relative p-5 flex flex-col items-start justify-center h-full text-white">
+                          <img src="/icons/modoo_logo.png" alt="modoo" className="h-5 mb-3 brightness-0 invert opacity-80" />
+                          <p className="text-sm font-medium opacity-90 mb-2">2026 새학기 맞이</p>
+                          <p className="text-base font-bold leading-snug">지금 견적 받고</p>
+                          {/* <p className="text-base font-bold leading-snug">{Math.round(discount / 10000)}만원 할인쿠폰 받기</p> */}
+                          <p className="text-5xl font-black tracking-tight mt-4"><SlotNumber value={discount} className="text-white" />원 할인</p>
+                          <p className="text-[10px] opacity-50 mt-2">기본 견적가 기준의 할인 | 변동가능</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -1291,6 +1516,7 @@ export default function CreateCoBuyRequestPage() {
                       </div>
                     </>
                   )}
+
                 </div>
               )}
 
@@ -1306,27 +1532,6 @@ export default function CreateCoBuyRequestPage() {
 
                   {/* Canvas — render all sides but only show current */}
                   <div className="flex-1 flex items-center justify-center bg-[#EBEBEB] relative">
-                    {/* Skip to design review toast */}
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2.5 pl-4 pr-1.5 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 animate-[slideDown_0.4s_ease-out]">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">디자인 파일이 없으세요?</span>
-                      <button
-                        onClick={() => {
-                          gtagEvent('공구_디자인_건너뛰기');
-                          // Generate preview data URLs before jumping to design-review
-                          const previews: Record<string, string> = {};
-                          for (const [sideId, canvas] of Object.entries(canvasMap)) {
-                            try {
-                              previews[sideId] = (canvas as any).toDataURL({ format: 'png', multiplier: 0.5 });
-                            } catch {}
-                          }
-                          setSidePreviewUrls(previews);
-                          setCurrentStep('design-review');
-                        }}
-                        className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#3B55A5] hover:bg-[#2D4280] rounded-full transition-colors whitespace-nowrap"
-                      >
-                        디자인 요청하기
-                      </button>
-                    </div>
                     {isImageLoading && (
                       <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20">
                         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-lg">
@@ -1349,6 +1554,115 @@ export default function CreateCoBuyRequestPage() {
                         />
                       </div>
                     ))}
+
+                    {/* Tutorial overlay with spotlight cutout + fixed bottom-left character */}
+                    <AnimatePresence>
+                      {tutorialStep >= 0 && !tutorialDismissed && currentStep === 'freeform-front' && tutorialSteps[tutorialStep] && (
+                        <motion.div
+                          key="tutorial-overlay"
+                          className="fixed inset-0 z-[100]"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                          onClick={() => {
+                            if (Date.now() < tutorialReadyAt.current) return;
+                            if (tutorialStep >= tutorialSteps.length - 1) dismissTutorial();
+                            else setTutorialStep(prev => prev + 1);
+                          }}
+                        >
+                          {/* Dark backdrop with spotlight cutout */}
+                          <svg className="absolute inset-0 w-full h-full">
+                            <defs>
+                              <mask id="tutorial-spotlight">
+                                <rect width="100%" height="100%" fill="white" />
+                                {spotlightRect && (
+                                  <motion.rect
+                                    x={spotlightRect.x}
+                                    y={spotlightRect.y}
+                                    width={spotlightRect.w}
+                                    height={spotlightRect.h}
+                                    rx={8}
+                                    fill="black"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.3 }}
+                                  />
+                                )}
+                              </mask>
+                            </defs>
+                            <rect
+                              width="100%"
+                              height="100%"
+                              fill="rgba(0,0,0,0.55)"
+                              mask="url(#tutorial-spotlight)"
+                            />
+                          </svg>
+
+                          {/* Spotlight border glow */}
+                          {spotlightRect && (
+                            <motion.div
+                              className="absolute rounded-lg border-2 border-white/60 pointer-events-none"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.3 }}
+                              style={{
+                                left: spotlightRect.x,
+                                top: spotlightRect.y,
+                                width: spotlightRect.w,
+                                height: spotlightRect.h,
+                              }}
+                            />
+                          )}
+
+                          {/* Character + speech bubble — fixed bottom-left */}
+                          <motion.div
+                            key={tutorialStep}
+                            className="absolute bottom-20 left-3 z-10"
+                            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                          >
+                            <div className="flex items-end gap-2">
+                              <motion.span
+                                className="text-3xl shrink-0 select-none mb-1"
+                                animate={{ y: [0, -4, 0] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                              >
+                                🐻
+                              </motion.span>
+                              <div className="relative bg-white rounded-2xl px-4 py-3 shadow-lg border border-gray-200 max-w-[220px]">
+                                <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">
+                                  {tutorialSteps[tutorialStep].text}
+                                </p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-[10px] text-gray-300">
+                                    {tutorialStep + 1}/{tutorialSteps.length}
+                                  </span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); dismissTutorial(); }}
+                                    className="text-[10px] text-gray-400 hover:text-gray-600"
+                                  >
+                                    건너뛰기
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Tutorial replay button */}
+                    {tutorialDismissed && currentStep === 'freeform-front' && (
+                      <button
+                        onClick={restartTutorial}
+                        className="absolute bottom-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 border border-gray-200 shadow-sm flex items-center justify-center text-lg hover:bg-white hover:shadow-md transition-all"
+                        title="튜토리얼 다시보기"
+                      >
+                        🐻
+                      </button>
+                    )}
                   </div>
 
                   <p className="text-xs text-gray-600 text-center py-1.5 bg-[#EBEBEB]">
@@ -1482,14 +1796,55 @@ export default function CreateCoBuyRequestPage() {
 
               {/* Step 4: Design Review */}
               {currentStep === 'design-review' && (
-                <div className="max-w-lg mx-auto py-8 px-4">
-                  <div className="mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-[#3B55A5]/20 flex items-center justify-center mb-3">
-                      <Eye className="w-5 h-5 text-[#3B55A5]" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">디자인을 확인해주세요</h2>
-                    <p className="text-sm text-gray-600">완성된 디자인을 확인하고 참고사항을 남겨주세요.</p>
-                    <p className="text-xs text-gray-400">*작업 전 디자이너가 최종확인 후 진행됩니다</p>
+                <div className="max-w-lg mx-auto py-6 px-4 relative overflow-hidden">
+
+                  {/* Confetti — falls from top */}
+                  <div className="pointer-events-none fixed inset-0 z-[200] overflow-hidden">
+                    {Array.from({ length: 32 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute animate-[confettiFall_2.5s_ease-in_forwards]"
+                        style={{
+                          left: `${5 + Math.random() * 90}%`,
+                          top: '-12px',
+                          animationDelay: `${Math.random() * 1.2}s`,
+                          ['--confetti-x' as any]: `${(Math.random() - 0.5) * 80}px`,
+                          ['--confetti-r' as any]: `${Math.random() * 720 - 360}deg`,
+                        }}
+                      >
+                        <div
+                          className="rounded-sm"
+                          style={{
+                            backgroundColor: ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#FF8FDA', '#A66CFF'][i % 6],
+                            width: `${6 + Math.random() * 6}px`,
+                            height: `${4 + Math.random() * 4}px`,
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Character speech bubble */}
+                  <div className="flex items-start gap-2.5 mb-5">
+                    <motion.span
+                      className="text-4xl shrink-0"
+                      initial={{ scale: 0, rotate: -30 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 12, delay: 0.1 }}
+                    >
+                      🤩
+                    </motion.span>
+                    <motion.div
+                      className="relative bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 text-xs text-gray-700 leading-relaxed"
+                      initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.3 }}
+                    >
+                      <p className="font-semibold">짜잔!</p>
+                      <p>멋진 디자인이 완성됐어요! 아래에서 확인해보세요! 😆</p>
+                      <p className="mt-1.5">아이디어나 확인이 필요한 부분은 &apos;참고사항&apos;에 써주시면 디자이너가 참고할게요!</p>
+                      <p className="mt-1.5 text-gray-400">10년 차 디자이너가 검토하고 어색한 부분은 잡아드릴 테니 걱정 마세요!</p>
+                    </motion.div>
                   </div>
 
                   {/* Preview images */}
@@ -1512,9 +1867,9 @@ export default function CreateCoBuyRequestPage() {
                     <textarea
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder="예: 디자인 파일이 없어요, OO부분을 수정해주세요"
+                      placeholder={"예: 디자인 파일이 없어요, OO부분을 수정해주세요\n※ : AI/PSD 파일이 있으시면, 첨부 및 카카채널 참고해서 어딘 다른 반영하기가 쉬워요"}
                       className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] focus:ring-4 focus:ring-[#3B55A5]/10 resize-none"
-                      rows={3}
+                      rows={4}
                       maxLength={500}
                     />
                     <p className="text-xs text-gray-500 mt-1">{description.length}/500자</p>
@@ -1561,6 +1916,70 @@ export default function CreateCoBuyRequestPage() {
                     <h2 className="text-xl font-bold text-gray-900 mb-2">{isConsultation ? '상담 요청' : '일정 및 배송'}</h2>
                   </div>
                   <div className="space-y-6">
+                    {/* Contact info */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">연락처 정보</p>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">단체명 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={title}
+                          onChange={e => setTitle(e.target.value)}
+                          placeholder="예: 서울대학교 컴퓨터공학과"
+                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                          maxLength={100}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">이름 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={e => setContactName(e.target.value)}
+                          placeholder="홍길동"
+                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">이메일 <span className="text-red-500">*</span></label>
+                        <input
+                          type="email"
+                          value={contactEmail}
+                          onChange={e => setContactEmail(e.target.value)}
+                          placeholder="example@email.com"
+                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">연락처 <span className="text-red-500">*</span></label>
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          value={contactPhone}
+                          onChange={e => {
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                            const formatted = digits.length <= 3 ? digits : digits.length <= 7 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+                            setContactPhone(formatted);
+                          }}
+                          placeholder="010-0000-0000"
+                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                        />
+                      </div>
+                      <div className="pt-1">
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={privacyConsent}
+                            onChange={e => setPrivacyConsent(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-xs text-gray-700">
+                            <span className="font-semibold text-red-500">[필수]</span> 개인정보 수집 및 이용에 동의합니다. 입력하신 이름, 연락처, 주소 정보는 공동구매 요청 처리 및 배송 목적으로만 사용됩니다.
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
                     {/* Consultation notes */}
                     {isConsultation && (
                       <div className="space-y-3">
@@ -1719,6 +2138,15 @@ export default function CreateCoBuyRequestPage() {
                       className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/25 flex items-center justify-center gap-1.5 text-sm disabled:opacity-50">
                       {isCreating ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 제출 중...</> : <><Sparkles className="w-4 h-4" /> 제출하기</>}
                     </button>
+                  ) : currentStep === 'basic-info' ? (
+                    <button onClick={handleNext} disabled={!canProceed}
+                      className={`flex-1 py-3.5 rounded-2xl font-bold flex items-center justify-center text-base transition-all ${
+                        canProceed
+                          ? 'bg-[#FEE500] text-[#191919] hover:brightness-95 shadow-lg shadow-yellow-500/20'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}>
+                      견적내고 할인쿠폰 받기
+                    </button>
                   ) : (
                     <button onClick={handleNext} disabled={!canProceed}
                       className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-1.5 text-sm transition-all ${
@@ -1739,43 +2167,43 @@ export default function CreateCoBuyRequestPage() {
 
       {/* Design Choice Modal */}
       {showDesignChoice && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center animate-[fadeIn_0.2s_ease-out]"
-          style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="bg-white rounded-3xl max-w-sm w-full mx-4 shadow-2xl overflow-hidden animate-[popIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]">
-            <div className="p-5 pb-3">
-              <h3 className="text-lg font-bold text-gray-900 mb-0.5">어떻게 진행할까요?</h3>
-              <p className="text-xs text-gray-500">디자인 진행 방식을 선택해주세요.</p>
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center animate-[fadeIn_0.2s_ease-out]"
+          onClick={() => setShowDesignChoice(false)}
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full sm:mx-4 shadow-2xl overflow-hidden animate-[slideUpModal_0.35s_cubic-bezier(0.16,1,0.3,1)]"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mt-3 sm:hidden" />
+            <div className="px-6 pt-5 pb-3 text-center">
+              <p className="text-sm font-bold text-gray-900 leading-relaxed">
+                정확한 견적과<br />
+                1차 디자인 시안 검토를 위해<br />
+                아래 두가지 방식 중 하나를 선택해주세요!
+              </p>
             </div>
-            <div className="px-5 pb-5 space-y-2.5">
+            <div className="px-5 pb-6 grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleDesignChoice('design')}
-                className="w-full text-left p-3.5 rounded-2xl border-2 border-gray-200 hover:border-[#3B55A5] hover:bg-[#3B55A5]/5 transition-all active:scale-[0.98]"
+                className="group relative text-center p-5 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 hover:border-[#3B55A5] hover:shadow-lg hover:shadow-[#3B55A5]/10 transition-all duration-200 active:scale-[0.97] flex flex-col items-center"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#3B55A5]/10 flex items-center justify-center shrink-0">
-                    <PaintBucket className="w-4.5 h-4.5 text-[#3B55A5]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900">직접 디자인하기</p>
-                    <p className="text-[11px] text-gray-500">색상 선택 및 텍스트/이미지 배치</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-gray-300 shrink-0" />
-                </div>
+                <div className="text-5xl mb-3 group-hover:scale-110 transition-transform duration-200">🎨</div>
+                <p className="text-[13px] font-bold text-gray-900 mb-2">내가 직접 디자인 해볼래요</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  제공 텍스트, 이미지를 배치해보고
+                  디자인 시안을 바로 확인할 수 있어요
+                </p>
               </button>
               <button
                 onClick={() => handleDesignChoice('consultation')}
-                className="w-full text-left p-3.5 rounded-2xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all active:scale-[0.98]"
+                className="group relative text-center p-5 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-400/10 transition-all duration-200 active:scale-[0.97] flex flex-col items-center"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-4.5 h-4.5 text-orange-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900">상담 요청하기</p>
-                    <p className="text-[11px] text-gray-500">디자인 건너뛰고 담당자에게 상담 요청</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-gray-300 shrink-0" />
-                </div>
+                <div className="text-5xl mb-3 group-hover:scale-110 transition-transform duration-200">🤔</div>
+                <p className="text-[13px] font-bold text-gray-900 mb-2">전문 디자이너에게 부탁할래요</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  디자인도 어렵고,
+                  기기에 로고 파일까지 없다면
+                  전문 디자이너에게 요청해서
+                  <span className="font-semibold text-gray-600"> 무료</span>로 시안을 받아볼 수 있어요
+                </p>
               </button>
             </div>
           </div>
@@ -1815,6 +2243,67 @@ export default function CreateCoBuyRequestPage() {
         </div>
       )}
 
+      {/* Color step tutorial overlay — top level so it covers entire screen */}
+      <AnimatePresence>
+        {colorTutorialStep >= 0 && !colorTutorialDismissed && currentStep === 'color-select' && (
+          <motion.div
+            key="color-tutorial-overlay"
+            className="fixed inset-0 z-[100]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={() => {
+              if (Date.now() < tutorialReadyAt.current) return;
+              if (colorTutorialStep >= COLOR_TUTORIAL_STEPS.length - 1) dismissColorTutorial();
+              else setColorTutorialStep(prev => prev + 1);
+            }}
+          >
+            <div className="absolute inset-0 bg-black/50" />
+            <motion.div
+              key={colorTutorialStep}
+              className={`absolute z-10 ${
+                COLOR_TUTORIAL_STEPS[colorTutorialStep].position === 'center'
+                  ? 'top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2'
+                  : 'bottom-36 left-1/2 -translate-x-1/2'
+              }`}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            >
+              <div className="flex items-end gap-2">
+                <motion.span
+                  className="text-3xl shrink-0 select-none mb-1"
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                >
+                  🐻
+                </motion.span>
+                <div className="relative bg-white rounded-2xl px-4 py-3 shadow-lg border border-gray-200 max-w-[240px]">
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">
+                    {COLOR_TUTORIAL_STEPS[colorTutorialStep].text}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-gray-300">
+                      {colorTutorialStep + 1}/{COLOR_TUTORIAL_STEPS.length}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dismissColorTutorial(); }}
+                      className="text-[10px] text-gray-400 hover:text-gray-600"
+                    >
+                      건너뛰기
+                    </button>
+                  </div>
+                  {COLOR_TUTORIAL_STEPS[colorTutorialStep].position === 'bottom' && (
+                    <div className="absolute -bottom-1.5 left-10 w-3 h-3 bg-white border-r border-b border-gray-200 rotate-45" />
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <style jsx global>{`
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -1836,6 +2325,30 @@ export default function CreateCoBuyRequestPage() {
         @keyframes slideDown {
           from { opacity: 0; transform: translate(-50%, -8px); }
           to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes slotShuffle {
+          0% { transform: translateY(0); opacity: 1; }
+          20% { transform: translateY(-100%); opacity: 0; }
+          40% { transform: translateY(100%); opacity: 0; }
+          60% { transform: translateY(50%); opacity: 0.5; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideUpModal {
+          0% { transform: translateY(100%); }
+          100% { transform: translateY(0); }
+        }
+        @keyframes tutorialFadeIn {
+          from { opacity: 0; transform: translateY(8px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes tutorialBounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes confettiFall {
+          0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+          80%  { opacity: 1; }
+          100% { transform: translateY(100vh) translateX(var(--confetti-x, 0px)) rotate(var(--confetti-r, 360deg)); opacity: 0; }
         }
       `}</style>
     </div>
@@ -1865,3 +2378,46 @@ function ColorSwatch({ hex, selected, onClick }: { hex: string; selected: boolea
     </button>
   );
 }
+
+// ============================================================================
+// Slot-machine animated number
+// ============================================================================
+
+function SlotNumber({ value, className }: { value: number; className?: string }) {
+  const formatted = value.toLocaleString();
+  const prevRef = useRef(formatted);
+  const [digits, setDigits] = useState(formatted.split(''));
+  const [animating, setAnimating] = useState<boolean[]>([]);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    const next = formatted;
+    if (prev === next) return;
+
+    const maxLen = Math.max(prev.length, next.length);
+    const padPrev = prev.padStart(maxLen);
+    const padNext = next.padStart(maxLen);
+    const changed = padNext.split('').map((c, i) => c !== padPrev[i]);
+
+    setAnimating(changed);
+    setDigits(padNext.split(''));
+    prevRef.current = next;
+
+    const timer = setTimeout(() => setAnimating(new Array(maxLen).fill(false)), 400);
+    return () => clearTimeout(timer);
+  }, [formatted]);
+
+  return (
+    <span className={`inline-flex overflow-hidden ${className || ''}`}>
+      {digits.map((d, i) => (
+        <span
+          key={`${i}-${digits.length}`}
+          className={`inline-block transition-all duration-300 ${animating[i] ? 'animate-[slotShuffle_0.4s_ease-out]' : ''}`}
+        >
+          {d}
+        </span>
+      ))}
+    </span>
+  );
+}
+
