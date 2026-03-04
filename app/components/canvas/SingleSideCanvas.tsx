@@ -936,6 +936,44 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         setScaleBoxVisible(false);
     });
 
+    // Delete control (X button) rendered at top-right of selected objects
+    const deleteControl = new fabric.Control({
+      x: 0.5,
+      y: -0.5,
+      offsetX: 4,
+      offsetY: -4,
+      cursorStyle: 'pointer',
+      mouseUpHandler: (_eventData, transform) => {
+        const target = transform.target;
+        const c = target.canvas;
+        if (c) {
+          c.remove(target);
+          c.discardActiveObject();
+          c.requestRenderAll();
+        }
+        return true;
+      },
+      render: (ctx, left, top) => {
+        const size = 20;
+        ctx.save();
+        ctx.translate(left, top);
+        ctx.beginPath();
+        ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        const d = 4;
+        ctx.beginPath();
+        ctx.moveTo(-d, -d);
+        ctx.lineTo(d, d);
+        ctx.moveTo(d, -d);
+        ctx.lineTo(-d, d);
+        ctx.stroke();
+        ctx.restore();
+      },
+    });
+
     canvas.on('object:added', (e) => {
         const obj = e.target;
         // Skip guide boxes, snap lines, and background product image
@@ -977,6 +1015,11 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         // Make objects selectable based on current edit mode
         obj.selectable = isEditRef.current;
         obj.evented = isEditRef.current;
+
+        // Add delete control (X button) to user objects in edit mode
+        if (isEditRef.current) {
+          obj.controls = { ...obj.controls, deleteControl };
+        }
 
         // Increment canvas version to trigger updates in components that depend on canvas state
         incrementCanvasVersion();

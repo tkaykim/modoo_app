@@ -136,6 +136,7 @@ export default function CreateCoBuyRequestPage() {
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isUndoRedoing, setIsUndoRedoing] = useState(false);
+  const isLoadingPresetsRef = useRef(false);
 
   // Animation
   const [isAnimating, setIsAnimating] = useState(false);
@@ -309,6 +310,7 @@ export default function CreateCoBuyRequestPage() {
     if (newCanvases.length === 0) return;
 
     (async () => {
+      isLoadingPresetsRef.current = true;
       const fabric = await import('fabric');
       const isEditable = isFreeformStep;
 
@@ -349,6 +351,18 @@ export default function CreateCoBuyRequestPage() {
           canvas.renderAll();
         } catch (err) {
           console.error(`Failed to load preset for side ${side.id}:`, err);
+        }
+      }
+
+      // Reset history so preset state becomes the baseline (can't undo past this)
+      isLoadingPresetsRef.current = false;
+      if (isFreeformStep) {
+        const activeCanvas = getActiveCanvas();
+        if (activeCanvas) {
+          const userObjs = getUserObjects(activeCanvas);
+          const serialized = userObjs.map((obj: any) => obj.toObject(['data', 'excludeFromExport']));
+          setCanvasHistory([JSON.stringify(serialized)]);
+          setHistoryIndex(0);
         }
       }
     })();
@@ -877,7 +891,7 @@ export default function CreateCoBuyRequestPage() {
     canvas.getObjects().filter((obj: any) => isUserObject(obj)), []);
 
   const saveCanvasState = useCallback(() => {
-    if (isUndoRedoing) return;
+    if (isUndoRedoing || isLoadingPresetsRef.current) return;
     const canvas = getActiveCanvas();
     if (!canvas) return;
     const userObjs = getUserObjects(canvas);
@@ -992,6 +1006,7 @@ export default function CreateCoBuyRequestPage() {
     if (obj && (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox' || isCurvedText(obj))) {
       (obj as any).set('fill', color);
       canvas.renderAll();
+      saveCanvasState();
     }
   };
 
@@ -1001,8 +1016,9 @@ export default function CreateCoBuyRequestPage() {
     if (!canvas) return;
     const obj = canvas.getActiveObject();
     if (obj && (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox' || isCurvedText(obj))) {
-      (obj as any).set({ stroke: stroke || null, strokeWidth: stroke ? 1 : 0 });
+      (obj as any).set({ stroke: stroke || null, strokeWidth: stroke ? 3 : 0 });
       canvas.renderAll();
+      saveCanvasState();
     }
   };
 
@@ -1027,6 +1043,7 @@ export default function CreateCoBuyRequestPage() {
       (obj as any).set('text', newText);
     }
     canvas.renderAll();
+    saveCanvasState();
     setTextEditModal({ open: false, value: '' });
   };
 
@@ -1310,14 +1327,6 @@ export default function CreateCoBuyRequestPage() {
                         디자인 요청하기
                       </button>
                     </div>
-                    {(hasTextSelected || hasImageSelected) && (
-                      <button
-                        onClick={deleteFreeformObject}
-                        className="absolute top-2 right-2 z-10 p-2 border border-red-300 bg-white text-red-500 hover:bg-red-50 rounded-xl shadow-sm transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                     {isImageLoading && (
                       <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20">
                         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-lg">
@@ -1397,6 +1406,9 @@ export default function CreateCoBuyRequestPage() {
                           </button>
                           <input ref={strokeColorInputRef} type="color" value={textStroke || '#000000'} onChange={e => changeTextStroke(e.target.value)} className="sr-only" />
                         </div>
+                        <button onClick={deleteFreeformObject} className="ml-auto p-1.5 border border-red-300 text-red-500 hover:bg-red-50 rounded-lg transition shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-center gap-2 w-full">
