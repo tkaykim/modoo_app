@@ -1083,11 +1083,7 @@ export default function CreateCoBuyRequestPage() {
 
     // Editing tool tips + reassuring message
     steps.push(
-      { text: '아래에서 텍스트나 이미지를\n새로 추가할 수도 있어요!', position: 'above-toolbar' },
-      { text: '드래그로 위치를 옮기고\n모서리를 잡아 크기를 조절해보세요!', position: 'top' },
-      { text: '실수하셔도 되돌리기 버튼으로\n이전으로 돌아갈 수 있어요!', position: 'above-toolbar' },
       { text: '이미지 파일이 없어도 괜찮아요!\n나중에 추가사항에 적어주시면 돼요 😊', position: 'top' },
-      { text: '자유롭게 꾸미시고\n완성되면 "다음"을 눌러주세요! 화이팅! 🎉', position: 'top' },
     );
 
     return steps;
