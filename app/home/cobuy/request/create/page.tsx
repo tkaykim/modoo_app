@@ -72,7 +72,7 @@ export default function CreateCoBuyRequestPage() {
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactPreference, setContactPreference] = useState<'phone' | 'email'>('phone');
+  const [contactPreference, setContactPreference] = useState<'phone' | 'email' | null>(null);
   const [privacyConsent, setPrivacyConsent] = useState(false);
 
   // Design choice: 'design' = self-design, 'consultation' = skip design, request consultation
@@ -183,8 +183,7 @@ export default function CreateCoBuyRequestPage() {
     let steps = STEPS.filter(s => s.id !== 'color-select' || hasColorOptions);
     if (!hasBackSide) steps = steps.filter(s => s.id !== 'freeform-back');
     if (isConsultation) {
-      steps = steps.filter(s => !designSteps.includes(s.id));
-      steps = steps.map(s => s.id === 'schedule-address' ? { ...s, label: '상담 요청' } : s);
+      steps = steps.filter(s => !designSteps.includes(s.id) && s.id !== 'schedule-address');
     }
     return steps;
   }, [hasColorOptions, hasBackSide, isConsultation]);
@@ -482,7 +481,7 @@ export default function CreateCoBuyRequestPage() {
   const shouldSkipStep = (step: Step): boolean => {
     if (step === 'color-select' && !hasColorOptions) return true;
     if (step === 'freeform-back' && !hasBackSide) return true;
-    if (isConsultation && designSteps.includes(step)) return true;
+    if (isConsultation && (designSteps.includes(step) || step === 'schedule-address')) return true;
     return false;
   };
 
@@ -569,8 +568,8 @@ export default function CreateCoBuyRequestPage() {
           setSavedColorSelections(cobuyPreset.layer_colors as Record<string, Record<string, string>>);
         }
       }
-      // Skip design steps, go to schedule-address
-      navigateToStep('schedule-address', 'right');
+      // Skip design + schedule steps, go to user-info
+      navigateToStep('user-info', 'right');
     } else {
       // Continue normal flow
       const next = getNextStep('basic-info');
@@ -632,6 +631,7 @@ export default function CreateCoBuyRequestPage() {
     // Validate contact fields
     if (!title.trim()) { alert('단체명을 입력해주세요.'); return; }
     if (!contactName.trim()) { alert('이름을 입력해주세요.'); return; }
+    if (!contactPreference) { alert('연락 방법을 선택해주세요.'); return; }
     if (!contactEmail.trim()) { alert('이메일을 입력해주세요.'); return; }
     if (contactPreference === 'phone' && !contactPhone.trim()) { alert('연락처를 입력해주세요.'); return; }
     if (!privacyConsent) { alert('개인정보 수집 동의가 필요합니다.'); return; }
@@ -1083,11 +1083,7 @@ export default function CreateCoBuyRequestPage() {
 
     // Editing tool tips + reassuring message
     steps.push(
-      { text: '아래에서 텍스트나 이미지를\n새로 추가할 수도 있어요!', position: 'above-toolbar' },
-      { text: '드래그로 위치를 옮기고\n모서리를 잡아 크기를 조절해보세요!', position: 'top' },
-      { text: '실수하셔도 되돌리기 버튼으로\n이전으로 돌아갈 수 있어요!', position: 'above-toolbar' },
       { text: '이미지 파일이 없어도 괜찮아요!\n나중에 추가사항에 적어주시면 돼요 😊', position: 'top' },
-      { text: '자유롭게 꾸미시고\n완성되면 "다음"을 눌러주세요! 화이팅! 🎉', position: 'top' },
     );
 
     return steps;
@@ -1943,7 +1939,7 @@ export default function CreateCoBuyRequestPage() {
                     <textarea
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder={"예: 디자인 파일이 없어요, OO부분을 수정해주세요\n※ : AI/PSD 파일이 있으시면, 첨부 및 카카채널 참고해서 어딘 다른 반영하기가 쉬워요"}
+                      placeholder={"예: 디자인 파일이 없어요, OO부분을 수정해주세요"}
                       className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] focus:ring-4 focus:ring-[#3B55A5]/10 resize-none"
                       rows={4}
                       maxLength={500}
@@ -2149,7 +2145,8 @@ export default function CreateCoBuyRequestPage() {
                       </button>
                     </div>
 
-                    {/* Email field */}
+                    {/* Email field (shown when any preference is selected) */}
+                    {contactPreference && (
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">
                         이메일 <span className="text-red-500">*</span>
@@ -2162,6 +2159,7 @@ export default function CreateCoBuyRequestPage() {
                         className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] focus:ring-4 focus:ring-[#3B55A5]/10"
                       />
                     </div>
+                    )}
 
                     {/* Phone field (only when phone preference) */}
                     {contactPreference === 'phone' && (
@@ -2181,7 +2179,6 @@ export default function CreateCoBuyRequestPage() {
                         placeholder="010-0000-0000"
                         className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] focus:ring-4 focus:ring-[#3B55A5]/10"
                       />
-                      <p className="text-[10px] text-gray-400 mt-1">별도이 없어도 괜찮습니다</p>
                     </div>
                     )}
 
