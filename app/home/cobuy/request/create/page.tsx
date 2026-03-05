@@ -565,9 +565,10 @@ export default function CreateCoBuyRequestPage() {
       // Skip design + schedule steps, go to user-info
       navigateToStep('user-info', 'right');
     } else {
-      // Continue normal flow
-      const next = getNextStep('basic-info');
-      if (next) navigateToStep(next, 'right');
+      // Continue normal flow — go to color-select or first freeform step
+      // Note: can't use getNextStep here since requestType state hasn't updated yet
+      const firstDesignStep: Step = hasColorOptions ? 'color-select' : 'freeform-front';
+      navigateToStep(firstDesignStep, 'right');
     }
   };
 
@@ -1630,6 +1631,26 @@ export default function CreateCoBuyRequestPage() {
 
                   {/* Canvas — render all sides but only show current */}
                   <div className="flex-1 flex items-center justify-center bg-[#EBEBEB] relative">
+
+                    {/* Skip to consultation pill — floating on top */}
+                    <div className="absolute top-3 left-0 right-0 z-10 flex justify-center pointer-events-none">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1.5 bg-white rounded-full shadow-md pointer-events-auto">
+                        <span className="text-[11px] text-gray-600">디자인이 어려우신가요?</span>
+                        <button
+                          onClick={async () => {
+                            gtagEvent('공구_디자이너요청_스킵');
+                            captureCanvasState();
+                            const preview = await generatePreview();
+                            setSavedPreviewUrl(preview);
+                            setRequestType('consultation');
+                            navigateToStep('user-info', 'right');
+                          }}
+                          className="px-3 py-1 text-[11px] font-medium text-white bg-[#2D3A4A] rounded-full hover:bg-[#1f2937] transition-colors"
+                        >
+                          디자이너에게 요청하기
+                        </button>
+                      </div>
+                    </div>
                     {isImageLoading && (
                       <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20">
                         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-lg">
