@@ -141,14 +141,14 @@ export async function POST(request: NextRequest) {
           <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #3B55A5;">예상 견적</h3>
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 6px 0; color: #555;">예상 수량</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">${estimatedQuantity}벌</td></tr>
-            <tr><td style="padding: 6px 0; color: #555;">벌당 단가</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">${pricing.unitPrice.toLocaleString('ko-KR')}원 ${pricing.note || ''}</td></tr>
-            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #3B55A5;">${pricing.totalPrice.toLocaleString('ko-KR')}원</td></tr>
+            <tr><td style="padding: 6px 0; color: #555;">벌당 단가</td><td style="padding: 6px 0; text-align: right; font-weight: bold;"><span style="text-decoration: line-through; color: #999;">${pricing.unitPrice.toLocaleString('ko-KR')}원</span> <span style="color: #e53e3e;">${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원</span> ${pricing.note || ''}</td></tr>
+            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #3B55A5;">${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원</td></tr>
           </table>
           <p style="margin: 8px 0 0 0; font-size: 11px; color: #888;">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
         </div>` : '';
 
     const pricingText = pricing
-      ? `\n예상 견적:\n  예상 수량: ${estimatedQuantity}벌\n  벌당 단가: ${pricing.unitPrice.toLocaleString('ko-KR')}원 ${pricing.note || ''}\n  합계: ${pricing.totalPrice.toLocaleString('ko-KR')}원\n  * 실제 금액은 디자인 확정 후 변동될 수 있습니다.`
+      ? `\n예상 견적:\n  예상 수량: ${estimatedQuantity}벌\n  벌당 단가: ${pricing.unitPrice.toLocaleString('ko-KR')}원 → ${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원 ${pricing.note || ''}\n  합계: ${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원\n  * 실제 금액은 디자인 확정 후 변동될 수 있습니다.`
       : '';
 
     submitterHtml = `

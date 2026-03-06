@@ -337,14 +337,16 @@ export default function CoBuyRequestFeedbackPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">벌당 단가</span>
-                  <span className="font-medium text-gray-900">
-                    {estimatedPricing.pricing.unitPrice.toLocaleString()}원 {estimatedPricing.pricing.note || ''}
+                  <span className="font-medium">
+                    <span className="line-through text-gray-400">{estimatedPricing.pricing.unitPrice.toLocaleString()}원</span>
+                    <span className="text-red-500 ml-1">{estimatedPricing.pricing.discountedUnitPrice.toLocaleString()}원</span>
+                    {estimatedPricing.pricing.note ? ` ${estimatedPricing.pricing.note}` : ''}
                   </span>
                 </div>
                 <div className="border-t border-gray-100 pt-1.5 flex justify-between text-sm">
                   <span className="text-gray-700 font-medium">예상 합계</span>
                   <span className="font-bold text-[#3B55A5]">
-                    {estimatedPricing.pricing.totalPrice.toLocaleString()}원
+                    {estimatedPricing.pricing.discountedTotalPrice.toLocaleString()}원
                   </span>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
