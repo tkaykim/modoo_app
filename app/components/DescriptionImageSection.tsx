@@ -19,6 +19,7 @@ export default function DescriptionImageSection({
         alt={title}
         width={1200}
         height={1200}
+        unoptimized
         sizes="100vw"
         className="w-[80%] h-auto rounded-lg border border-gray-100 mx-auto"
         style={{ height: 'auto' }}

@@ -100,6 +100,21 @@ export async function POST(request: NextRequest) {
   let submitterText: string;
   let submitterSubject: string;
 
+  const pricingHtml = pricing ? `
+        <div style="margin: 24px 0; padding: 16px; background: #f0f4ff; border-radius: 8px; border: 1px solid #d0d9f0;">
+          <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #3B55A5;">예상 견적</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 6px 0; color: #555;">예상 수량</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">${estimatedQuantity}벌</td></tr>
+            <tr><td style="padding: 6px 0; color: #555;">벌당 단가</td><td style="padding: 6px 0; text-align: right; font-weight: bold;"><span style="text-decoration: line-through; color: #999;">${pricing.unitPrice.toLocaleString('ko-KR')}원</span> <span style="color: #e53e3e;">${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원</span> ${pricing.note || ''}</td></tr>
+            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #3B55A5;">${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원</td></tr>
+          </table>
+          <p style="margin: 8px 0 0 0; font-size: 11px; color: #888;">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
+        </div>` : '';
+
+  const pricingText = pricing
+    ? `\n예상 견적:\n  예상 수량: ${estimatedQuantity}벌\n  벌당 단가: ${pricing.unitPrice.toLocaleString('ko-KR')}원 → ${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원 ${pricing.note || ''}\n  합계: ${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원\n  * 실제 금액은 디자인 확정 후 변동될 수 있습니다.`
+    : '';
+
   if (contactPreference === 'phone') {
     // ── Phone preference: confirmation page-style email ──
     submitterSubject = `[모두의 유니폼] 공동구매 요청이 접수되었습니다`;
@@ -125,31 +140,18 @@ export async function POST(request: NextRequest) {
           <p style="margin: 8px 0 0 0; font-size: 13px; color: #3B55A5; font-weight: bold;">→ 예상: ${callSchedule}</p>
         </div>
 
+        ${pricingHtml}
+
         ${contactButtonsHtml}
       </div>
       ${footerHtml}
     </div>`;
 
-    submitterText = `요청이 접수되었습니다\n\n요청하신 디자인, 견적 등 상세 내용을 전문 담당자가 확인 후 전화로 연락드릴 예정입니다.\n\n단체명: ${title}\n이름: ${submitterName}\n연락처: ${submitterPhone || '-'}\n\n전화드릴 예정: ${callSchedule}\n\n궁금한게 있으신가요?\n전화문의: 010-8140-0621\n카톡 문의: http://pf.kakao.com/_xjSdYG/chat\n\n모두의 유니폼\n서울특별시 마포구 성지3길 55, 4층`;
+    submitterText = `요청이 접수되었습니다\n\n요청하신 디자인, 견적 등 상세 내용을 전문 담당자가 확인 후 전화로 연락드릴 예정입니다.\n\n단체명: ${title}\n이름: ${submitterName}\n연락처: ${submitterPhone || '-'}\n\n전화드릴 예정: ${callSchedule}${pricingText}\n\n궁금한게 있으신가요?\n전화문의: 010-8140-0621\n카톡 문의: http://pf.kakao.com/_xjSdYG/chat\n\n모두의 유니폼\n서울특별시 마포구 성지3길 55, 4층`;
 
   } else {
     // ── Email preference: detailed email with pricing + coupon ──
     submitterSubject = `[모두의 유니폼] 공동구매 요청이 접수되었습니다`;
-
-    const pricingHtml = pricing ? `
-        <div style="margin: 24px 0; padding: 16px; background: #f0f4ff; border-radius: 8px; border: 1px solid #d0d9f0;">
-          <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #3B55A5;">예상 견적</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 6px 0; color: #555;">예상 수량</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">${estimatedQuantity}벌</td></tr>
-            <tr><td style="padding: 6px 0; color: #555;">벌당 단가</td><td style="padding: 6px 0; text-align: right; font-weight: bold;"><span style="text-decoration: line-through; color: #999;">${pricing.unitPrice.toLocaleString('ko-KR')}원</span> <span style="color: #e53e3e;">${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원</span> ${pricing.note || ''}</td></tr>
-            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #3B55A5;">${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원</td></tr>
-          </table>
-          <p style="margin: 8px 0 0 0; font-size: 11px; color: #888;">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
-        </div>` : '';
-
-    const pricingText = pricing
-      ? `\n예상 견적:\n  예상 수량: ${estimatedQuantity}벌\n  벌당 단가: ${pricing.unitPrice.toLocaleString('ko-KR')}원 → ${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원 ${pricing.note || ''}\n  합계: ${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원\n  * 실제 금액은 디자인 확정 후 변동될 수 있습니다.`
-      : '';
 
     submitterHtml = `
     <div style="${fontStyle} max-width: 600px; margin: 0 auto; background: #ffffff;">
