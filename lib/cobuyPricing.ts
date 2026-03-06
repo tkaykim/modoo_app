@@ -1,13 +1,45 @@
 export interface PricingInfo {
   unitPrice: number;
+  discountedUnitPrice: number;
   totalPrice: number;
+  discountedTotalPrice: number;
   note?: string;
 }
 
+const DISCOUNT_RATE = 0.10;
+
+function withDiscount(unitPrice: number, qty: number, note?: string): PricingInfo {
+  const discountedUnitPrice = Math.round(unitPrice * (1 - DISCOUNT_RATE));
+  return {
+    unitPrice,
+    discountedUnitPrice,
+    totalPrice: qty * unitPrice,
+    discountedTotalPrice: qty * discountedUnitPrice,
+    note,
+  };
+}
+
 export function getPricingInfo(qty: number): PricingInfo | null {
-  if (qty < 10) return null; // 1~9: 성수기 제작불가
-  if (qty <= 30) return { unitPrice: Math.round(1800000 / qty), totalPrice: 1800000, note: '(고정가)' };
-  if (qty <= 50) return { unitPrice: 58000, totalPrice: qty * 58000 };
-  if (qty <= 70) return { unitPrice: 56000, totalPrice: qty * 56000 };
-  return { unitPrice: 53000, totalPrice: qty * 53000 };
+  if (qty < 10) return null;
+  if (qty <= 30) {
+    const fixedTotal = 1800000;
+    const unitPrice = Math.round(fixedTotal / qty);
+    const discountedUnitPrice = Math.round(unitPrice * (1 - DISCOUNT_RATE));
+    return {
+      unitPrice,
+      discountedUnitPrice,
+      totalPrice: fixedTotal,
+      discountedTotalPrice: qty * discountedUnitPrice,
+      note: '(고정가)',
+    };
+  }
+  if (qty <= 50) return withDiscount(58000, qty);
+  if (qty <= 70) return withDiscount(56000, qty);
+  if (qty <= 80) return withDiscount(55000, qty);
+  if (qty <= 90) return withDiscount(54000, qty);
+  if (qty <= 100) return withDiscount(53000, qty);
+  if (qty <= 120) return withDiscount(52000, qty);
+  if (qty <= 150) return withDiscount(51000, qty);
+  if (qty <= 180) return withDiscount(50000, qty);
+  return withDiscount(48000, qty);
 }
