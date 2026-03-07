@@ -14,14 +14,29 @@ export async function POST(
 
   // Validate the partner mall exists and is active
   const supabase = createAnonClient();
-  const { data: mall, error: mallError } = await supabase
+
+  // Try slug first, then share_token
+  let mall = null;
+  const { data: slugResult } = await supabase
     .from('partner_malls')
     .select('id')
-    .eq('share_token', shareToken)
+    .eq('slug', shareToken)
     .eq('is_active', true)
-    .single();
+    .maybeSingle();
 
-  if (mallError || !mall) {
+  if (slugResult) {
+    mall = slugResult;
+  } else {
+    const { data: tokenResult } = await supabase
+      .from('partner_malls')
+      .select('id')
+      .eq('share_token', shareToken)
+      .eq('is_active', true)
+      .maybeSingle();
+    mall = tokenResult;
+  }
+
+  if (!mall) {
     return NextResponse.json({ error: '유효하지 않은 파트너몰입니다.' }, { status: 404 });
   }
 
@@ -80,14 +95,29 @@ export async function PATCH(
 
   // Validate the partner mall exists and is active
   const supabase = createAnonClient();
-  const { data: mall, error: mallError } = await supabase
+
+  // Try slug first, then share_token
+  let mall = null;
+  const { data: slugResult } = await supabase
     .from('partner_malls')
     .select('id')
-    .eq('share_token', shareToken)
+    .eq('slug', shareToken)
     .eq('is_active', true)
-    .single();
+    .maybeSingle();
 
-  if (mallError || !mall) {
+  if (slugResult) {
+    mall = slugResult;
+  } else {
+    const { data: tokenResult } = await supabase
+      .from('partner_malls')
+      .select('id')
+      .eq('share_token', shareToken)
+      .eq('is_active', true)
+      .maybeSingle();
+    mall = tokenResult;
+  }
+
+  if (!mall) {
     return NextResponse.json({ error: '유효하지 않은 파트너몰입니다.' }, { status: 404 });
   }
 
