@@ -1270,6 +1270,24 @@ export default function CreateCoBuyRequestPage() {
     }
   }, [selectedColorHex, colorTutorialStep, colorTutorialDismissed]);
 
+  // Auto-scroll inputs into view when focused (mobile keyboard fix)
+  useEffect(() => {
+    if (currentStep !== 'user-info') return;
+
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        // Wait for keyboard to appear
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    return () => document.removeEventListener('focusin', handleFocus);
+  }, [currentStep]);
+
   const changeTextColor = (color: string) => {
     setTextColor(color);
     const canvas = getActiveCanvas();
@@ -2121,7 +2139,7 @@ export default function CreateCoBuyRequestPage() {
 
               {/* Step 6: User Info */}
               {currentStep === 'user-info' && (
-                <div className="max-w-lg mx-auto py-6 px-4">
+                <div className="max-w-lg mx-auto py-6 px-4 pb-32">
                   <h2 className="text-base font-bold text-gray-900 text-center mb-4">할인쿠폰과 함께 견적을 보내드릴게요</h2>
 
                   {/* Modi character speech bubble */}
