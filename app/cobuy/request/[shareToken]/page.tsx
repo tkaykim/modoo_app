@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   MessageSquare, Send, CheckCircle, Clock, Pencil, Eye,
   ThumbsUp, XCircle, Package,
@@ -57,7 +57,11 @@ export default function CoBuyRequestFeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
 
   // Fetch request data + poll every 15s for updates (admin design, status changes)
   const fetchRequestData = useCallback(async () => {
@@ -107,6 +111,15 @@ export default function CoBuyRequestFeedbackPage() {
     if (request) fetchComments();
   }, [request?.id]);
 
+  // Handle ?action= query params from email links
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'feedback' && request?.status === 'design_shared') {
+      setShowFeedbackForm(true);
+      setTimeout(() => feedbackRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
+    }
+  }, [searchParams, request?.status]);
+
   // Auto-scroll to latest comment
   useEffect(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -143,6 +156,22 @@ export default function CoBuyRequestFeedbackPage() {
     }
 
     setIsSending(false);
+  };
+
+  const handleConfirmDesign = async () => {
+    if (isConfirming || !shareToken) return;
+    setIsConfirming(true);
+    try {
+      const res = await fetch(`/api/cobuy/request/${shareToken}/confirm`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        setRequest(prev => prev ? { ...prev, status: 'confirmed' } : prev);
+      }
+    } catch {
+      // ignore
+    }
+    setIsConfirming(false);
   };
 
   const productConfig: ProductConfig | null = useMemo(() => {
@@ -305,7 +334,7 @@ export default function CoBuyRequestFeedbackPage() {
             </div>
             {request.status === 'design_shared' && (
               <p className="text-xs text-purple-600 px-4 pb-3">
-                디자인을 확인하고 아래에 피드백을 남겨주세요.
+                아래에서 디자인을 확정하거나 수정 요청을 보내주세요.
               </p>
             )}
           </div>
@@ -321,6 +350,40 @@ export default function CoBuyRequestFeedbackPage() {
                 alt="내 디자인"
                 className="w-full h-auto object-contain max-h-64"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Confirm / Feedback CTAs — shown when design_shared */}
+        {request.status === 'design_shared' && (
+          <div ref={feedbackRef} className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <p className="text-sm font-medium text-gray-800 mb-3">디자인을 확인해 주세요</p>
+            <div className="space-y-2">
+              <button
+                onClick={handleConfirmDesign}
+                disabled={isConfirming}
+                className="w-full py-3.5 bg-[#3B55A5] text-white rounded-xl text-sm font-bold hover:bg-[#2D4280] disabled:opacity-50 transition flex items-center justify-center gap-2"
+              >
+                {isConfirming ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ThumbsUp className="w-4 h-4" />
+                )}
+                이대로 마음에 들어요
+              </button>
+              <button
+                onClick={() => {
+                  setShowFeedbackForm(true);
+                  setTimeout(() => {
+                    const input = document.querySelector<HTMLInputElement>('.feedback-comment-input');
+                    input?.focus();
+                  }, 100);
+                }}
+                className="w-full py-3.5 bg-white text-gray-700 border border-gray-300 rounded-xl text-sm font-bold hover:bg-gray-50 transition flex items-center justify-center gap-2"
+              >
+                <Pencil className="w-4 h-4" />
+                좀 더 수정이 필요해요
+              </button>
             </div>
           </div>
         )}
@@ -438,7 +501,7 @@ export default function CoBuyRequestFeedbackPage() {
               onChange={e => setCommentText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }}
               placeholder="피드백을 입력해주세요..."
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] transition"
+              className="feedback-comment-input flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] transition"
             />
             <button
               onClick={handleSendComment}
