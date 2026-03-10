@@ -134,12 +134,13 @@ export default function ProductCard({ product }: ProductCardProps) {
     <>
       <Link href={`/editor/${product.id}`} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         {/* Product Image */}
-        <div className="aspect-4/5 bg-gray-100 relative">
+        <div className="aspect-4/5 bg-white relative">
           {firstSideImage && (
             <Image
               src={firstSideImage}
               alt={product.title}
               fill
+              unoptimized
               className="object-contain"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             />

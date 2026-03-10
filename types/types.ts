@@ -90,7 +90,7 @@ export interface Product {
   created_at: string;
   updated_at: string;
   thumbnail_image_link?: string;
-  description_image?: string | null;
+  description_image?: string[] | null;
   sizing_chart_image?: string | null;
   manufacturer_name?: string | null;
 }

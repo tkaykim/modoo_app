@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   MessageSquare, Send, CheckCircle, Clock, Pencil, Eye,
-  ThumbsUp, XCircle, Package,
+  XCircle, Package,
 } from 'lucide-react';
 import { CoBuyRequest, CoBuyRequestComment, CoBuyRequestStatus, CoBuyRequestQuantityExpectations, ProductConfig } from '@/types/types';
 import Header from '@/app/components/Header';
@@ -30,13 +30,13 @@ const statusConfig: Record<CoBuyRequestStatus, { label: string; icon: typeof Clo
   in_progress: { label: '디자인 작업중', icon: Pencil, color: 'text-blue-600', bgColor: 'bg-blue-50' },
   design_shared: { label: '디자인 확인 요청', icon: Eye, color: 'text-purple-600', bgColor: 'bg-purple-50' },
   feedback: { label: '피드백 전달됨', icon: MessageSquare, color: 'text-orange-600', bgColor: 'bg-orange-50' },
-  confirmed: { label: '디자인 확정', icon: ThumbsUp, color: 'text-green-600', bgColor: 'bg-green-50' },
+  confirmed: { label: '디자인 확정', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50' },
   session_created: { label: '공동구매 시작됨', icon: Package, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
   rejected: { label: '거절됨', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50' },
 };
 
 const statusOrder: CoBuyRequestStatus[] = [
-  'pending', 'in_progress', 'design_shared', 'feedback', 'confirmed', 'session_created',
+  'pending', 'in_progress', 'design_shared', 'confirmed', 'session_created',
 ];
 
 const formatDate = (dateString?: string | null) => {
@@ -58,10 +58,7 @@ export default function CoBuyRequestFeedbackPage() {
   const [commentText, setCommentText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement>(null);
-  const feedbackRef = useRef<HTMLDivElement>(null);
-  const searchParams = useSearchParams();
 
   // Fetch request data + poll every 15s for updates (admin design, status changes)
   const fetchRequestData = useCallback(async () => {
@@ -111,15 +108,6 @@ export default function CoBuyRequestFeedbackPage() {
     if (request) fetchComments();
   }, [request?.id]);
 
-  // Handle ?action= query params from email links
-  useEffect(() => {
-    const action = searchParams.get('action');
-    if (action === 'feedback' && request?.status === 'design_shared') {
-      setShowFeedbackForm(true);
-      setTimeout(() => feedbackRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
-    }
-  }, [searchParams, request?.status]);
-
   // Auto-scroll to latest comment
   useEffect(() => {
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -146,10 +134,6 @@ export default function CoBuyRequestFeedbackPage() {
       if (res.ok) {
         setCommentText('');
         await fetchComments();
-        // Update local status if it changed
-        if (request?.status === 'design_shared') {
-          setRequest(prev => prev ? { ...prev, status: 'feedback' } : prev);
-        }
       }
     } catch {
       // ignore
@@ -334,7 +318,7 @@ export default function CoBuyRequestFeedbackPage() {
             </div>
             {request.status === 'design_shared' && (
               <p className="text-xs text-purple-600 px-4 pb-3">
-                아래에서 디자인을 확정하거나 수정 요청을 보내주세요.
+                디자인을 확인하고 아래에서 확정해 주세요.
               </p>
             )}
           </div>
@@ -354,42 +338,55 @@ export default function CoBuyRequestFeedbackPage() {
           </div>
         )}
 
-        {/* Confirm / Feedback CTAs — shown when design_shared */}
+        {/* Confirm CTA — shown when design_shared */}
         {request.status === 'design_shared' && (
-          <div ref={feedbackRef} className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
             <p className="text-sm font-medium text-gray-800 mb-3">디자인을 확인해 주세요</p>
-            <div className="space-y-2">
-              <button
-                onClick={handleConfirmDesign}
-                disabled={isConfirming}
-                className="w-full py-3.5 bg-[#3B55A5] text-white rounded-xl text-sm font-bold hover:bg-[#2D4280] disabled:opacity-50 transition flex items-center justify-center gap-2"
-              >
-                {isConfirming ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <ThumbsUp className="w-4 h-4" />
-                )}
-                이대로 마음에 들어요
-              </button>
-              <button
-                onClick={() => {
-                  setShowFeedbackForm(true);
-                  setTimeout(() => {
-                    const input = document.querySelector<HTMLInputElement>('.feedback-comment-input');
-                    input?.focus();
-                  }, 100);
-                }}
-                className="w-full py-3.5 bg-white text-gray-700 border border-gray-300 rounded-xl text-sm font-bold hover:bg-gray-50 transition flex items-center justify-center gap-2"
-              >
-                <Pencil className="w-4 h-4" />
-                좀 더 수정이 필요해요
-              </button>
-            </div>
+            <button
+              onClick={handleConfirmDesign}
+              disabled={isConfirming}
+              className="w-full py-3.5 bg-[#3B55A5] text-white rounded-xl text-sm font-bold hover:bg-[#2D4280] disabled:opacity-50 transition flex items-center justify-center gap-2"
+            >
+              {isConfirming ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4" />
+              )}
+              디자인 확정하기
+            </button>
+            <p className="text-[11px] text-gray-400 mt-2 text-center">
+              수정이 필요하시면 아래 대화에서 의견을 남겨주세요.
+            </p>
           </div>
         )}
 
-        {/* Estimated Pricing */}
-        {estimatedPricing && (
+        {/* Admin-set Pricing */}
+        {request.confirmed_price ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <p className="text-xs font-medium text-gray-500 mb-2">견적 정보</p>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">벌당 단가</span>
+                <span className="font-medium text-gray-900">{Number(request.confirmed_price).toLocaleString()}원</span>
+              </div>
+              {estimatedPricing?.qty && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">예상 수량</span>
+                    <span className="font-medium text-gray-900">{estimatedPricing.qty}벌</span>
+                  </div>
+                  <div className="border-t border-gray-100 pt-1.5 flex justify-between text-sm">
+                    <span className="text-gray-700 font-medium">합계 금액</span>
+                    <span className="font-bold text-[#3B55A5]">
+                      {(Number(request.confirmed_price) * estimatedPricing.qty).toLocaleString()}원
+                    </span>
+                  </div>
+                </>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1">* 실제 금액은 최종 수량에 따라 변동될 수 있습니다.</p>
+            </div>
+          </div>
+        ) : estimatedPricing ? (
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
             <p className="text-xs font-medium text-gray-500 mb-2">예상 견적</p>
             {estimatedPricing.pricing ? (
@@ -420,20 +417,7 @@ export default function CoBuyRequestFeedbackPage() {
               </p>
             )}
           </div>
-        )}
-
-        {/* Confirmed Price */}
-        {request.confirmed_price && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <p className="text-sm font-medium text-green-800">디자인 확정</p>
-            </div>
-            <p className="text-lg font-bold text-green-900 mt-1">
-              ₩{Number(request.confirmed_price).toLocaleString()}
-            </p>
-          </div>
-        )}
+        ) : null}
 
         {/* CoBuy Session Link */}
         {request.status === 'session_created' && request.cobuy_session_id && (
@@ -492,7 +476,7 @@ export default function CoBuyRequestFeedbackPage() {
       </div>
 
       {/* Fixed Comment Input */}
-      {!isRejected && request.status !== 'session_created' && (
+      {!isRejected && request.status !== 'session_created' && request.status !== 'confirmed' && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 safe-area-inset-bottom">
           <div className="max-w-lg mx-auto flex gap-2">
             <input

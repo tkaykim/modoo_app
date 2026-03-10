@@ -43,7 +43,7 @@ export async function POST(
       const customerName = request.guest_name || '고객';
       const baseUrl = 'https://modoouniform.com';
       const logoUrl = `${baseUrl}/icons/modoo_logo.png`;
-      const adminLink = `${baseUrl}/admin/cobuy/requests/${request.id}`;
+      const adminLink = `https://admin.modoogoods.com/cobuy/requests/${request.id}`;
 
       await sendMailjetEmail({
         to: [{ email: adminEmail, name: '모두의 유니폼 관리자' }],
