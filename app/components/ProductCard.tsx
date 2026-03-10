@@ -134,7 +134,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     <>
       <Link href={`/editor/${product.id}`} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         {/* Product Image */}
-        <div className="aspect-4/5 bg-gray-100 relative">
+        <div className="aspect-4/5 bg-white relative">
           {firstSideImage && (
             <Image
               src={firstSideImage}
