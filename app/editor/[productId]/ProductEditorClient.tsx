@@ -65,7 +65,7 @@ export default function ProductEditorClient({ product }: ProductEditorClientProp
   const [isRecallGuestDesignOpen, setIsRecallGuestDesignOpen] = useState(false);
   const [guestDesign, setGuestDesign] = useState<GuestDesign | null>(null);
   const [isSavingToMall, setIsSavingToMall] = useState(false);
-  const descriptionImageUrl = product.description_image ?? null;
+  const descriptionImageUrls = product.description_image ?? null;
   const sizingChartImageUrl = product.sizing_chart_image ?? null;
 
   // Convert Product to ProductConfig format
@@ -661,10 +661,10 @@ export default function ProductEditorClient({ product }: ProductEditorClientProp
           <ReviewsSection productId={product.id} limit={10} />
 
           {/* Description Image Section */}
-          <DescriptionImageSection title="주문상세" imageUrl={descriptionImageUrl} />
+          <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
 
           {/* Sizing Chart Section */}
-          <DescriptionImageSection title="사이즈 차트" imageUrl={sizingChartImageUrl} />
+          <DescriptionImageSection title="사이즈 차트" imageUrls={sizingChartImageUrl ? [sizingChartImageUrl] : null} />
         </div>
       )}
 

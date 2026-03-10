@@ -40,7 +40,7 @@ export default function ProductEditorClientDesktop({ product }: ProductEditorCli
   const searchParams = useSearchParams();
   const router = useRouter();
   const cartItemId = searchParams.get('cartItemId');
-  const descriptionImageUrl = product.description_image ?? null;
+  const descriptionImageUrls = product.description_image ?? null;
   const sizingChartImageUrl = product.sizing_chart_image ?? null;
 
   const {
@@ -876,9 +876,9 @@ export default function ProductEditorClientDesktop({ product }: ProductEditorCli
 
           <ReviewsSection productId={product.id} limit={10} />
           <div className="w-full">
-            <DescriptionImageSection title="주문상세" imageUrl={descriptionImageUrl} />
+            <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
           </div>
-          <DescriptionImageSection title="사이즈 차트" imageUrl={sizingChartImageUrl} />
+          <DescriptionImageSection title="사이즈 차트" imageUrls={sizingChartImageUrl ? [sizingChartImageUrl] : null} />
       </div>
 
       <QuantitySelectorModal
