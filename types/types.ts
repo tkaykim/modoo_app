@@ -181,6 +181,15 @@ export interface Faq {
 // Print option types
 export type PrintMethod = 'dtf' | 'dtg' | 'screen_printing' | 'embroidery' | 'applique';
 
+export interface PrintMethodRecord {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  sort_order: number;
+}
+
 export interface PrintOption {
   method: PrintMethod;
   price: number; // Additional cost for this print method

@@ -2,10 +2,11 @@
 import ProductDesigner from "@/app/components/canvas/ProductDesigner";
 import PricingInfo from "@/app/components/canvas/PricingInfo";
 import ColorInfo from "@/app/components/canvas/ColorInfo";
+import PrintMethodsDisplay from "@/app/components/canvas/PrintMethodsDisplay";
 import LayerColorSelector from "@/app/components/canvas/LayerColorSelector";
 import ObjectPreviewPanel from "@/app/components/canvas/ObjectPreviewPanel";
 import DesktopToolbar from "@/app/components/canvas/DesktopToolbar";
-import { Product, ProductConfig, CartItem, ProductColor } from "@/types/types";
+import { Product, ProductConfig, CartItem, ProductColor, PrintMethodRecord } from "@/types/types";
 import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import Header from "@/app/components/Header";
@@ -34,9 +35,11 @@ import ShareProductButton from "@/app/components/ShareProductButton";
 
 interface ProductEditorClientDesktopProps {
   product: Product;
+  allPrintMethods?: PrintMethodRecord[];
+  enabledPrintMethodIds?: Set<string>;
 }
 
-export default function ProductEditorClientDesktop({ product }: ProductEditorClientDesktopProps) {
+export default function ProductEditorClientDesktop({ product, allPrintMethods = [], enabledPrintMethodIds = new Set() }: ProductEditorClientDesktopProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cartItemId = searchParams.get('cartItemId');
@@ -815,6 +818,7 @@ export default function ProductEditorClientDesktop({ product }: ProductEditorCli
 
                 <ObjectPreviewPanel sides={product.configuration} />
                 <ColorInfo />
+                <PrintMethodsDisplay allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} className="mt-4" />
                 <PricingInfo basePrice={product.base_price} sides={product.configuration} />
               </div>
             </div>

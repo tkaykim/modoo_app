@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase";
-import { Product } from "@/types/types";
+import { Product, PrintMethodRecord } from "@/types/types";
 import { notFound } from "next/navigation";
 import ProductEditorClient from "./ProductEditorClient";
 import ProductEditorClientDesktop from "./ProductEditorClientDesktop";
@@ -39,7 +39,16 @@ export default async function ProductEditorPage({ params }: PageProps) {
     notFound();
   }
 
+  // Fetch all active print methods + product's linked ones
+  const [{ data: allPrintMethodsData }, { data: productPrintMethodsData }] = await Promise.all([
+    supabase.from('print_methods').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+    supabase.from('product_print_methods').select('print_method_id').eq('product_id', productId),
+  ]);
+
+  const allPrintMethods: PrintMethodRecord[] = (allPrintMethodsData || []) as PrintMethodRecord[];
+  const enabledPrintMethodIds = new Set((productPrintMethodsData || []).map((r: any) => r.print_method_id));
+
   return isMobile
-    ? <ProductEditorClient product={product as Product} />
-    : <ProductEditorClientDesktop product={product as Product} />;
+    ? <ProductEditorClient product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />
+    : <ProductEditorClientDesktop product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />;
 }
