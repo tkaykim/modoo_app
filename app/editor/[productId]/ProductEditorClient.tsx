@@ -45,6 +45,7 @@ export default function ProductEditorClient({ product, allPrintMethods = [], ena
 
   const {
     isEditMode,
+    setActiveSide,
     productColor,
     setProductColor,
     saveAllCanvasState,
@@ -549,6 +550,13 @@ export default function ProductEditorClient({ product, allPrintMethods = [], ena
   }, [canvasMap, product.configuration, canvasVersion]);
 
   const pricePerItem = product.base_price + pricingData.totalAdditionalPrice;
+
+  // Set active side to the product's first side on mount
+  useEffect(() => {
+    if (product.configuration.length > 0) {
+      setActiveSide(product.configuration[0].id);
+    }
+  }, [setActiveSide, product.configuration]);
 
   // Scroll to top and prevent scrolling when entering edit mode
   useEffect(() => {

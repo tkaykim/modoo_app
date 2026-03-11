@@ -48,6 +48,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
 
   const {
     setEditMode,
+    setActiveSide,
     productColor,
     setProductColor,
     saveAllCanvasState,
@@ -606,8 +607,11 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
 
   useEffect(() => {
     setEditMode(true);
+    if (product.configuration.length > 0) {
+      setActiveSide(product.configuration[0].id);
+    }
     return () => setEditMode(false);
-  }, [setEditMode]);
+  }, [setEditMode, setActiveSide, product.configuration]);
 
   // Listen for canvas selection changes
   useEffect(() => {
