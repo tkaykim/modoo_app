@@ -34,10 +34,11 @@ import ShareProductButton from "@/app/components/ShareProductButton";
 
 interface ProductEditorClientProps {
   product: Product;
-  printMethods?: PrintMethodRecord[];
+  allPrintMethods?: PrintMethodRecord[];
+  enabledPrintMethodIds?: Set<string>;
 }
 
-export default function ProductEditorClient({ product, printMethods = [] }: ProductEditorClientProps) {
+export default function ProductEditorClient({ product, allPrintMethods = [], enabledPrintMethodIds = new Set() }: ProductEditorClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cartItemId = searchParams.get('cartItemId');
@@ -654,7 +655,7 @@ export default function ProductEditorClient({ product, printMethods = [] }: Prod
           <PricingInfo basePrice={product.base_price} sides={product.configuration} />
 
           {/* Print Methods */}
-          <PrintMethodsDisplay printMethods={printMethods} className="mt-4" />
+          <PrintMethodsDisplay allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} className="mt-4" />
 
           {/* Color Information */}
           <ColorInfo className="mt-4" />

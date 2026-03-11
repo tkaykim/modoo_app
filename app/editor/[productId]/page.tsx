@@ -39,19 +39,16 @@ export default async function ProductEditorPage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch print methods linked to this product
-  const { data: printMethodsData } = await supabase
-    .from('product_print_methods')
-    .select('print_methods(*)')
-    .eq('product_id', productId);
+  // Fetch all active print methods + product's linked ones
+  const [{ data: allPrintMethodsData }, { data: productPrintMethodsData }] = await Promise.all([
+    supabase.from('print_methods').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+    supabase.from('product_print_methods').select('print_method_id').eq('product_id', productId),
+  ]);
 
-  const printMethods: PrintMethodRecord[] = (printMethodsData || [])
-    .map((row: any) => row.print_methods)
-    .flat()
-    .filter((pm: any): pm is PrintMethodRecord => pm !== null && pm?.id)
-    .sort((a, b) => a.sort_order - b.sort_order);
+  const allPrintMethods: PrintMethodRecord[] = (allPrintMethodsData || []) as PrintMethodRecord[];
+  const enabledPrintMethodIds = new Set((productPrintMethodsData || []).map((r: any) => r.print_method_id));
 
   return isMobile
-    ? <ProductEditorClient product={product as Product} printMethods={printMethods} />
-    : <ProductEditorClientDesktop product={product as Product} printMethods={printMethods} />;
+    ? <ProductEditorClient product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />
+    : <ProductEditorClientDesktop product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />;
 }
