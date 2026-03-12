@@ -6,6 +6,7 @@ import Header from '@/app/components/Header';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { FaStar } from 'react-icons/fa';
+import { userInfo } from 'os';
 
 type ProductSummary = {
   id: string;
@@ -228,6 +229,7 @@ export default function CreateMyReviewPage() {
         .from('reviews')
         .insert({
           product_id: productId,
+          author_name: user?.name,
           user_id: userId,
           rating,
           title: title.trim(),
