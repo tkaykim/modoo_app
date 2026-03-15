@@ -70,7 +70,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
   const [isRecallGuestDesignOpen, setIsRecallGuestDesignOpen] = useState(false);
   const [guestDesign, setGuestDesign] = useState<GuestDesign | null>(null);
-  const [selectedTextObject, setSelectedTextObject] = useState<fabric.IText | fabric.Text | null>(null);
+  const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null);
   const [isSavingToMall, setIsSavingToMall] = useState(false);
 
   // Convert Product to ProductConfig format
@@ -620,22 +620,18 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
 
     const handleSelectionCreated = (e: any) => {
       const selected = e.selected?.[0];
-      if (selected && (selected.type === 'i-text' || selected.type === 'text' || isCurvedText(selected))) {
-        setSelectedTextObject(selected);
+      if (selected) {
+        setSelectedObject(selected);
       }
     };
 
     const handleSelectionUpdated = (e: any) => {
       const selected = e.selected?.[0];
-      if (selected && (selected.type === 'i-text' || selected.type === 'text' || isCurvedText(selected))) {
-        setSelectedTextObject(selected);
-      } else {
-        setSelectedTextObject(null);
-      }
+      setSelectedObject(selected || null);
     };
 
     const handleSelectionCleared = () => {
-      setSelectedTextObject(null);
+      setSelectedObject(null);
     };
 
     activeCanvas.on('selection:created', handleSelectionCreated);
@@ -684,7 +680,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
             </div>
 
             {/* Layer Controls positioned at top left - Only shown when object is selected */}
-            {selectedTextObject && (
+            {selectedObject && (
               <div className="absolute top-16 left-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 backdrop-blur-sm px-4 py-2.5">
                 <span className="text-sm font-semibold text-gray-700 mr-1">레이어 조정:</span>
                 <button
@@ -734,7 +730,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
 
           {/* Right Side - Fixed height with sticky pricing */}
           <aside className="rounded-md bg-white p-4 border border-gray-200 h-full overflow-hidden flex flex-col">
-            {selectedTextObject ? (
+            {selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'text' || isCurvedText(selectedObject)) ? (
               // Text Editing Panel
               <>
                 <div className="flex items-center justify-between mb-4">
@@ -743,10 +739,10 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
                     <button
                       onClick={() => {
                         const activeCanvas = canvasMap[activeSideId];
-                        if (activeCanvas && selectedTextObject) {
-                          activeCanvas.remove(selectedTextObject);
+                        if (activeCanvas && selectedObject) {
+                          activeCanvas.remove(selectedObject);
                           activeCanvas.requestRenderAll();
-                          setSelectedTextObject(null);
+                          setSelectedObject(null);
                         }
                       }}
                       className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition"
@@ -761,7 +757,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
                           activeCanvas.discardActiveObject();
                           activeCanvas.requestRenderAll();
                         }
-                        setSelectedTextObject(null);
+                        setSelectedObject(null);
                       }}
                       className="p-2 hover:bg-gray-100 rounded-lg transition"
                       title="닫기"
@@ -771,7 +767,7 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  <TextStylePanel selectedObject={selectedTextObject} layout="sidebar" />
+                  <TextStylePanel selectedObject={selectedObject as fabric.IText | fabric.Text} layout="sidebar" />
                 </div>
               </>
             ) : (
