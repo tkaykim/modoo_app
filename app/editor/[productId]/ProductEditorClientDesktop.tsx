@@ -31,6 +31,7 @@ import LoginPromptModal from "@/app/components/LoginPromptModal";
 import GuestDesignRecallModal from "@/app/components/GuestDesignRecallModal";
 import { getGuestDesign, removeGuestDesign, saveGuestDesign, type GuestDesign } from "@/lib/guestDesignStorage";
 import ShareProductButton from "@/app/components/ShareProductButton";
+import { setPrintPricingConfig } from "@/lib/printPricingConfig";
 
 
 interface ProductEditorClientDesktopProps {
@@ -349,6 +350,11 @@ export default function ProductEditorClientDesktop({ product, allPrintMethods = 
       setIsSaving(false);
     }
   };
+
+  // Initialize pricing config from DB records
+  useEffect(() => {
+    if (allPrintMethods.length > 0) setPrintPricingConfig(allPrintMethods);
+  }, [allPrintMethods]);
 
   // Fetch product colors from database (joined with manufacturer_colors)
   useEffect(() => {

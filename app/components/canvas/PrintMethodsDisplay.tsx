@@ -21,6 +21,7 @@ export default function PrintMethodsDisplay({ allPrintMethods, enabledPrintMetho
           return (
             <div
               key={pm.id}
+              title={pm.description || undefined}
               className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] ${
                 isEnabled
                   ? 'border-green-300 bg-green-50 text-green-700'

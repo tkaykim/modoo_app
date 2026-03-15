@@ -1,4 +1,4 @@
-import { PrintPricingConfig } from '@/types/types';
+import { PrintPricingConfig, PrintMethodRecord, TransferPricing, BulkPricing } from '@/types/types';
 
 /**
  * Default print pricing configuration
@@ -83,14 +83,32 @@ export const DEFAULT_PRINT_PRICING: PrintPricingConfig = {
   }
 };
 
+let _cachedConfig: PrintPricingConfig | null = null;
+
 /**
- * Get the current pricing configuration
- * In the future, this can fetch from a database or admin settings
+ * Set pricing config from database print method records.
+ * Call this when print methods are fetched from the server.
+ */
+export function setPrintPricingConfig(methods: PrintMethodRecord[]): void {
+  const config = { ...DEFAULT_PRINT_PRICING };
+  for (const m of methods) {
+    if (!m.pricing || !m.key) continue;
+    if (m.key === 'dtf' || m.key === 'dtg') {
+      config[m.key] = { method: m.key, sizes: m.pricing as unknown as TransferPricing['sizes'] };
+    } else if (m.key in config) {
+      const key = m.key as 'screen_printing' | 'embroidery' | 'applique';
+      config[key] = { method: key, sizes: m.pricing as unknown as BulkPricing['sizes'] };
+    }
+  }
+  _cachedConfig = config;
+}
+
+/**
+ * Get the current pricing configuration.
+ * Returns cached DB config if available, otherwise falls back to defaults.
  */
 export function getPrintPricingConfig(): PrintPricingConfig {
-  // TODO: Fetch from database or admin settings
-  // For now, return default configuration
-  return DEFAULT_PRINT_PRICING;
+  return _cachedConfig ?? DEFAULT_PRINT_PRICING;
 }
 
 /**
