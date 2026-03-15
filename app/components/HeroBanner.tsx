@@ -115,8 +115,8 @@ export default function HeroBanner() {
 
               {/* Content */}
               <div className="relative z-20">
-                <h2 className="text-xl lg:text-2xl font-bold mb-1">{banner.title}</h2>
-                <p className="text-sm lg:text-base text-white/90">{banner.subtitle}</p>
+                <h2 className="text-lg lg:text-xl font-bold mb-1">{banner.title}</h2>
+                <p className="text-sm text-white/90">{banner.subtitle}</p>
               </div>
             </>
           );
