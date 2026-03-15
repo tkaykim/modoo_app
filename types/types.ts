@@ -188,6 +188,7 @@ export interface PrintMethodRecord {
   description: string | null;
   image_url: string | null;
   sort_order: number;
+  pricing: Record<string, number | { basePrice: number; baseQuantity: number; additionalPricePerPiece: number }> | null;
 }
 
 export interface PrintOption {
