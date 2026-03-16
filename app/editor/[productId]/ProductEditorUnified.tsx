@@ -9,7 +9,7 @@ import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
-import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, ChevronLeft } from "lucide-react";
+import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import * as fabric from 'fabric';
 import { isCurvedText } from '@/lib/curvedText';
@@ -27,9 +27,9 @@ import GuestDesignRecallModal from "@/app/components/GuestDesignRecallModal";
 import { getGuestDesign, removeGuestDesign, saveGuestDesign, type GuestDesign } from "@/lib/guestDesignStorage";
 import { setPrintPricingConfig } from "@/lib/printPricingConfig";
 import LandingStep from "./steps/LandingStep";
-import ColorStep from "./steps/ColorStep";
+import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
 
-type EditorStep = 'landing' | 'color' | 'editor' | 'quantity';
+type EditorStep = 'landing' | 'editor' | 'quantity';
 
 interface ProductEditorUnifiedProps {
   product: Product;
@@ -84,34 +84,12 @@ export default function ProductEditorUnified({
     sides: product.configuration,
   };
 
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+
   // ─── Step transitions ────────────────────────────────────────────
-  const goToColor = () => {
-    // Check if there are any color options; if not, skip to editor
-    const firstSide = product.configuration[0];
-    const hasLayers = firstSide?.layers && firstSide.layers.length > 0;
-    const hasColorOptions = firstSide?.colorOptions && firstSide.colorOptions.length > 0;
-    const hasLegacyColors = productColors.length > 0;
-
-    if (!hasLayers && !hasColorOptions && !hasLegacyColors) {
-      goToEditor();
-      return;
-    }
-    setCurrentStep('color');
-  };
-
   const goToEditor = () => {
     setCurrentStep('editor');
     setEditMode(true);
-  };
-
-  const goToLanding = () => {
-    setCurrentStep('landing');
-    setEditMode(false);
-  };
-
-  const goToColorFromEditor = () => {
-    setCurrentStep('color');
-    setEditMode(false);
   };
 
   const handleEditorDone = () => {
@@ -588,7 +566,7 @@ export default function ProductEditorUnified({
           product={product}
           allPrintMethods={allPrintMethods}
           enabledPrintMethodIds={enabledPrintMethodIds}
-          onNext={goToColor}
+          onNext={goToEditor}
         />
         {/* Canvas mounted but hidden to preserve state */}
         <div className="absolute opacity-0 pointer-events-none h-0 overflow-hidden">
@@ -629,36 +607,48 @@ export default function ProductEditorUnified({
     );
   }
 
-  // Color step
-  if (currentStep === 'color') {
-    return (
-      <div>
-        <div className="w-full sticky top-0 bg-gray-300 z-50">
-          <Header back={true} />
-        </div>
-        <ColorStep
-          product={product}
-          productColors={productColors}
-          activeSideId={activeSideId}
-          onNext={goToEditor}
-          onBack={goToLanding}
-        />
-        {/* Canvas mounted but hidden */}
-        <div className="absolute opacity-0 pointer-events-none h-0 overflow-hidden">
-          <ProductDesigner config={productConfig} layout={isMobile ? 'mobile' : 'desktop'} />
-        </div>
-      </div>
-    );
-  }
+  // Check if product has any color options (for showing the color button)
+  const hasAnyColorOptions = (() => {
+    const firstSide = product.configuration[0];
+    const hasLayers = firstSide?.layers && firstSide.layers.length > 0;
+    const hasColorOptions = firstSide?.colorOptions && firstSide.colorOptions.length > 0;
+    return hasLayers || hasColorOptions || productColors.length > 0;
+  })();
+
+  // Get current display color for the color button
+  const getDisplayColor = (): string => {
+    const { layerColors } = useCanvasStore.getState();
+    const firstSide = product.configuration[0];
+    if (!firstSide) return productColor || '#FFFFFF';
+
+    // Check layer colors first
+    const sideColors = layerColors[firstSide.id];
+    if (sideColors) {
+      const bodyKeywords = ['몸통', 'body', '바디'];
+      if (firstSide.layers && firstSide.layers.length > 0) {
+        const bodyLayer = firstSide.layers.find(l =>
+          bodyKeywords.some(kw => l.name.toLowerCase().includes(kw))
+        ) || firstSide.layers[0];
+        if (sideColors[bodyLayer.id]) return sideColors[bodyLayer.id];
+      }
+      if (sideColors[firstSide.id]) return sideColors[firstSide.id];
+    }
+
+    // Fallback to productColor or first available color
+    if (productColor && productColor !== '#FFFFFF') return productColor;
+    if (firstSide.colorOptions && firstSide.colorOptions.length > 0) return firstSide.colorOptions[0].hex;
+    if (productColors.length > 0) return productColors[0].manufacturer_colors.hex;
+    return '#FFFFFF';
+  };
+
+  const displayColor = getDisplayColor();
 
   // Editor step (and quantity modal)
   if (isMobile) {
-    // The Toolbar inside ProductDesigner provides:
-    // - Top bar with "완료" button + layer/zoom controls
-    // - Bottom center side selector button
-    // - Bottom right floating add buttons (text/image/template)
-    // We pass onExitEditMode to override the "완료" action.
-    const mobileExitHandler = partnerMallAddData ? handleSaveToMall : handleEditorDone;
+    const goBackToLanding = () => {
+      setCurrentStep('landing');
+      setEditMode(false);
+    };
 
     return (
       <div>
@@ -666,23 +656,43 @@ export default function ProductEditorUnified({
         <ProductDesigner
           config={productConfig}
           layout="mobile"
-          onExitEditMode={mobileExitHandler}
+          onExitEditMode={goBackToLanding}
         />
 
-        {/* Partner mall save button (replaces toolbar's 완료 visually) */}
-        {partnerMallAddData && (
-          <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-50">
-            <button
-              onClick={handleSaveToMall}
-              disabled={isSavingToMall}
-              className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-            >
-              {isSavingToMall ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />저장 중...</>
-              ) : '몰에 저장'}
-            </button>
+        {/* Bottom bar */}
+        <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-50">
+          <div className="flex items-center gap-2">
+            {partnerMallAddData ? (
+              <button
+                onClick={handleSaveToMall}
+                disabled={isSavingToMall}
+                className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+              >
+                {isSavingToMall ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />저장 중...</>
+                ) : '몰에 저장'}
+              </button>
+            ) : (
+              <>
+                {hasAnyColorOptions && (
+                  <button
+                    onClick={() => setIsColorModalOpen(true)}
+                    className="shrink-0 w-10 h-10 rounded-full border-2 border-gray-300 transition hover:border-gray-500"
+                    style={{ backgroundColor: displayColor }}
+                    title="색상 선택"
+                  />
+                )}
+                <button
+                  onClick={handleEditorDone}
+                  disabled={isSaving}
+                  className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+                >
+                  {isSaving ? '처리 중...' : '완료'}
+                </button>
+              </>
+            )}
           </div>
-        )}
+        </div>
 
         <QuantitySelectorModal
           isOpen={isQuantitySelectorOpen}
@@ -702,6 +712,13 @@ export default function ProductEditorUnified({
           onClose={() => setIsLoginPromptOpen(false)}
           title="로그인이 필요합니다"
           message="구매를 진행하려면 로그인이 필요합니다. 디자인을 임시 저장해두었습니다."
+        />
+
+        <ColorSelectorModal
+          isOpen={isColorModalOpen}
+          onClose={() => setIsColorModalOpen(false)}
+          side={product.configuration[0]}
+          productColors={productColors}
         />
       </div>
     );
@@ -856,14 +873,6 @@ export default function ProductEditorUnified({
                   </div>
 
                   <div className="mt-4 flex gap-2">
-                    {!isSpecialMode && (
-                      <button
-                        onClick={goToColorFromEditor}
-                        className="px-4 py-3 text-sm rounded-lg border border-gray-300 text-gray-700 transition"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                    )}
                     {partnerMallAddData ? (
                       <button
                         onClick={handleSaveToMall}

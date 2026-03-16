@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useCanvasStore } from '@/store/useCanvasStore';
-import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate } from 'lucide-react';
+import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate, ChevronLeft } from 'lucide-react';
 import { ProductSide } from '@/types/types';
 import TextStylePanel from './TextStylePanel';
 import TemplatePicker from './TemplatePicker';
@@ -633,9 +633,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           <div className="w-full bg-white shadow-md z-100 fixed top-0 left-0 flex items-center justify-between px-4">
             <button
               onClick={handleExitEditMode}
-              className="py-3 bg-white hover:bg-gray-100 text-gray-900 font-semibold transition flex items-center gap-2"
+              className="py-3 bg-white hover:bg-gray-100 text-gray-900 transition flex items-center"
             >
-              완료
+              <ChevronLeft className="size-5" />
             </button>
 
             <div className='flex items-center gap-3'>
@@ -757,7 +757,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         </div>
       )}
       {!selectedObject && 
-        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-50">
+        <div className="fixed bottom-25 right-6 flex flex-col items-end gap-3 z-50">
           {/* Inner buttons - expand upwards */}
           <div className={`flex flex-col gap-2 transition-all duration-700 overflow-hidden ${
             isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
