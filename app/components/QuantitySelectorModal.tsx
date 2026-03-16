@@ -69,10 +69,19 @@ export default function QuantitySelectorModal({
     return getTotalQuantity() * dynamicPricePerItem;
   };
 
-  // Update design name when modal opens with a new default name
+  // Auto-generate design name when modal opens
   useEffect(() => {
-    if (isOpen && defaultDesignName) {
-      setDesignName(defaultDesignName);
+    if (isOpen) {
+      if (defaultDesignName) {
+        setDesignName(defaultDesignName);
+      } else if (!designName) {
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        setDesignName(`디자인 ${mm}.${dd} ${hh}:${min}`);
+      }
     }
   }, [isOpen, defaultDesignName]);
 

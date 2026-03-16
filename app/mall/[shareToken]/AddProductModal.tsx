@@ -366,9 +366,9 @@ export default function AddProductModal({
                       className="bg-gray-50 rounded-lg overflow-hidden text-left hover:ring-2 hover:ring-gray-900 transition-all"
                     >
                       <div className="aspect-square bg-gray-100 relative">
-                        {product.thumbnail_image_link ? (
+                        {product.thumbnail_image_link?.[0] ? (
                           <img
-                            src={product.thumbnail_image_link}
+                            src={product.thumbnail_image_link[0]}
                             alt={product.title}
                             className="w-full h-full object-contain p-2"
                           />
@@ -394,9 +394,9 @@ export default function AddProductModal({
             <div className="p-3 space-y-3">
               {/* Product info */}
               <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                {selectedProduct.thumbnail_image_link ? (
+                {selectedProduct.thumbnail_image_link?.[0] ? (
                   <img
-                    src={selectedProduct.thumbnail_image_link}
+                    src={selectedProduct.thumbnail_image_link[0]}
                     alt={selectedProduct.title}
                     className="w-12 h-12 object-contain rounded bg-white"
                   />
@@ -465,9 +465,9 @@ export default function AddProductModal({
             <div className="p-3 space-y-3">
               {/* Product info summary */}
               <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                {selectedProduct.thumbnail_image_link ? (
+                {selectedProduct.thumbnail_image_link?.[0] ? (
                   <img
-                    src={selectedProduct.thumbnail_image_link}
+                    src={selectedProduct.thumbnail_image_link[0]}
                     alt={selectedProduct.title}
                     className="w-12 h-12 object-contain rounded bg-white"
                   />

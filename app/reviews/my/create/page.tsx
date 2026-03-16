@@ -11,7 +11,7 @@ import { userInfo } from 'os';
 type ProductSummary = {
   id: string;
   title: string;
-  thumbnail_image_link: string | null;
+  thumbnail_image_link: string[] | null;
 };
 
 type UploadedReviewImage = {
@@ -307,9 +307,9 @@ export default function CreateMyReviewPage() {
         {product && (
           <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-3">
             <div className="w-14 h-14 rounded-md border border-gray-200 bg-gray-100 overflow-hidden">
-              {product.thumbnail_image_link ? (
+              {product.thumbnail_image_link?.[0] ? (
                 <img
-                  src={product.thumbnail_image_link}
+                  src={product.thumbnail_image_link[0]}
                   alt={product.title}
                   className="w-full h-full object-cover"
                 />

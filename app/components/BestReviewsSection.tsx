@@ -76,10 +76,10 @@ export default function BestReviewsSection({ reviews }: BestReviewsSectionProps)
                   className="flex items-center gap-2 mt-2 group"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {review.product.thumbnail_image_link && (
+                  {review.product.thumbnail_image_link?.[0] && (
                     <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden flex-shrink-0">
                       <Image
-                        src={review.product.thumbnail_image_link}
+                        src={review.product.thumbnail_image_link[0]}
                         alt={review.product.title}
                         fill
                         unoptimized
@@ -221,10 +221,10 @@ export default function BestReviewsSection({ reviews }: BestReviewsSectionProps)
                   className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   onClick={() => setSelectedReview(null)}
                 >
-                  {selectedReview.product.thumbnail_image_link && (
+                  {selectedReview.product.thumbnail_image_link?.[0] && (
                     <div className="relative w-12 h-12 rounded-lg border border-gray-200 overflow-hidden shrink-0">
                       <Image
-                        src={selectedReview.product.thumbnail_image_link}
+                        src={selectedReview.product.thumbnail_image_link[0]}
                         alt={selectedReview.product.title}
                         fill
                         unoptimized

@@ -173,7 +173,7 @@ export default function PartnerMallPage() {
         quantity,
         pricePerItem,
         canvasState: (selectedProduct.canvas_state || {}) as Record<string, string>,
-        thumbnailUrl: selectedProduct.preview_url || product.thumbnail_image_link || '',
+        thumbnailUrl: selectedProduct.preview_url || product.thumbnail_image_link?.[0] || '',
         previewImage: selectedProduct.preview_url || undefined,
         designName: selectedProduct.display_name || product.title,
       });
@@ -245,9 +245,9 @@ export default function PartnerMallPage() {
                     alt={mp.display_name || mp.product?.title || ''}
                     className="w-full h-full object-contain p-2"
                   />
-                ) : mp.product?.thumbnail_image_link ? (
+                ) : mp.product?.thumbnail_image_link?.[0] ? (
                   <img
-                    src={mp.product.thumbnail_image_link}
+                    src={mp.product.thumbnail_image_link[0]}
                     alt={mp.display_name || mp.product?.title || ''}
                     className="w-full h-full object-contain p-2"
                   />
@@ -321,9 +321,9 @@ export default function PartnerMallPage() {
                     alt={selectedProduct.display_name || ''}
                     className="w-full h-full object-contain p-3"
                   />
-                ) : selectedProduct.product?.thumbnail_image_link ? (
+                ) : selectedProduct.product?.thumbnail_image_link?.[0] ? (
                   <img
-                    src={selectedProduct.product.thumbnail_image_link}
+                    src={selectedProduct.product.thumbnail_image_link[0]}
                     alt={selectedProduct.display_name || ''}
                     className="w-full h-full object-contain p-3"
                   />

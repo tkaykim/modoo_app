@@ -89,7 +89,7 @@ export interface Product {
   is_featured: boolean;
   created_at: string;
   updated_at: string;
-  thumbnail_image_link?: string;
+  thumbnail_image_link?: string[] | null;
   description_image?: string[] | null;
   sizing_chart_image?: string | null;
   manufacturer_name?: string | null;
@@ -573,7 +573,7 @@ export interface ReviewWithProduct extends Review {
   product?: {
     id: string;
     title: string;
-    thumbnail_image_link: string | null;
+    thumbnail_image_link: string[] | null;
   };
 }
 

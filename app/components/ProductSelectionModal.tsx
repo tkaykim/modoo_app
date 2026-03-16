@@ -159,7 +159,7 @@ export default function ProductSelectionModal({
                     {/* Product Image */}
                     <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden relative flex-shrink-0">
                       <Image
-                        src={product.thumbnail_image_link as string}
+                        src={(product.thumbnail_image_link?.[0] ?? '') as string}
                         alt={product.title}
                         fill
                         className="object-contain"

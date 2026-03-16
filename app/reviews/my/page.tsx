@@ -18,7 +18,7 @@ type MyReview = {
   created_at: string | null;
   product?: {
     title: string;
-    thumbnail_image_link: string | null;
+    thumbnail_image_link: string[] | null;
   } | null;
 };
 
@@ -173,9 +173,9 @@ export default function MyReviewsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-md border border-gray-200 bg-gray-100 overflow-hidden">
-                      {review.product?.thumbnail_image_link ? (
+                      {review.product?.thumbnail_image_link?.[0] ? (
                         <img
-                          src={review.product.thumbnail_image_link}
+                          src={review.product.thumbnail_image_link[0]}
                           alt={review.product?.title || '상품'}
                           className="w-full h-full object-cover"
                         />

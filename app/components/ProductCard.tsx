@@ -15,7 +15,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const formattedPrice = product.base_price.toLocaleString('ko-KR');
-  const firstSideImage = product.thumbnail_image_link;
+  const firstSideImage = product.thumbnail_image_link?.[0];
   const { user, isAuthenticated } = useAuthStore();
   const [isFavorited, setIsFavorited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);

@@ -26,7 +26,7 @@ export interface ProductPreview {
   id: string;
   title: string;
   base_price: number;
-  thumbnail_image_link: string | null;
+  thumbnail_image_link: string[] | null;
   category: string | null;
 }
 

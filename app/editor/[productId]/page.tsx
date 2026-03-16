@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase";
 import { Product, PrintMethodRecord } from "@/types/types";
 import { notFound } from "next/navigation";
-import ProductEditorClient from "./ProductEditorClient";
-import ProductEditorClientDesktop from "./ProductEditorClientDesktop";
+import ProductEditorUnified from "./ProductEditorUnified";
 import { headers } from "next/headers";
 
 interface PageProps {
@@ -48,7 +47,12 @@ export default async function ProductEditorPage({ params }: PageProps) {
   const allPrintMethods: PrintMethodRecord[] = (allPrintMethodsData || []) as PrintMethodRecord[];
   const enabledPrintMethodIds = new Set((productPrintMethodsData || []).map((r: any) => r.print_method_id));
 
-  return isMobile
-    ? <ProductEditorClient product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />
-    : <ProductEditorClientDesktop product={product as Product} allPrintMethods={allPrintMethods} enabledPrintMethodIds={enabledPrintMethodIds} />;
+  return (
+    <ProductEditorUnified
+      product={product as Product}
+      allPrintMethods={allPrintMethods}
+      enabledPrintMethodIds={enabledPrintMethodIds}
+      isMobile={isMobile}
+    />
+  );
 }

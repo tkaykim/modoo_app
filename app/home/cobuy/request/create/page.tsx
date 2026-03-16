@@ -1356,9 +1356,9 @@ export default function CreateCoBuyRequestPage() {
             <h1 className="text-lg font-bold text-gray-900">과잠 공동구매</h1>
             {selectedProduct && (
               <div className="mt-4 flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-200">
-                {selectedProduct.thumbnail_image_link && (
+                {selectedProduct.thumbnail_image_link?.[0] && (
                   <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
-                    <img src={selectedProduct.thumbnail_image_link} alt="" className="w-full h-full object-cover" />
+                    <img src={selectedProduct.thumbnail_image_link[0]} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="min-w-0">

@@ -15,7 +15,7 @@ type RequestWithProduct = CoBuyRequest & {
   product?: {
     id: string;
     title: string;
-    thumbnail_image_link: string | null;
+    thumbnail_image_link: string[] | null;
     configuration?: any;
   } | null;
   admin_design?: {

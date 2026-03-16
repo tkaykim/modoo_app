@@ -15,9 +15,9 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
       className="flex items-center gap-3 p-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-left w-full"
     >
       <div className="w-14 h-14 relative flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-        {product.thumbnail_image_link ? (
+        {product.thumbnail_image_link?.[0] ? (
           <Image
-            src={product.thumbnail_image_link}
+            src={product.thumbnail_image_link[0]}
             alt={product.title}
             fill
             className="object-cover"

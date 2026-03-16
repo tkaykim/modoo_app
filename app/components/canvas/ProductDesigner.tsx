@@ -16,9 +16,10 @@ const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSid
 interface ProductDesignerProps {
   config: ProductConfig;
   layout?: 'mobile' | 'desktop';
+  onExitEditMode?: () => void;
 }
 
-const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile' }) => {
+const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode }) => {
   const { isEditMode, setEditMode, setActiveSide, activeSideId, canvasMap, zoomIn, zoomOut, getZoomLevel } = useCanvasStore();
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -102,7 +103,11 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
       canvas.discardActiveObject();
       canvas.requestRenderAll();
     });
-    setEditMode(false);
+    if (onExitEditMode) {
+      onExitEditMode();
+    } else {
+      setEditMode(false);
+    }
   };
 
   const containerWidthClass = isDesktop ? 'w-full' : 'max-w-2xl mx-auto';
