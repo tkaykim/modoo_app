@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
-import { ChevronLeft, Package, CreditCard, Truck, Phone, X } from 'lucide-react';
+import { ChevronLeft, Package, Phone, X, XCircle } from 'lucide-react';
 import { OrderItem } from '@/types/types';
 
 interface OrderDetail {
@@ -30,27 +30,26 @@ interface OrderDetail {
   order_items: OrderItem[];
 }
 
-const orderStatusMap: Record<string, { label: string; className: string }> = {
-  pending: { label: '준비중', className: 'bg-yellow-100 text-yellow-800' },
-  processing: { label: '처리중', className: 'bg-blue-100 text-blue-800' },
-  shipped: { label: '배송중', className: 'bg-indigo-100 text-indigo-800' },
-  delivered: { label: '배송완료', className: 'bg-green-100 text-green-800' },
-  completed: { label: '완료', className: 'bg-green-100 text-green-800' },
-  cancelled: { label: '취소', className: 'bg-red-100 text-red-800' },
+const orderStatusMap: Record<string, { label: string; color: string }> = {
+  payment_completed: { label: '결제완료', color: 'text-blue-700' },
+  in_production: { label: '제작중', color: 'text-yellow-700' },
+  shipping: { label: '배송중', color: 'text-indigo-700' },
+  delivered: { label: '배송완료', color: 'text-green-700' },
+  cancelled: { label: '취소', color: 'text-red-600' },
+  partially_cancelled: { label: '부분취소', color: 'text-red-600' },
 };
 
-const paymentStatusMap: Record<string, { label: string; className: string }> = {
-  pending: { label: '결제 대기', className: 'bg-yellow-100 text-yellow-800' },
-  completed: { label: '결제 완료', className: 'bg-green-100 text-green-800' },
-  failed: { label: '결제 실패', className: 'bg-red-100 text-red-800' },
-  refunded: { label: '환불됨', className: 'bg-gray-100 text-gray-800' },
-};
+const progressSteps = [
+  { key: 'payment_completed', label: '결제완료' },
+  { key: 'in_production', label: '제작중' },
+  { key: 'shipping', label: '배송중' },
+  { key: 'delivered', label: '배송완료' },
+];
 
-const shippingMethodMap: Record<string, string> = {
-  domestic: '국내 배송',
-  international: '해외 배송',
-  pickup: '직접 수령',
-};
+function getProgressStep(orderStatus: string): number {
+  const idx = progressSteps.findIndex(s => s.key === orderStatus);
+  return idx >= 0 ? idx + 1 : 1;
+}
 
 export default function OrderDetailPage() {
   const router = useRouter();
@@ -109,17 +108,6 @@ export default function OrderDetailPage() {
       fetchOrder();
     }
   }, [orderId, user?.id]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const formatPrice = (price: number) => {
     return price.toLocaleString('ko-KR');
@@ -199,196 +187,189 @@ export default function OrderDetailPage() {
     );
   }
 
-  const orderStatus = orderStatusMap[order.order_status?.toLowerCase()] || orderStatusMap.pending;
-  const paymentStatus = paymentStatusMap[order.payment_status?.toLowerCase()] || paymentStatusMap.pending;
+  const status = order.order_status?.toLowerCase() || 'payment_completed';
+  const orderStatus = orderStatusMap[status] || orderStatusMap.payment_completed;
+  const isCancelled = status === 'cancelled' || status === 'partially_cancelled';
+  const currentStep = getProgressStep(status);
   const subtotal = order.total_amount - order.delivery_fee;
 
+  const orderDate = new Date(order.created_at);
+  const formattedOrderDate = `${orderDate.getFullYear()}. ${orderDate.getMonth() + 1}. ${orderDate.getDate()} 주문`;
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-100 pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-full transition mr-2"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-lg font-bold">주문 상세</h1>
-          </div>
+      <header className="bg-white sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center">
+          <button
+            onClick={() => router.back()}
+            className="p-1 mr-2"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-base font-bold">주문상세</h1>
         </div>
+
+        {/* Progress Stepper or Cancelled Banner */}
+        {isCancelled ? (
+          <div className="max-w-4xl mx-auto px-4 pb-4">
+            <div className="flex items-center gap-2 bg-red-50 rounded-lg px-4 py-3">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+              <span className="text-sm font-bold text-red-600">
+                {status === 'cancelled' ? '주문이 취소되었습니다' : '주문이 부분 취소되었습니다'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto px-8 pb-4">
+            <div className="flex items-center justify-between relative">
+              {/* Connector lines */}
+              <div className="absolute top-3 left-0 right-0 flex items-center px-4">
+                {progressSteps.slice(1).map((_, i) => (
+                  <div key={i} className={`flex-1 h-0.5 ${i + 2 <= currentStep ? 'bg-black' : 'bg-gray-300'}`} />
+                ))}
+              </div>
+              {/* Steps */}
+              {progressSteps.map((step, i) => (
+                <div key={step.key} className="flex flex-col items-center relative z-10">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                    i + 1 <= currentStep
+                      ? 'bg-black border-black text-white'
+                      : 'bg-white border-gray-300 text-gray-400'
+                  }`}>
+                    {i + 1}
+                  </div>
+                  <span className={`text-xs mt-1 ${i + 1 <= currentStep ? 'text-black font-medium' : 'text-gray-400'}`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="border-b border-gray-200" />
       </header>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-4">
-        {/* Order Summary */}
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm text-gray-500">주문번호</p>
-              <p className="text-sm font-medium text-gray-900">{order.id}</p>
+      {/* Date & Order Number */}
+      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between bg-white">
+        <span className="text-sm font-medium text-gray-900">{formattedOrderDate}</span>
+        <span className="text-xs text-gray-500">주문번호 {order.id.slice(0, 16)}</span>
+      </div>
+
+      <div className="max-w-4xl mx-auto">
+        {/* 결제 정보 */}
+        <div className="bg-white mt-2 px-4 py-4">
+          <h2 className="text-sm font-bold mb-3">결제 정보</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">상품 가격</span>
+              <span>{formatPrice(subtotal)} 원</span>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${orderStatus.className}`}>
-              {orderStatus.label}
-            </span>
+            <div className="flex justify-between">
+              <span className="text-gray-600">배송비</span>
+              <span>{order.delivery_fee > 0 ? `${formatPrice(order.delivery_fee)} 원` : '0 원'}</span>
+            </div>
           </div>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>주문일시</span>
-            <span>{formatDate(order.created_at)}</span>
-          </div>
-        </div>
-
-        {/* Order Items */}
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <h2 className="text-base font-bold mb-4 flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            주문 상품
-          </h2>
-          <div className="space-y-4">
-            {order.order_items.map((item) => {
-              const variants = item.item_options?.variants || [];
-              const totalQuantity = variants.reduce((sum, v) => sum + v.quantity, 0) || item.quantity;
-
-              return (
-                <div key={item.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                  <div className="flex gap-3">
-                    <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-100 overflow-hidden shrink-0">
-                      {item.thumbnail_url ? (
-                        <img
-                          src={item.thumbnail_url}
-                          alt={item.product_title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
-                          없음
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">{item.product_title}</h3>
-                      {item.design_title && (
-                        <p className="text-sm text-gray-500 mt-0.5">디자인: {item.design_title}</p>
-                      )}
-                      <p className="text-sm text-gray-600 mt-1">
-                        {formatPrice(item.price_per_item)}원 x {totalQuantity}개
-                      </p>
-                      <p className="text-sm font-medium text-gray-900 mt-1">
-                        {formatPrice(item.price_per_item * totalQuantity)}원
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Variants */}
-                  {variants.length > 0 && (
-                    <div className="mt-3 pl-23 space-y-1">
-                      {variants.map((variant, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 text-sm text-gray-600"
-                        >
-                          <div
-                            className="w-3 h-3 rounded-full border border-gray-300"
-                            style={{ backgroundColor: variant.color_hex }}
-                          />
-                          <span>{variant.color_name}</span>
-                          <span>/</span>
-                          <span>{variant.size_name}</span>
-                          <span className="text-gray-400">x {variant.quantity}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="border-t border-gray-200 my-3" />
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between font-bold">
+              <span>총 결제금액</span>
+              <span>{formatPrice(order.total_amount)} 원</span>
+            </div>
           </div>
         </div>
 
         {/* Shipping Info */}
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <h2 className="text-base font-bold mb-4 flex items-center gap-2">
-            <Truck className="w-5 h-5" />
-            배송 정보
-          </h2>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">배송 방법</span>
-              <span className="text-gray-900">{shippingMethodMap[order.shipping_method] || order.shipping_method}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">받는 분</span>
-              <span className="text-gray-900">{order.customer_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">연락처</span>
-              <span className="text-gray-900">{order.customer_phone}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">이메일</span>
-              <span className="text-gray-900">{order.customer_email}</span>
-            </div>
+        <div className="bg-white mt-2 px-4 py-4">
+          <h2 className="text-sm font-bold mb-3">배송지</h2>
+          <div className="border border-gray-200 rounded-lg p-4">
+            <p className="font-bold text-sm">{order.customer_name}</p>
             {order.shipping_method !== 'pickup' && order.address_line_1 && (
-              <div className="flex justify-between items-start">
-                <span className="text-gray-500 shrink-0">배송지</span>
-                <div className="text-right text-gray-900">
-                  {order.postal_code && <span className="text-gray-500">[{order.postal_code}] </span>}
-                  {order.address_line_1}
-                  {order.address_line_2 && <span> {order.address_line_2}</span>}
-                  {(order.city || order.state) && (
-                    <span className="block text-gray-500 text-xs mt-0.5">
-                      {[order.city, order.state, order.country_code].filter(Boolean).join(', ')}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <p className="text-sm text-gray-700 mt-1">
+                {order.postal_code && `(${order.postal_code}) `}
+                {order.address_line_1}
+                {order.address_line_2 && ` ${order.address_line_2}`}
+                {(order.city || order.state) && (
+                  <span className="block text-gray-500 text-xs mt-0.5">
+                    {[order.city, order.state, order.country_code].filter(Boolean).join(', ')}
+                  </span>
+                )}
+              </p>
             )}
+            {order.shipping_method === 'pickup' && (
+              <p className="text-sm text-gray-700 mt-1">직접 수령</p>
+            )}
+            <p className="text-sm text-gray-700 mt-1">{order.customer_phone}</p>
           </div>
         </div>
 
-        {/* Payment Info */}
-        <div className="bg-white rounded-lg p-4 shadow-sm">
-          <h2 className="text-base font-bold mb-4 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
-            결제 정보
-          </h2>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">결제 상태</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${paymentStatus.className}`}>
-                {paymentStatus.label}
-              </span>
-            </div>
-            {order.payment_method && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">결제 수단</span>
-                <span className="text-gray-900">{order.payment_method}</span>
-              </div>
-            )}
-            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">상품 금액</span>
-                <span className="text-gray-900">{formatPrice(subtotal)}원</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">배송비</span>
-                <span className="text-gray-900">
-                  {order.delivery_fee > 0 ? `${formatPrice(order.delivery_fee)}원` : '무료'}
+        {/* Order Items */}
+        {order.order_items.map((item) => {
+          const variants = item.item_options?.variants || [];
+          const totalQuantity = variants.reduce((sum, v) => sum + v.quantity, 0) || item.quantity;
+
+          return (
+            <div key={item.id} className="bg-white mt-2 px-4 py-4">
+              {/* Status header */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-sm font-bold ${orderStatus.color}`}>
+                  {orderStatus.label}
                 </span>
               </div>
-              <div className="flex justify-between font-bold text-base pt-2 border-t border-gray-100">
-                <span>총 결제 금액</span>
-                <span className="text-[#3B55A5]">{formatPrice(order.total_amount)}원</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex gap-3">
+              {/* Item */}
+              <div className="flex gap-3">
+                <div className="w-16 h-16 rounded border border-gray-200 bg-gray-50 overflow-hidden shrink-0">
+                  {item.thumbnail_url ? (
+                    <img
+                      src={item.thumbnail_url}
+                      alt={item.product_title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                      없음
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 leading-snug line-clamp-2">{item.product_title}</p>
+                  {item.design_title && (
+                    <p className="text-xs text-gray-500 mt-0.5">디자인: {item.design_title}</p>
+                  )}
+                  <p className="text-sm text-gray-700 mt-1">
+                    {formatPrice(item.price_per_item)}원 · {totalQuantity}개
+                  </p>
+                </div>
+              </div>
+
+              {/* Variants */}
+              {variants.length > 0 && (
+                <div className="mt-2 ml-19 space-y-1">
+                  {variants.map((variant, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 text-xs text-gray-500"
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full border border-gray-300"
+                        style={{ backgroundColor: variant.color_hex }}
+                      />
+                      <span>{variant.color_name} / {variant.size_name}</span>
+                      <span>x {variant.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Action Buttons */}
+        <div className="mt-2 px-4 py-3 space-y-2">
           <button
             onClick={() => setShowInquiryModal(true)}
-            className="flex-1 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+            className="w-full py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900"
           >
             문의하기
           </button>

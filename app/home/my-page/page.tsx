@@ -145,9 +145,16 @@ export default function MyPage() {
         <Header showHomeNav />
       </div>
 
+      {/* Mobile Header */}
+      <div className="md:hidden bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="flex items-center px-4 py-2.5">
+          <h1 className="text-sm font-semibold text-gray-900">내정보</h1>
+        </div>
+      </div>
+
       {/* Profile Section */}
       <section className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-3 md:py-6">
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
               {/* Profile Image */}
@@ -161,20 +168,20 @@ export default function MyPage() {
 
               {/* User Info */}
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900">{user?.name || '사용자'}</h2>
+                <h2 className="text-base font-bold text-gray-900 md:text-xl">{user?.name || '사용자'}</h2>
                 <p className="text-sm text-gray-500">{user?.email}</p>
               </div>
 
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-1">로그인이 필요합니다</h2>
-                <p className="text-sm text-gray-500">로그인하고 더 많은 기능을 이용하세요</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 mb-0.5 md:text-lg md:mb-1">로그인이 필요합니다</h2>
+                <p className="text-xs text-gray-500 md:text-sm">로그인하고 더 많은 기능을 이용하세요</p>
               </div>
               <Link
                 href="/login"
-                className="px-6 py-2 bg-[#3B55A5] text-white rounded-lg font-medium hover:bg-[#2D4280] transition-colors"
+                className="shrink-0 px-4 py-1.5 bg-[#3B55A5] text-white text-sm rounded-lg font-medium hover:bg-[#2D4280] transition-colors md:px-6 md:py-2"
               >
                 로그인
               </Link>
@@ -186,22 +193,22 @@ export default function MyPage() {
       {/* Quick Stats */}
       {isAuthenticated && (
         <section className="bg-white border-b border-gray-200 mb-2">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="grid grid-cols-4 gap-4">
+          <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
+            <div className="grid grid-cols-4 gap-2 md:gap-4">
               <Link href="/home/my-page/orders" className="flex flex-col items-center gap-1">
-                <div className="text-xl font-bold text-gray-900">{stats.orders}</div>
+                <div className="text-base font-bold text-gray-900 md:text-xl">{stats.orders}</div>
                 <div className="text-xs text-gray-500">주문</div>
               </Link>
               <Link href="/home/designs" className="flex flex-col items-center gap-1">
-                <div className="text-xl font-bold text-gray-900">{stats.designs}</div>
+                <div className="text-base font-bold text-gray-900 md:text-xl">{stats.designs}</div>
                 <div className="text-xs text-gray-500">디자인</div>
               </Link>
               <Link href="/home/designs?tab=favorites" className="flex flex-col items-center gap-1">
-                <div className="text-xl font-bold text-gray-900">{stats.favorites}</div>
+                <div className="text-base font-bold text-gray-900 md:text-xl">{stats.favorites}</div>
                 <div className="text-xs text-gray-500">찜</div>
               </Link>
               <Link href="/reviews/my" className="flex flex-col items-center gap-1">
-                <div className="text-xl font-bold text-gray-900">{stats.reviews}</div>
+                <div className="text-base font-bold text-gray-900 md:text-xl">{stats.reviews}</div>
                 <div className="text-xs text-gray-500">후기</div>
               </Link>
             </div>
@@ -210,7 +217,7 @@ export default function MyPage() {
       )}
 
       {/* Menu Sections */}
-      <div className="space-y-2">
+      <div>
 
         {/* Shopping Section */}
         <section className="bg-white">
@@ -221,7 +228,7 @@ export default function MyPage() {
         </section>
 
         {/* Support Section */}
-        <section className="bg-white">
+        <section className="bg-white border-t border-gray-100">
           <div className="max-w-7xl mx-auto px-4 py-2">
             <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">고객센터</h3>
             <MenuList items={supportMenuItems} />
@@ -230,7 +237,7 @@ export default function MyPage() {
 
         {/* Logout Button (Only show if logged in) */}
         {isAuthenticated && (
-          <section className="bg-white">
+          <section className="bg-white border-t border-gray-100">
             <div className="max-w-7xl mx-auto px-4 py-2">
               <button
                 onClick={async () => {
@@ -239,10 +246,10 @@ export default function MyPage() {
                   logout();
                   router.push('/login');
                 }}
-                className="w-full flex items-center gap-3 px-2 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-2 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <LogOut className="w-5 h-5" />
-                <span className="flex-1 text-left font-medium">로그아웃</span>
+                <span className="flex-1 text-left text-sm font-medium md:text-base">로그아웃</span>
               </button>
             </div>
           </section>
@@ -250,7 +257,7 @@ export default function MyPage() {
       </div>
 
       {/* App Version */}
-      <div className="mt-8 text-center pb-4">
+      <div className="mt-4 text-center pb-4 md:mt-8">
         <p className="text-xs text-gray-400">버전 1.0.0</p>
       </div>
     </div>
@@ -265,10 +272,10 @@ function MenuList({ items }: { items: MenuItem[] }) {
         <Link
           key={index}
           href={item.href}
-          className="flex items-center gap-3 px-2 py-3 hover:bg-gray-50 rounded-lg transition-colors"
+          className="flex items-center gap-3 px-2 py-2.5 hover:bg-gray-50 rounded-lg transition-colors"
         >
           {item.icon && <item.icon className="w-5 h-5 text-gray-600" />}
-          <span className="flex-1 text-gray-900">{item.label}</span>
+          <span className="flex-1 text-sm text-gray-900 md:text-base">{item.label}</span>
           {item.badge && (
             <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
               {item.badge}

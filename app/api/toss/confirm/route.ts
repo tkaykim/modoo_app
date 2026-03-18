@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         payment_method: 'toss',
         payment_key: paymentKey,
         payment_status: 'completed',
-        order_status: 'pending',
+        order_status: 'payment_completed',
         // Coupon data
         coupon_usage_id: orderData.coupon_usage_id || null,
         coupon_discount: orderData.coupon_discount || 0,

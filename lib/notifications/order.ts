@@ -51,39 +51,90 @@ function buildCustomerHtml(params: OrderNotificationParams): string {
     0
   );
   const discount = params.couponDiscount || 0;
+  const orderDate = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return `
-    <div style="max-width:600px;margin:0 auto;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#333;">
-      <div style="background:#3B55A5;padding:24px;text-align:center;">
-        <h1 style="color:#fff;margin:0;font-size:22px;">주문이 완료되었습니다</h1>
+    <div style="max-width:600px;margin:0 auto;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#333;background:#ffffff;">
+      <!-- Header with Logo -->
+      <div style="background:#3B55A5;padding:28px 24px;text-align:center;">
+        <img src="https://modoouniform.com/icons/modoo_logo.png" alt="모두의 유니폼" style="height:36px;margin-bottom:16px;" />
+        <h1 style="color:#fff;margin:0;font-size:20px;font-weight:600;">주문이 완료되었습니다</h1>
       </div>
-      <div style="padding:24px;">
-        <p>${params.customerName}님, 주문해 주셔서 감사합니다!</p>
-        <p style="color:#666;font-size:14px;">주문번호: <strong>${params.orderId}</strong></p>
 
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <!-- Thank You -->
+      <div style="padding:28px 24px 0;">
+        <p style="font-size:15px;margin:0 0 4px;"><strong>${params.customerName}</strong>님, 감사합니다!</p>
+        <p style="font-size:13px;color:#666;margin:0;">주문이 정상적으로 접수되었습니다. 아래 내역을 확인해 주세요.</p>
+      </div>
+
+      <!-- Order Info -->
+      <div style="padding:20px 24px;">
+        <div style="background:#f8f9fa;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr>
+              <td style="color:#888;padding:3px 0;width:80px;">주문번호</td>
+              <td style="font-weight:600;padding:3px 0;">${params.orderId}</td>
+            </tr>
+            <tr>
+              <td style="color:#888;padding:3px 0;">주문일시</td>
+              <td style="padding:3px 0;">${orderDate}</td>
+            </tr>
+            <tr>
+              <td style="color:#888;padding:3px 0;">배송방법</td>
+              <td style="padding:3px 0;">${shippingMethodLabel(params.shippingMethod)}</td>
+            </tr>
+            ${params.orderCategory === 'cobuy' ? `<tr><td style="color:#888;padding:3px 0;">주문유형</td><td style="padding:3px 0;">공동구매</td></tr>` : ''}
+          </table>
+        </div>
+
+        <!-- Items -->
+        <p style="font-size:13px;font-weight:600;margin:0 0 8px;color:#333;">주문 상품</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
-            <tr style="background:#f5f5f5;">
-              <th style="padding:8px 12px;text-align:left;">상품</th>
-              <th style="padding:8px 12px;text-align:center;">수량</th>
-              <th style="padding:8px 12px;text-align:right;">단가</th>
+            <tr style="border-bottom:2px solid #333;">
+              <th style="padding:8px 0;text-align:left;font-weight:600;">상품</th>
+              <th style="padding:8px 0;text-align:center;font-weight:600;width:50px;">수량</th>
+              <th style="padding:8px 0;text-align:right;font-weight:600;width:90px;">금액</th>
             </tr>
           </thead>
           <tbody>
-            ${buildItemsHtml(params.items)}
+            ${params.items.map(item => `
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #eee;">${item.product_title}</td>
+                <td style="padding:10px 0;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
+                <td style="padding:10px 0;border-bottom:1px solid #eee;text-align:right;">${formatCurrency(item.price_per_item * item.quantity)}</td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
 
-        <div style="border-top:2px solid #3B55A5;padding-top:12px;margin-top:8px;">
-          <p style="margin:4px 0;">상품 합계: ${formatCurrency(productTotal)}</p>
-          ${discount > 0 ? `<p style="margin:4px 0;color:#e74c3c;">쿠폰 할인: -${formatCurrency(discount)}</p>` : ''}
-          <p style="margin:4px 0;">배송비: ${formatCurrency(params.deliveryFee)}</p>
-          <p style="margin:4px 0;font-size:18px;"><strong>총 결제금액: ${formatCurrency(params.totalAmount)}</strong></p>
+        <!-- Totals -->
+        <div style="margin-top:16px;font-size:13px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span style="color:#666;">상품 합계</span>
+            <span>${formatCurrency(productTotal)}</span>
+          </div>
+          ${discount > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span style="color:#e74c3c;">쿠폰 할인</span>
+            <span style="color:#e74c3c;">-${formatCurrency(discount)}</span>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span style="color:#666;">배송비</span>
+            <span>${params.deliveryFee === 0 ? '무료' : formatCurrency(params.deliveryFee)}</span>
+          </div>
+          <div style="border-top:2px solid #333;margin-top:8px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:14px;">총 결제금액</span>
+            <span style="font-weight:700;font-size:18px;color:#3B55A5;">${formatCurrency(params.totalAmount)}</span>
+          </div>
         </div>
+      </div>
 
-        <p style="margin-top:16px;color:#666;font-size:13px;">배송 방법: ${shippingMethodLabel(params.shippingMethod)}</p>
-        ${params.orderCategory === 'cobuy' ? '<p style="color:#666;font-size:13px;">공동구매 주문</p>' : ''}
-        <p style="margin-top:24px;color:#999;font-size:12px;">문의사항이 있으시면 언제든 연락해 주세요.</p>
+      <!-- Footer -->
+      <div style="background:#f8f9fa;padding:20px 24px;margin-top:12px;text-align:center;font-size:12px;color:#999;">
+        <p style="margin:0 0 8px;">문의사항이 있으시면 언제든 연락해 주세요.</p>
+        <p style="margin:0;">카카오톡 채널: 모두의유니폼 &nbsp;|&nbsp; 전화: 010-8140-0621</p>
+        <p style="margin:8px 0 0;color:#bbb;">모두의 유니폼 &nbsp;|&nbsp; 서울특별시 마포구 성지3길 55, 4층</p>
       </div>
     </div>
   `;
@@ -131,19 +182,32 @@ function buildAdminHtml(params: OrderNotificationParams): string {
 }
 
 function buildCustomerText(params: OrderNotificationParams): string {
+  const discount = params.couponDiscount || 0;
+  const productTotal = params.items.reduce(
+    (sum, item) => sum + item.price_per_item * item.quantity, 0
+  );
   const itemLines = params.items
-    .map((item) => `- ${item.product_title} x${item.quantity} (${formatCurrency(item.price_per_item)})`)
+    .map((item) => `- ${item.product_title} x${item.quantity} : ${formatCurrency(item.price_per_item * item.quantity)}`)
     .join('\n');
 
   return [
-    `${params.customerName}님, 주문해 주셔서 감사합니다!`,
-    `주문번호: ${params.orderId}`,
+    `[모두의 유니폼] 주문 확인서`,
     '',
-    '주문 상품:',
+    `${params.customerName}님, 감사합니다!`,
+    `주문이 정상적으로 접수되었습니다.`,
+    '',
+    `주문번호: ${params.orderId}`,
+    `배송 방법: ${shippingMethodLabel(params.shippingMethod)}`,
+    '',
+    '--- 주문 상품 ---',
     itemLines,
     '',
+    `상품 합계: ${formatCurrency(productTotal)}`,
+    ...(discount > 0 ? [`쿠폰 할인: -${formatCurrency(discount)}`] : []),
+    `배송비: ${params.deliveryFee === 0 ? '무료' : formatCurrency(params.deliveryFee)}`,
     `총 결제금액: ${formatCurrency(params.totalAmount)}`,
-    `배송 방법: ${shippingMethodLabel(params.shippingMethod)}`,
+    '',
+    '문의: 카카오톡 채널 "모두의유니폼" / 010-8140-0621',
   ].join('\n');
 }
 

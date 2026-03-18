@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import ProductCard from "@/app/components/ProductCard";
@@ -40,8 +40,26 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [reviewCounts, setReviewCounts] = useState<Record<string, number>>({});
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
+  const [priceMin, setPriceMin] = useState(0);
+  const [priceMax, setPriceMax] = useState(0);
+  const [displayCount, setDisplayCount] = useState(12);
+  const sortRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const hasActiveFilter = selectedCategory !== "all" || selectedManufacturer !== "all";
+  const hasActiveFilter = selectedCategory !== "all" || selectedManufacturer !== "all" || priceMin !== priceRange[0] || priceMax !== priceRange[1];
+
+  // Close sort menu when clicking outside
+  useEffect(() => {
+    if (!showSortMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setShowSortMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSortMenu]);
 
   // Update selected category when URL param changes
   useEffect(() => {
@@ -101,6 +119,16 @@ export default function SearchPage() {
           new Set(productsWithManufacturer.map(p => p.manufacturer_name).filter((m): m is string => Boolean(m)))
         ).sort();
         setManufacturers(uniqueManufacturers);
+
+        // Compute price range
+        if (productsWithManufacturer.length > 0) {
+          const prices = productsWithManufacturer.map(p => p.base_price);
+          const min = Math.floor(Math.min(...prices) / 1000) * 1000;
+          const max = Math.ceil(Math.max(...prices) / 1000) * 1000;
+          setPriceRange([min, max]);
+          setPriceMin(min);
+          setPriceMax(max);
+        }
       }
       setIsLoading(false);
     }
@@ -115,7 +143,8 @@ export default function SearchPage() {
     if (searchQuery.trim()) {
       result = result.filter(product =>
         product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        product.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.product_code?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -125,6 +154,11 @@ export default function SearchPage() {
 
     if (selectedManufacturer !== "all") {
       result = result.filter(product => product.manufacturer_name === selectedManufacturer);
+    }
+
+    // Price range filter
+    if (priceRange[1] > 0) {
+      result = result.filter(p => p.base_price >= priceMin && p.base_price <= priceMax);
     }
 
     // Sort
@@ -137,7 +171,27 @@ export default function SearchPage() {
     }
 
     setFilteredProducts(result);
-  }, [searchQuery, selectedCategory, selectedManufacturer, sortBy, reviewCounts, products]);
+    setDisplayCount(12);
+  }, [searchQuery, selectedCategory, selectedManufacturer, priceMin, priceMax, priceRange, sortBy, reviewCounts, products]);
+
+  // Infinite scroll: load more when sentinel is visible
+  const loadMore = useCallback(() => {
+    setDisplayCount(prev => prev + 12);
+  }, []);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  const visibleProducts = filteredProducts.slice(0, displayCount);
+  const hasMore = displayCount < filteredProducts.length;
 
   const handleClearSearch = () => {
     setSearchQuery("");
@@ -192,6 +246,19 @@ export default function SearchPage() {
           {/* Filter Section */}
           {showFilters && (
             <div className="mt-4 pb-2 border-t pt-4 space-y-3">
+              {hasActiveFilter && (
+                <button
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    setSelectedManufacturer("all");
+                    setPriceMin(priceRange[0]);
+                    setPriceMax(priceRange[1]);
+                  }}
+                  className="text-xs text-gray-500 underline hover:text-gray-700"
+                >
+                  필터 초기화
+                </button>
+              )}
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">카테고리</h3>
                 <div className="flex flex-wrap gap-1.5">
@@ -250,6 +317,49 @@ export default function SearchPage() {
                   </div>
                 </div>
               )}
+              {/* Price Range Filter */}
+              {priceRange[1] > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-700">가격 범위</h3>
+                    <span className="text-xs text-gray-500">
+                      {priceMin.toLocaleString()}원 ~ {priceMax.toLocaleString()}원
+                    </span>
+                  </div>
+                  <div className="relative h-5 flex items-center">
+                    {/* Track background */}
+                    <div className="absolute w-full h-1 bg-gray-200 rounded" />
+                    {/* Active range */}
+                    <div
+                      className="absolute h-1 bg-[#3B55A5] rounded"
+                      style={{
+                        left: `${((priceMin - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%`,
+                        right: `${100 - ((priceMax - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%`,
+                      }}
+                    />
+                    {/* Min slider */}
+                    <input
+                      type="range"
+                      min={priceRange[0]}
+                      max={priceRange[1]}
+                      step={1000}
+                      value={priceMin}
+                      onChange={(e) => setPriceMin(Math.min(Number(e.target.value), priceMax))}
+                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#3B55A5] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#3B55A5] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
+                    />
+                    {/* Max slider */}
+                    <input
+                      type="range"
+                      min={priceRange[0]}
+                      max={priceRange[1]}
+                      step={1000}
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(Math.max(Number(e.target.value), priceMin))}
+                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#3B55A5] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#3B55A5] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -270,7 +380,7 @@ export default function SearchPage() {
               </p>
             )}
           </div>
-          <div className="relative">
+          <div className="relative" ref={sortRef}>
             <button
               onClick={() => setShowSortMenu(!showSortMenu)}
               className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
@@ -311,11 +421,18 @@ export default function SearchPage() {
               ))}
             </div>
           ) : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-2">
+                {visibleProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              {hasMore && (
+                <div ref={loadMoreRef} className="flex justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-gray-300 border-t-[#3B55A5] rounded-full animate-spin" />
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-16">
               <Search size={64} className="mx-auto text-gray-300 mb-4" />

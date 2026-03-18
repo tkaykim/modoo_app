@@ -420,7 +420,7 @@ export default function CheckoutPage() {
 
       {/* Order Summary */}
       <div className="bg-white mt-2 p-4">
-        <h2 className="font-medium text-black mb-3">주문 상품 ({groupedItems.length})</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">주문 상품 ({groupedItems.length})</h2>
         <div className="space-y-3">
           {groupedItems.map((group) => (
             <div key={group.id} className="flex gap-3 pb-3 border-b border-gray-100 last:border-0">
@@ -466,7 +466,7 @@ export default function CheckoutPage() {
 
       {/* Customer Information */}
       <div className="bg-white mt-2 p-4">
-        <h2 className="font-medium text-black mb-4">주문자 정보</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">주문자 정보</h2>
         <div className="space-y-3">
           <div>
             <label className="block text-sm text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
@@ -503,7 +503,7 @@ export default function CheckoutPage() {
 
       {/* Shipping Method */}
       <div className="bg-white mt-2 p-4 text-sm">
-        <h2 className="font-medium text-black mb-4">배송 방법</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">배송 방법</h2>
         <div className="space-y-2">
           <button
             onClick={() => setShippingMethod('domestic')}
@@ -579,7 +579,7 @@ export default function CheckoutPage() {
       {/* Address Input - Domestic */}
       {shippingMethod === 'domestic' && (
         <div className="bg-white mt-2 p-4 text-sm">
-          <h2 className="font-medium text-black mb-4">배송지 정보<span className='text-red-500'>*</span></h2>
+          <h2 className="text-sm font-semibold text-black mb-3">배송지 정보<span className='text-red-500'>*</span></h2>
           <div className="space-y-3">
             <div>
               {/* <label className="block text-sm text-gray-700 mb-1">주소</label> */}
@@ -632,7 +632,7 @@ export default function CheckoutPage() {
       {/* Address Input - International */}
       {shippingMethod === 'international' && (
         <div className="bg-white mt-2 p-4">
-          <h2 className="font-medium text-black mb-4">배송지 정보</h2>
+          <h2 className="text-sm font-semibold text-black mb-3">배송지 정보</h2>
           <div className="space-y-3">
             <div>
               <label className="block text-sm text-gray-700 mb-1">Country</label>
@@ -703,7 +703,7 @@ export default function CheckoutPage() {
       {/* Pickup Information */}
       {shippingMethod === 'pickup' && (
         <div className="bg-white mt-2 p-4">
-          <h2 className="font-medium text-black mb-3">픽업 안내</h2>
+          <h2 className="text-sm font-semibold text-black mb-3">픽업 안내</h2>
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-700 mb-2">
               <strong>픽업 장소:</strong> 서울특별시 마포구 성지3길 55, 4층
@@ -720,7 +720,7 @@ export default function CheckoutPage() {
 
       {/* Customer Note & Attachments */}
       <div className="bg-white mt-2 p-4">
-        <h2 className="font-medium text-black mb-3">요청사항</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">요청사항</h2>
         <textarea
           value={customerNote}
           onChange={(e) => setCustomerNote(e.target.value)}
@@ -770,7 +770,7 @@ export default function CheckoutPage() {
       {isAuthenticated && (
         <div className="bg-white mt-2 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-medium text-black">쿠폰</h2>
+            <h2 className="text-sm font-semibold text-black">쿠폰</h2>
             {availableCoupons.length > 0 && (
               <span className="text-sm text-gray-500">보유 {availableCoupons.length}장</span>
             )}
@@ -919,7 +919,7 @@ export default function CheckoutPage() {
 
       {/* Payment Summary */}
       <div className="bg-white mt-2 p-4">
-        <h2 className="font-medium text-black mb-3">결제 금액</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">결제 금액</h2>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">상품 금액</span>
@@ -956,7 +956,7 @@ export default function CheckoutPage() {
 
       {/* Payment Method Section */}
       <div className="bg-white mt-2 p-4">
-        <h2 className="font-medium text-black mb-4">결제 수단</h2>
+        <h2 className="text-sm font-semibold text-black mb-3">결제 수단</h2>
         <div className="space-y-2">
           <button
             onClick={() => {

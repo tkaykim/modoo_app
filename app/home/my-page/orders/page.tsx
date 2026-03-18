@@ -25,12 +25,12 @@ type Order = {
 };
 
 const statusMap: Record<string, { label: string; className: string }> = {
-  pending: { label: '준비중', className: 'bg-yellow-100 text-yellow-800' },
-  processing: { label: '처리중', className: 'bg-blue-100 text-blue-800' },
-  shipped: { label: '배송중', className: 'bg-indigo-100 text-indigo-800' },
+  payment_completed: { label: '결제완료', className: 'bg-blue-100 text-blue-800' },
+  in_production: { label: '제작중', className: 'bg-yellow-100 text-yellow-800' },
+  shipping: { label: '배송중', className: 'bg-indigo-100 text-indigo-800' },
   delivered: { label: '배송완료', className: 'bg-green-100 text-green-800' },
-  completed: { label: '완료', className: 'bg-green-100 text-green-800' },
   cancelled: { label: '취소', className: 'bg-red-100 text-red-800' },
+  partially_cancelled: { label: '부분취소', className: 'bg-red-100 text-red-800' },
 };
 
 export default function OrdersPage() {
@@ -127,8 +127,8 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
-              const statusKey = (order.order_status || 'pending').toLowerCase();
-              const status = statusMap[statusKey] || statusMap.pending;
+              const statusKey = (order.order_status || 'payment_completed').toLowerCase();
+              const status = statusMap[statusKey] || statusMap.payment_completed;
               const itemCount = order.order_items?.length || 0;
               const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
               const formattedDate = new Date(order.created_at).toLocaleDateString('ko-KR');
@@ -137,30 +137,30 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                  className="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-gray-300 transition-colors"
                   onClick={() => router.push(`/order/${order.id}`)}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm text-gray-500">주문번호</p>
-                      <p className="text-sm font-medium text-gray-900">{order.id}</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="min-w-0 flex-1 mr-2">
+                      <p className="text-xs text-gray-500">주문번호</p>
+                      <p className="text-xs font-medium text-gray-900 truncate">{order.id}</p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${status.className}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${status.className}`}>
                       {status.label}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
                     <span>{formattedDate}</span>
                     <span>총 {formattedTotal}원</span>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
                       {(order.order_items || []).slice(0, 3).map((item) => (
                         <div
                           key={item.id}
-                          className="w-10 h-10 rounded-md border border-gray-200 bg-gray-100 overflow-hidden"
+                          className="w-9 h-9 rounded-md border border-gray-200 bg-gray-100 overflow-hidden"
                         >
                           {item.thumbnail_url ? (
                             <img
@@ -169,7 +169,7 @@ export default function OrdersPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">
                               없음
                             </div>
                           )}
@@ -177,12 +177,12 @@ export default function OrdersPage() {
                       ))}
                     </div>
 
-                    <div className="text-sm text-gray-700">
+                    <div className="text-xs text-gray-700 min-w-0">
                       {itemCount > 0 ? (
-                        <span>
+                        <span className="line-clamp-1">
                           {order.order_items?.[0]?.product_title || '주문 상품'}
                           {itemCount > 1 ? ` 외 ${itemCount - 1}건` : ''}
-                          <span className="ml-2 text-gray-500">({totalQuantity}개)</span>
+                          <span className="ml-1 text-gray-500">({totalQuantity}개)</span>
                         </span>
                       ) : (
                         <span>주문 상품 없음</span>
@@ -190,18 +190,16 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReviewOrder(order);
-                      }}
-                      disabled={itemCount === 0}
-                      className="px-3 py-2 rounded-md border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      리뷰 작성하기
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReviewOrder(order);
+                    }}
+                    disabled={itemCount === 0}
+                    className="mt-3 w-full py-2 rounded-md border border-gray-300 text-xs font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    리뷰 작성하기
+                  </button>
                 </div>
               );
             })}

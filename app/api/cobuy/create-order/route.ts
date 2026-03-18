@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
         payment_method: 'toss',
         payment_key: null, // Will be set by payment confirmation
         payment_status: 'complete',
-        order_status: 'pending',
+        order_status: 'payment_completed',
         order_category: 'cobuy', // Mark as CoBuy order
         cobuy_session_id: sessionId, // Bidirectional relationship with cobuy_sessions
       })

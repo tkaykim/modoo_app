@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         payment_method: 'toss', // Use 'toss' to pass DB constraint (test mode uses dummy payment_key)
         payment_key: `TESTMODE-${Date.now()}`, // Prefix with TESTMODE to identify test orders
         payment_status: 'completed',
-        order_status: 'pending',
+        order_status: 'payment_completed',
         // Customer note & attachments
         customer_note: orderData.customer_note || null,
         attachment_urls: orderData.attachment_urls || [],
