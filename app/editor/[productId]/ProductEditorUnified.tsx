@@ -2,7 +2,6 @@
 import ProductDesigner from "@/app/components/canvas/ProductDesigner";
 import PricingInfo from "@/app/components/canvas/PricingInfo";
 import LayerColorSelector from "@/app/components/canvas/LayerColorSelector";
-import ObjectPreviewPanel from "@/app/components/canvas/ObjectPreviewPanel";
 import DesktopToolbar from "@/app/components/canvas/DesktopToolbar";
 import { Product, ProductConfig, CartItem, ProductColor, PrintMethodRecord } from "@/types/types";
 import { useCanvasStore } from "@/store/useCanvasStore";
@@ -909,11 +908,6 @@ export default function ProductEditorUnified({
                     </p>
                   )}
                   {/* <p className="text-xs text-gray-400 mt-1">배송비 3,000원</p> */}
-                </div>
-
-                {/* Object Preview */}
-                <div className="flex-1 overflow-y-auto px-5 py-3 border-t border-gray-100 min-h-0">
-                  <ObjectPreviewPanel sides={product.configuration} />
                 </div>
 
                 {/* Action Button */}

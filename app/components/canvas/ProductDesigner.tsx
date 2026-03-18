@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { ProductConfig } from "@/types/types";
 import Toolbar from "./Toolbar";
 import { useCanvasStore } from '@/store/useCanvasStore';
-import { ZoomIn, ZoomOut } from "lucide-react";
 
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
@@ -139,31 +138,6 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
         )}
 
         <div className={`${containerWidthClass} overflow-hidden transition-all relative duration-300 ${containerHeightClass} bg-[#EBEBEB] flex flex-col justify-center items-center`}>
-          {isEditMode && (
-            <div className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-full border border-gray-200 bg-white/90 shadow-sm backdrop-blur">
-              {isDesktop && (
-                <button
-                  onClick={() => zoomOut()}
-                  className="p-2 hover:bg-gray-100 rounded-full transition"
-                  title="축소"
-                >
-                  <ZoomOut className="text-black/80 size-5" />
-                </button>
-              )}
-              <span className={`text-sm text-gray-600 font-medium ${isDesktop ? 'min-w-14 text-center' : 'px-3 py-1.5'}`}>
-                {Math.round(currentZoom * 100)}%
-              </span>
-              {isDesktop && (
-                <button
-                  onClick={() => zoomIn()}
-                  className="p-2 hover:bg-gray-100 rounded-full transition"
-                  title="확대"
-                >
-                  <ZoomIn className="text-black/80 size-5" />
-                </button>
-              )}
-            </div>
-          )}
           <div
             ref={containerRef}
             className={`relative ${allowSwipe ? 'touch-pan-y' : ''}`}
