@@ -93,6 +93,7 @@ export interface Product {
   description_image?: string[] | null;
   sizing_chart_image?: string | null;
   manufacturer_name?: string | null;
+  product_code?: string | null;
 }
 
 export interface ProductionExample {

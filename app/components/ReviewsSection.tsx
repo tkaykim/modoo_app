@@ -67,79 +67,77 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
 
   if (loading) {
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-center text-gray-500">리뷰를 불러오는 중...</p>
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <p className="text-center text-xs text-gray-500">리뷰를 불러오는 중...</p>
       </div>
     );
   }
 
   if (reviews.length === 0) {
     return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h3 className="text-lg font-bold mb-2">고객 리뷰</h3>
-        <p className="text-gray-500">아직 리뷰가 없습니다.</p>
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <h3 className="text-sm font-bold mb-1">고객 리뷰</h3>
+        <p className="text-xs text-gray-500">아직 리뷰가 없습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="mt-6">
+    <div className="mt-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className="text-lg font-bold">고객 리뷰</h3>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex items-center text-orange-400">
-              <FaStar />
-              <span className="ml-1 font-semibold">{averageRating.toFixed(1)}</span>
-            </div>
-            <span className="text-sm text-gray-500">({reviews.length}개의 리뷰)</span>
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-bold">고객 리뷰</h3>
+          <div className="flex items-center text-orange-400">
+            <FaStar size={12} />
+            <span className="ml-0.5 text-xs font-semibold">{averageRating.toFixed(1)}</span>
           </div>
+          <span className="text-xs text-gray-500">({reviews.length}개의 리뷰)</span>
         </div>
         <Link
           href={`/reviews/${productId}`}
-          className="text-sm text-[#3B55A5] hover:underline"
+          className="text-xs text-[#3B55A5] hover:underline"
         >
           전체 보기
         </Link>
       </div>
 
       {/* Reviews List */}
-      <div className="space-y-4 flex overflow-auto gap-2">
+      <div className="flex overflow-auto gap-2">
         {reviews.slice(0, limit).map((review) => (
-          <div key={review.id} className="last:border-b-0 w-75 shrink-0 bg-gray-50 p-2 rounded-lg">
+          <div key={review.id} className="w-64 shrink-0 bg-gray-50 p-2 rounded-lg">
             {/* Rating and Author */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
                 <div className="flex text-orange-400">
                   {[...Array(5)].map((_, i) => (
                     <FaStar
                       key={i}
                       className={i < review.rating ? 'text-orange-400' : 'text-gray-300'}
-                      size={14}
+                      size={10}
                     />
                   ))}
                 </div>
-                <span className="text-sm font-medium">{maskName(review.author_name)}</span>
+                <span className="text-xs font-medium">{maskName(review.author_name)}</span>
               </div>
-              <span className="text-xs text-gray-500">{formatDate(review.created_at)}</span>
+              <span className="text-[10px] text-gray-500">{formatDate(review.created_at)}</span>
             </div>
 
             {/* Review Title */}
-            <h4 className="font-semibold text-sm mb-1">{review.title}</h4>
+            <h4 className="font-semibold text-xs mb-0.5">{review.title}</h4>
 
             {/* Review Content */}
-            <p className="text-sm text-gray-700 mb-2">{review.content}</p>
+            <p className="text-xs text-gray-700 mb-1.5 line-clamp-3">{review.content}</p>
 
             {/* Review Images */}
             {review.review_image_urls && review.review_image_urls.length > 0 && (
-              <div className="flex gap-2 mb-2 overflow-x-auto">
+              <div className="flex gap-1.5 mb-1.5 overflow-x-auto">
                 {review.review_image_urls.map((url, idx) => (
                   <img
                     key={idx}
                     src={url}
                     alt={`리뷰 이미지 ${idx + 1}`}
-                    className="w-16 h-16 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                    className="w-12 h-12 object-cover rounded border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => setSelectedImage(url)}
                   />
                 ))}
@@ -148,7 +146,7 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
 
             {/* Helpful Count */}
             {review.helpful_count > 0 && (
-              <p className="text-xs text-gray-500">도움이 됨 {review.helpful_count}</p>
+              <p className="text-[10px] text-gray-500">도움이 됨 {review.helpful_count}</p>
             )}
           </div>
         ))}

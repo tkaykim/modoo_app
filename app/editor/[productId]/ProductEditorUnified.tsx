@@ -445,6 +445,14 @@ export default function ProductEditorUnified({
     fetchColors();
   }, [product.id]);
 
+  // Set initial product color from first available color
+  useEffect(() => {
+    if (cartItemId || partnerMallAdd) return;
+    if (productColors.length > 0) {
+      setProductColor(productColors[0].manufacturer_colors.hex);
+    }
+  }, [productColors, cartItemId, partnerMallAdd, setProductColor]);
+
   // Load cart item design
   useEffect(() => {
     const loadCartItemDesign = async () => {

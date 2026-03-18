@@ -62,7 +62,6 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   // Font upload modal state
   const [showFontUploadModal, setShowFontUploadModal] = useState(false);
   const [fontUploadAgreed, setFontUploadAgreed] = useState(false);
-  const fontDropdownRef = useRef<HTMLDivElement | null>(null);
   const fontFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Curve state
@@ -114,21 +113,12 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   useEffect(() => {
     if (!isFontDropdownOpen) return;
 
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (target && fontDropdownRef.current && !fontDropdownRef.current.contains(target)) {
-        setIsFontDropdownOpen(false);
-      }
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsFontDropdownOpen(false);
     };
 
-    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isFontDropdownOpen]);
@@ -452,6 +442,120 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
       </div>
     )}
 
+    {/* Font Selection Modal */}
+    {isFontDropdownOpen && (
+      <div
+        className="fixed inset-0 z-200 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+        onClick={() => setIsFontDropdownOpen(false)}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden max-h-[70vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">글꼴 선택</h2>
+            <button
+              onClick={() => setIsFontDropdownOpen(false)}
+              className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Font Upload Button */}
+          <div className="p-3 border-b border-gray-200">
+            <button
+              type="button"
+              onClick={handleFontUploadClick}
+              disabled={isUploadingFont}
+              className="w-full px-3 py-2 flex items-center gap-2 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="size-4 text-blue-600" />
+              <span className="flex-1 text-sm font-medium text-blue-600">
+                {isUploadingFont ? '업로드 중...' : '커스텀 폰트 업로드'}
+              </span>
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1">
+            {/* Custom Fonts */}
+            {customFonts.length > 0 && (
+              <div className="border-b border-gray-100">
+                <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                  커스텀 폰트
+                </div>
+                {customFonts.map((customFont) => {
+                  const isSelected = customFont.fontFamily === fontFamily;
+                  return (
+                    <button
+                      key={customFont.fontFamily}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        handleFontFamilyChange(customFont.fontFamily);
+                        setIsFontDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2.5 flex items-center gap-3 text-left hover:bg-gray-50 ${
+                        isSelected ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <span className="w-4 shrink-0">
+                        {isSelected ? <Check className="size-4" /> : null}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate" style={{ fontFamily: customFont.fontFamily }}>
+                        {customFont.fontFamily}
+                      </span>
+                      <span className="shrink-0 text-sm text-gray-500" style={{ fontFamily: customFont.fontFamily }}>
+                        Aa 가나다
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* System Fonts */}
+            {systemFonts.length > 0 && (
+              <div>
+                <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
+                  시스템 폰트
+                </div>
+                {systemFonts.map((font) => {
+                  const isSelected = font === fontFamily;
+                  return (
+                    <button
+                      key={font}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        handleFontFamilyChange(font);
+                        setIsFontDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2.5 flex items-center gap-3 text-left hover:bg-gray-50 ${
+                        isSelected ? 'bg-gray-100' : ''
+                      }`}
+                    >
+                      <span className="w-4 shrink-0">
+                        {isSelected ? <Check className="size-4" /> : null}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate" style={{ fontFamily: font }}>
+                        {font}
+                      </span>
+                      <span className="shrink-0 text-sm text-gray-500" style={{ fontFamily: font }}>
+                        Aa 가나다
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Copyright Notice Modal */}
     {showCopyrightNotice && (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
@@ -596,117 +700,16 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
                   <Type className="size-4" />
                   글꼴
                 </label>
-                <div ref={fontDropdownRef} className="relative">
-                  <button
-                    type="button"
-                    aria-haspopup="listbox"
-                    aria-expanded={isFontDropdownOpen}
-                    onClick={() => setIsFontDropdownOpen((prev) => !prev)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent flex items-center justify-between gap-2"
-                  >
-                    <span className="truncate" style={{ fontFamily }}>
-                      {fontFamily}
-                    </span>
-                    <ChevronDown className="size-4 shrink-0 text-gray-600" />
-                  </button>
-
-                  {isFontDropdownOpen && (
-                    <div
-                      role="listbox"
-                      aria-label="Font family"
-                      className="absolute left-0 right-0 z-50 mt-1 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg"
-                    >
-                      {/* Font Upload Button */}
-                      <div className="sticky top-0 bg-white border-b border-gray-200 p-2">
-                        <button
-                          type="button"
-                          onClick={handleFontUploadClick}
-                          disabled={isUploadingFont}
-                          className="w-full px-3 py-2 flex items-center gap-2 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Upload className="size-4 text-blue-600" />
-                          <span className="flex-1 text-sm font-medium text-blue-600">
-                            {isUploadingFont ? '업로드 중...' : '커스텀 폰트 업로드'}
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* Custom Fonts */}
-                      {customFonts.length > 0 && (
-                        <div className="border-b border-gray-100">
-                          <div className="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-50">
-                            커스텀 폰트
-                          </div>
-                          {customFonts.map((customFont) => {
-                            const isSelected = customFont.fontFamily === fontFamily;
-                            return (
-                              <button
-                                key={customFont.fontFamily}
-                                type="button"
-                                role="option"
-                                aria-selected={isSelected}
-                                onClick={() => {
-                                  handleFontFamilyChange(customFont.fontFamily);
-                                  setIsFontDropdownOpen(false);
-                                }}
-                                className={`w-full px-3 py-2 flex items-center gap-3 text-left hover:bg-gray-50 ${
-                                  isSelected ? 'bg-gray-100' : ''
-                                }`}
-                              >
-                                <span className="w-4 shrink-0">
-                                  {isSelected ? <Check className="size-4" /> : null}
-                                </span>
-                                <span className="flex-1 min-w-0 truncate" style={{ fontFamily: customFont.fontFamily }}>
-                                  {customFont.fontFamily}
-                                </span>
-                                <span className="shrink-0 text-sm text-gray-500" style={{ fontFamily: customFont.fontFamily }}>
-                                  Aa 가나다
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* System Fonts */}
-                      {systemFonts.length > 0 && (
-                        <div>
-                          <div className="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-50">
-                            시스템 폰트
-                          </div>
-                          {systemFonts.map((font) => {
-                            const isSelected = font === fontFamily;
-                            return (
-                              <button
-                                key={font}
-                                type="button"
-                                role="option"
-                                aria-selected={isSelected}
-                                onClick={() => {
-                                  handleFontFamilyChange(font);
-                                  setIsFontDropdownOpen(false);
-                                }}
-                                className={`w-full px-3 py-2 flex items-center gap-3 text-left hover:bg-gray-50 ${
-                                  isSelected ? 'bg-gray-100' : ''
-                                }`}
-                              >
-                                <span className="w-4 shrink-0">
-                                  {isSelected ? <Check className="size-4" /> : null}
-                                </span>
-                                <span className="flex-1 min-w-0 truncate" style={{ fontFamily: font }}>
-                                  {font}
-                                </span>
-                                <span className="shrink-0 text-sm text-gray-500" style={{ fontFamily: font }}>
-                                  Aa 가나다
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFontDropdownOpen(true)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent flex items-center justify-between gap-2"
+                >
+                  <span className="truncate" style={{ fontFamily }}>
+                    {fontFamily}
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 text-gray-600" />
+                </button>
               </div>
 
               {/* Font Size */}

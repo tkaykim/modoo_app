@@ -61,7 +61,7 @@ function PaymentCompleteContent() {
           {/* Action Buttons */}
           <div className="w-full space-y-3">
             <Link
-              href={`/orders/${orderId}`}
+              href={`/order/${orderId}`}
               className="w-full block px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition text-center"
             >
               주문 상세보기

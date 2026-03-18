@@ -121,8 +121,7 @@ export default function CartPage() {
 
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = items.reduce((total, item) => total + item.price_per_item * item.quantity, 0);
-  const deliveryFee = items.length > 0 ? 3000 : 0;
-  const finalTotal = totalPrice + deliveryFee;
+  const finalTotal = totalPrice;
 
   const handleCheckout = () => {
     // Navigate to checkout page
@@ -160,7 +159,7 @@ export default function CartPage() {
         address_line_1: '서울시 강남구 테헤란로 123',
         address_line_2: '테스트빌딩 101호',
         shipping_method: 'domestic' as const,
-        delivery_fee: 3000,
+        delivery_fee: 0,
         total_amount: finalTotal,
       };
 
@@ -337,13 +336,6 @@ export default function CartPage() {
         <Header back={true} />
       </div>
 
-      {/* Page Title */}
-      <div className="bg-white px-4 py-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-black">장바구니</h1>
-        {isMounted && (
-          <p className="text-sm text-gray-500 mt-1">{totalQuantity}개 상품</p>
-        )}
-      </div>
 
       {/* Cart Content */}
       {!isMounted ? (
@@ -386,7 +378,7 @@ export default function CartPage() {
           <div className="bg-white mb-4">
             {/* Clear All Button */}
             <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-              <span className="text-sm text-gray-600">전체 {groupedItems.length}개 디자인</span>
+              <span className="text-sm text-gray-600">전체 {totalQuantity}개 상품</span>
               <button
                 onClick={handleClearCart}
                 className="text-sm text-gray-500 hover:text-red-600 transition flex items-center gap-1"
@@ -495,66 +487,39 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* Price Summary */}
-          <div className="bg-white p-4 mb-24">
-            <h2 className="font-medium text-black mb-3">결제 금액</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">상품 금액</span>
-                <span className="text-black">{totalPrice.toLocaleString('ko-KR')}원</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">배송비</span>
-                <span className="text-black">{deliveryFee.toLocaleString('ko-KR')}원</span>
-              </div>
-              <div className="h-px bg-gray-200 my-3"></div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-black">총 결제금액</span>
-                <span className="text-xl font-bold text-black">
-                  {finalTotal.toLocaleString('ko-KR')}원
-                </span>
-              </div>
-            </div>
-          </div>
         </>
-      )}
-
-      {/* Test Mode Button - Fixed above checkout bar */}
-      {items.length > 0 && isTestMode && (
-        <div className="fixed bottom-24 left-0 right-0 px-4 pb-2">
-          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3 shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">⚠️</span>
-              <span className="text-sm font-semibold text-yellow-900">테스트 모드</span>
-            </div>
-            <button
-              onClick={handleTestModeCheckout}
-              disabled={isTestModeProcessing}
-              className="w-full py-2.5 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
-            >
-              {isTestModeProcessing ? '주문 생성 중...' : '테스트 주문 생성 (더미 데이터)'}
-            </button>
-          </div>
-        </div>
       )}
 
       {/* Bottom Fixed Bar */}
       {items.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-xs text-gray-500">총 {totalQuantity}개</p>
-              <p className="text-lg font-bold text-black">
-                {finalTotal.toLocaleString('ko-KR')}원
-              </p>
+          {isTestMode && (
+            <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">⚠️</span>
+                <span className="text-sm font-semibold text-yellow-900">테스트 모드</span>
+              </div>
+              <button
+                onClick={handleTestModeCheckout}
+                disabled={isTestModeProcessing}
+                className="w-full py-2.5 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
+              >
+                {isTestModeProcessing ? '주문 생성 중...' : '테스트 주문 생성 (더미 데이터)'}
+              </button>
             </div>
-            <button
-              onClick={handleCheckout}
-              className="px-8 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
-            >
-              주문하기
-            </button>
+          )}
+          <div className="flex justify-between items-center mb-3">
+            <span className="font-medium text-black">총 결제금액</span>
+            <span className="text-lg font-bold text-black">
+              {finalTotal.toLocaleString('ko-KR')}원
+            </span>
           </div>
+          <button
+            onClick={handleCheckout}
+            className="w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
+          >
+            주문하기
+          </button>
         </div>
       )}
 
