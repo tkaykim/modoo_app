@@ -36,7 +36,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   const layerImagesRef = useRef<Map<string, fabric.FabricImage>>(new Map());
   const loadSessionRef = useRef(0);
 
-  const { registerCanvas, unregisterCanvas, productColor: productColorFromStore, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor, layerColors, resetZoom, zoomLevels } = useCanvasStore();
+  const { registerCanvas, unregisterCanvas, productColor: productColorFromStore, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor, layerColors, resetZoom, zoomLevels, setZoom } = useCanvasStore();
   const productColor = productColorProp ?? productColorFromStore;
   const zoomLevel = zoomLevels[side.id] || 1.0;
 
@@ -47,6 +47,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   const isTouchPanningRef = useRef(false);
   const lastPanPointRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchMidpointRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPinchDistanceRef = useRef<number>(0);
   const panRestoreStateRef = useRef<{
     selection: boolean;
     skipTargetFind: boolean;
@@ -196,6 +197,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       isTouchPanningRef.current = false;
       lastPanPointRef.current = null;
       lastTouchMidpointRef.current = null;
+      lastPinchDistanceRef.current = 0;
 
       const restore = panRestoreStateRef.current;
       if (restore) {
@@ -264,13 +266,19 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     upperEl.addEventListener('mouseenter', handleUpperMouseEnter);
     upperEl.addEventListener('mouseleave', handleUpperMouseLeave);
 
+    const getTouchDistance = (t0: Touch, t1: Touch) => {
+      const dx = t0.clientX - t1.clientX;
+      const dy = t0.clientY - t1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 2) return;
-      if (canvas.getZoom() <= 1) return;
 
       e.preventDefault();
       const midX = (e.touches[0]!.clientX + e.touches[1]!.clientX) / 2;
       const midY = (e.touches[0]!.clientY + e.touches[1]!.clientY) / 2;
+      const dist = getTouchDistance(e.touches[0]!, e.touches[1]!);
 
       if (isMousePanningRef.current) endPan();
       if (!isTouchPanningRef.current) {
@@ -287,6 +295,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
 
       isTouchPanningRef.current = true;
       lastTouchMidpointRef.current = { x: midX, y: midY };
+      lastPinchDistanceRef.current = dist;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -299,6 +308,19 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       e.preventDefault();
       const midX = (e.touches[0]!.clientX + e.touches[1]!.clientX) / 2;
       const midY = (e.touches[0]!.clientY + e.touches[1]!.clientY) / 2;
+      const newDist = getTouchDistance(e.touches[0]!, e.touches[1]!);
+
+      // Pinch zoom
+      const oldDist = lastPinchDistanceRef.current;
+      if (oldDist > 0 && Math.abs(newDist - oldDist) > 1) {
+        const scale = newDist / oldDist;
+        const currentZoom = canvas.getZoom();
+        const newZoom = currentZoom * scale;
+        useCanvasStore.getState().setZoom(newZoom, side.id);
+      }
+      lastPinchDistanceRef.current = newDist;
+
+      // Pan
       const last = lastTouchMidpointRef.current;
       if (!last) {
         lastTouchMidpointRef.current = { x: midX, y: midY };
@@ -319,6 +341,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     };
 
     const handleTouchEnd = () => {
+      lastPinchDistanceRef.current = 0;
       if (!isTouchPanningRef.current) return;
       endPan();
     };
@@ -365,6 +388,19 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       isSpacePressedRef.current = false;
       if (isMousePanningRef.current || isTouchPanningRef.current) endPan();
     };
+
+    // Mouse wheel / trackpad zoom
+    const handleWheel = (opt: fabric.TPointerEventInfo<WheelEvent>) => {
+      const e = opt.e;
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY;
+      const currentZoom = canvas.getZoom();
+      // Smaller step for smoother trackpad zoom
+      const zoomFactor = delta > 0 ? 0.95 : 1.05;
+      useCanvasStore.getState().setZoom(currentZoom * zoomFactor, side.id);
+    };
+    canvas.on('mouse:wheel', handleWheel);
 
     window.addEventListener('keydown', handleWindowKeyDown, { passive: false });
     window.addEventListener('keyup', handleWindowKeyUp);
@@ -1117,6 +1153,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       canvas.off('mouse:down', handleMouseDown);
       canvas.off('mouse:move', handleMouseMove);
       canvas.off('mouse:up', handleMouseUp);
+      canvas.off('mouse:wheel', handleWheel);
       upperEl.removeEventListener('mouseenter', handleUpperMouseEnter);
       upperEl.removeEventListener('mouseleave', handleUpperMouseLeave);
       upperEl.removeEventListener('touchstart', handleTouchStart);

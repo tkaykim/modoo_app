@@ -121,8 +121,7 @@ export default function CartPage() {
 
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = items.reduce((total, item) => total + item.price_per_item * item.quantity, 0);
-  const deliveryFee = items.length > 0 ? 3000 : 0;
-  const finalTotal = totalPrice + deliveryFee;
+  const finalTotal = totalPrice;
 
   const handleCheckout = () => {
     // Navigate to checkout page
@@ -160,7 +159,7 @@ export default function CartPage() {
         address_line_1: '서울시 강남구 테헤란로 123',
         address_line_2: '테스트빌딩 101호',
         shipping_method: 'domestic' as const,
-        delivery_fee: 3000,
+        delivery_fee: 0,
         total_amount: finalTotal,
       };
 
@@ -502,10 +501,6 @@ export default function CartPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">상품 금액</span>
                 <span className="text-black">{totalPrice.toLocaleString('ko-KR')}원</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">배송비</span>
-                <span className="text-black">{deliveryFee.toLocaleString('ko-KR')}원</span>
               </div>
               <div className="h-px bg-gray-200 my-3"></div>
               <div className="flex justify-between items-center">

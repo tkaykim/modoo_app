@@ -86,15 +86,13 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
     <div className="mt-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-2">
-        <div>
+        <div className="flex items-center gap-1.5">
           <h3 className="text-sm font-bold">고객 리뷰</h3>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <div className="flex items-center text-orange-400">
-              <FaStar size={12} />
-              <span className="ml-0.5 text-xs font-semibold">{averageRating.toFixed(1)}</span>
-            </div>
-            <span className="text-xs text-gray-500">({reviews.length}개의 리뷰)</span>
+          <div className="flex items-center text-orange-400">
+            <FaStar size={12} />
+            <span className="ml-0.5 text-xs font-semibold">{averageRating.toFixed(1)}</span>
           </div>
+          <span className="text-xs text-gray-500">({reviews.length}개의 리뷰)</span>
         </div>
         <Link
           href={`/reviews/${productId}`}

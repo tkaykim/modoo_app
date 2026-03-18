@@ -3,13 +3,26 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import ProductCard from "@/app/components/ProductCard";
-import CategoryButton from "@/app/components/CategoryButton";
 import { Product } from "@/types/types";
 import { createClient } from "@/lib/supabase-client";
-import { CATEGORIES } from "@/lib/categories";
 import Header from "@/app/components/Header";
+
+type SortOption = "default" | "review_count" | "price_low" | "price_high";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  default: "기본",
+  review_count: "리뷰 많은순",
+  price_low: "낮은 가격순",
+  price_high: "높은 가격순",
+};
+
+interface DBCategory {
+  key: string;
+  name: string;
+  icon: string | null;
+}
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -19,12 +32,16 @@ export default function SearchPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl || "all");
+  const [selectedManufacturer, setSelectedManufacturer] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [dbCategories, setDbCategories] = useState<DBCategory[]>([]);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [reviewCounts, setReviewCounts] = useState<Record<string, number>>({});
 
-  // Get unique categories from products
-  // const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter((c): c is string => Boolean(c))));
-  // const categories: string[] = ["전체", ...uniqueCategories];
+  const hasActiveFilter = selectedCategory !== "all" || selectedManufacturer !== "all";
 
   // Update selected category when URL param changes
   useEffect(() => {
@@ -33,40 +50,68 @@ export default function SearchPage() {
     }
   }, [categoryFromUrl]);
 
-  // Fetch products on mount
+  // Fetch products and categories on mount
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchData() {
       setIsLoading(true);
       const supabase = createClient();
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, manufacturers(name)')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+      const [productsRes, categoriesRes, reviewsRes] = await Promise.all([
+        supabase
+          .from('products')
+          .select('*, manufacturers(name)')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('product_categories')
+          .select('key, name, icon')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('reviews')
+          .select('product_id'),
+      ]);
 
-      if (error) {
-        console.error('Error fetching products:', error);
+      if (categoriesRes.data) {
+        setDbCategories(categoriesRes.data);
+      }
+
+      // Build review count map
+      if (reviewsRes.data) {
+        const counts: Record<string, number> = {};
+        for (const r of reviewsRes.data) {
+          counts[r.product_id] = (counts[r.product_id] || 0) + 1;
+        }
+        setReviewCounts(counts);
+      }
+
+      if (productsRes.error) {
+        console.error('Error fetching products:', productsRes.error);
       } else {
-        const productsWithManufacturer = (data ?? []).map(product => ({
+        const productsWithManufacturer = (productsRes.data ?? []).map(product => ({
           ...product,
           manufacturer_name: product.manufacturers?.name ?? null,
         })) as Product[];
         setProducts(productsWithManufacturer);
         setFilteredProducts(productsWithManufacturer);
+
+        // Extract unique manufacturer names
+        const uniqueManufacturers = Array.from(
+          new Set(productsWithManufacturer.map(p => p.manufacturer_name).filter((m): m is string => Boolean(m)))
+        ).sort();
+        setManufacturers(uniqueManufacturers);
       }
       setIsLoading(false);
     }
 
-    fetchProducts();
+    fetchData();
   }, []);
 
-  // Filter products based on search query and category
+  // Filter and sort products
   useEffect(() => {
     let result = products;
 
-    // Filter by search query
     if (searchQuery.trim()) {
       result = result.filter(product =>
         product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -74,13 +119,25 @@ export default function SearchPage() {
       );
     }
 
-    // Filter by category
     if (selectedCategory !== "all") {
       result = result.filter(product => product.category === selectedCategory);
     }
 
+    if (selectedManufacturer !== "all") {
+      result = result.filter(product => product.manufacturer_name === selectedManufacturer);
+    }
+
+    // Sort
+    if (sortBy === "review_count") {
+      result = [...result].sort((a, b) => (reviewCounts[b.id] || 0) - (reviewCounts[a.id] || 0));
+    } else if (sortBy === "price_low") {
+      result = [...result].sort((a, b) => a.base_price - b.base_price);
+    } else if (sortBy === "price_high") {
+      result = [...result].sort((a, b) => b.base_price - a.base_price);
+    }
+
     setFilteredProducts(result);
-  }, [searchQuery, selectedCategory, products]);
+  }, [searchQuery, selectedCategory, selectedManufacturer, sortBy, reviewCounts, products]);
 
   const handleClearSearch = () => {
     setSearchQuery("");
@@ -120,66 +177,123 @@ export default function SearchPage() {
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  showFilters ? "bg-blue-50 text-[#3B55A5]" : "text-gray-400 hover:text-gray-600"
+                className={`relative p-1.5 rounded-lg transition-colors ${
+                  showFilters || hasActiveFilter ? "bg-blue-50 text-[#3B55A5]" : "text-gray-400 hover:text-gray-600"
                 }`}
               >
                 <SlidersHorizontal size={20} />
+                {hasActiveFilter && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#3B55A5] rounded-full" />
+                )}
               </button>
             </div>
           </div>
 
           {/* Filter Section */}
           {showFilters && (
-            <div className="mt-4 pb-2 border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">카테고리</h3>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map((category) => (
+            <div className="mt-4 pb-2 border-t pt-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">카테고리</h3>
+                <div className="flex flex-wrap gap-1.5">
                   <button
-                    key={category.key}
-                    onClick={() => setSelectedCategory(category.key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      selectedCategory === category.key
+                    onClick={() => setSelectedCategory("all")}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      selectedCategory === "all"
                         ? "bg-[#3B55A5] text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    {category.name}
+                    전체
                   </button>
-                ))}
+                  {dbCategories.map((category) => (
+                    <button
+                      key={category.key}
+                      onClick={() => setSelectedCategory(category.key)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        selectedCategory === category.key
+                          ? "bg-[#3B55A5] text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {manufacturers.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">제조사</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setSelectedManufacturer("all")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        selectedManufacturer === "all"
+                          ? "bg-[#3B55A5] text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      전체
+                    </button>
+                    {manufacturers.map((name) => (
+                      <button
+                        key={name}
+                        onClick={() => setSelectedManufacturer(name)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          selectedManufacturer === name
+                            ? "bg-[#3B55A5] text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        {/* Categories Section */}
-        <section className="max-w-7xl py-2">
-          <div className="flex gap-2 overflow-x-auto p-1">
-            {CATEGORIES.map((category) => (
-              <CategoryButton
-                key={category.key}
-                name={category.name}
-                icon={category.icon}
-                onClick={() => setSelectedCategory(category.key)}
-                isActive={selectedCategory === category.key}
-              />
-            ))}
-          </div>
-        </section>
 
         </div>
       </div>
 
       {/* Content Container */}
       <div className="px-2">
-        {/* Results Count */}
-        <div className="mt-4 text-sm text-gray-600">
-          {isLoading ? (
-            <p>로딩 중...</p>
-          ) : (
-            <p>
-              {filteredProducts.length}개의 상품
-              {searchQuery && ` "${searchQuery}" 검색 결과`}
-            </p>
-          )}
+        {/* Results Count & Sort */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            {isLoading ? (
+              <p>로딩 중...</p>
+            ) : (
+              <p>
+                {filteredProducts.length}개의 상품
+                {searchQuery && ` "${searchQuery}" 검색 결과`}
+              </p>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowSortMenu(!showSortMenu)}
+              className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+            >
+              <ArrowUpDown size={14} />
+              {SORT_LABELS[sortBy]}
+            </button>
+            {showSortMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-20 min-w-30">
+                {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => { setSortBy(option); setShowSortMenu(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${
+                      sortBy === option ? "text-[#3B55A5] font-semibold" : "text-gray-700"
+                    }`}
+                  >
+                    {SORT_LABELS[option]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {/* Products Grid */}
         <section className="max-w-7xl mx-auto py-2">
