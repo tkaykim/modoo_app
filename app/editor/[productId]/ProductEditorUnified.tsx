@@ -191,7 +191,7 @@ export default function ProductEditorUnified({
   };
 
   // ─── Save to cart ────────────────────────────────────────────────
-  const handleSaveToCart = async (designName: string, selectedItems: CartItem[]) => {
+  const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
     if (!isAuthenticated) {
       const canvasState = saveAllCanvasState();
       saveGuestDesign({ productId: product.id, productColor, canvasState });
@@ -209,6 +209,7 @@ export default function ProductEditorUnified({
       const customFonts = useFontStore.getState().customFonts;
 
       let sharedDesignId: string | undefined;
+      const newCartItemIds: string[] = [];
 
       for (const item of selectedItems) {
         const dbCartItem = await addToCartDB({
@@ -228,6 +229,12 @@ export default function ProductEditorUnified({
           customFonts,
           canvasMap,
         });
+
+        if (dbCartItem?.id) {
+          newCartItemIds.push(dbCartItem.id);
+        } else {
+          console.error('addToCartDB returned no id:', dbCartItem);
+        }
 
         if (!sharedDesignId && dbCartItem?.saved_design_id) {
           sharedDesignId = dbCartItem.saved_design_id;
@@ -249,6 +256,11 @@ export default function ProductEditorUnified({
         });
       }
 
+      // For direct purchase, store the item IDs so checkout only shows these items
+      if (purchaseType === 'direct' && newCartItemIds.length > 0) {
+        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newCartItemIds));
+      }
+
       removeGuestDesign(product.id);
 
       // Clear canvas state
@@ -264,8 +276,6 @@ export default function ProductEditorUnified({
       });
 
       setProductColor('#FFFFFF');
-      setEditMode(false);
-      setCurrentStep('landing');
     } catch (error) {
       console.error('Add to cart failed:', error);
       alert('장바구니 추가 중 오류가 발생했습니다.');
@@ -660,7 +670,7 @@ export default function ProductEditorUnified({
         />
 
         {/* Bottom bar */}
-        <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-50">
+        <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
           <div className="flex items-center gap-2">
             {partnerMallAddData ? (
               <button
@@ -731,17 +741,46 @@ export default function ProductEditorUnified({
         <Header back={true} />
       </div>
 
-      <div className="py-4">
-        <div className="grid gap-2 grid-cols-2 h-175">
-          {/* Left Side - Canvas */}
-          <div className="flex flex-col gap-2 h-175 relative overflow-hidden">
-            <div className="rounded-md bg-white h-175">
+      <div className="max-w-360 mx-auto px-6 py-4">
+        <div className="flex gap-4" style={{ height: 'calc(100vh - 80px)' }}>
+          {/* Side Thumbnails */}
+          {product.configuration.length > 1 && (
+            <div className="flex flex-col gap-2 w-20 shrink-0">
+              {product.configuration.map(side => (
+                <button
+                  key={side.id}
+                  onClick={() => setActiveSide(side.id)}
+                  className={`rounded-lg overflow-hidden border-2 transition-all ${
+                    activeSideId === side.id
+                      ? 'border-black'
+                      : 'border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {side.imageUrl ? (
+                    <img
+                      src={side.imageUrl}
+                      alt={side.name}
+                      className="w-full aspect-square object-contain bg-gray-50 p-1"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square bg-gray-50 flex items-center justify-center text-[10px] text-gray-400">
+                      {side.name}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Canvas Area */}
+          <div className="flex-1 relative min-w-0">
+            <div className="rounded-lg h-full overflow-hidden">
               <ProductDesigner config={productConfig} layout="desktop" />
             </div>
 
             {/* Layer Controls */}
             {selectedObject && (
-              <div className="absolute top-16 left-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 backdrop-blur-sm px-4 py-2.5">
+              <div className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 backdrop-blur-sm px-4 py-2.5">
                 <span className="text-sm font-semibold text-gray-700 mr-1">레이어 조정:</span>
                 <button onClick={bringToFront} className="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition" title="맨 앞으로">
                   <ChevronsUp className="size-4 text-gray-700" />
@@ -768,13 +807,13 @@ export default function ProductEditorUnified({
             </div>
           </div>
 
-          {/* Right Side - Sidebar */}
-          <aside className="rounded-md bg-white p-4 border border-gray-200 h-full overflow-hidden flex flex-col">
+          {/* Right Sidebar */}
+          <aside className="w-96 shrink-0 border border-gray-200 rounded-lg h-full overflow-hidden flex flex-col bg-white">
             {selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'text' || isCurvedText(selectedObject)) ? (
               <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">텍스트 편집</h3>
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900">텍스트 편집</h3>
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => {
                         const activeCanvas = canvasMap[activeSideId];
@@ -805,92 +844,89 @@ export default function ProductEditorUnified({
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto p-4">
                   <TextStylePanel selectedObject={selectedObject as fabric.IText | fabric.Text} layout="sidebar" />
                 </div>
               </>
             ) : (
               <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">{product.manufacturer_name || '제조사'}</p>
-                    <h2 className="text-lg font-semibold text-gray-900 leading-snug mt-1">{product.title}</h2>
-                  </div>
+                {/* Product Info */}
+                <div className="p-5 pb-3">
+                  {product.manufacturer_name && (
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{product.manufacturer_name}</p>
+                  )}
+                  <h2 className="text-lg font-bold text-gray-900 leading-snug mt-1">{product.title}</h2>
                 </div>
 
-                <div className="mt-4 rounded-md flex flex-col flex-1 min-h-0">
-                  <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
-                    {(() => {
-                      const currentSide = product.configuration.find(side => side.id === activeSideId);
-                      const hasLayers = currentSide?.layers && currentSide.layers.length > 0;
-                      return hasLayers || (currentSide?.colorOptions && currentSide.colorOptions.length > 0) ? (
-                        <LayerColorSelector side={currentSide!} />
-                      ) : (
-                        productColors.length > 0 && (
-                          <div className="overflow-hidden rounded-lg">
-                            <p className="text-xs font-semibold text-gray-600 mb-3">색상 선택</p>
-                            <div className="flex flex-wrap gap-3">
-                              {productColors.map((color) => (
-                                <button key={color.id} onClick={() => handleColorChange(color.manufacturer_colors.hex)} className="flex items-center gap-2">
-                                  <div
-                                    className={`w-8 h-8 rounded-full border-2 ${productColor === color.manufacturer_colors.hex ? 'border-black' : 'border-gray-300'}`}
-                                    style={{ backgroundColor: color.manufacturer_colors.hex }}
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      );
-                    })()}
-                    <ObjectPreviewPanel sides={product.configuration} />
-                  </div>
-                </div>
-
-                {/* Fixed bottom pricing */}
-                <div className="mt-auto pt-4 border-t border-gray-200">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">기본가</span>
-                      <span className="text-gray-700">{formattedPrice}원</span>
-                    </div>
-                    {pricingData.totalAdditionalPrice > 0 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">디자인 추가비용</span>
-                        <span className="text-gray-700">+{pricingData.totalAdditionalPrice.toLocaleString('ko-KR')}원</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">배송비</span>
-                      <span className="text-gray-700">3,000원</span>
-                    </div>
-                    <div className="border-t border-gray-200 pt-2 mt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-900 font-semibold">총가격</span>
-                        <span className="text-lg text-gray-900 font-bold">{pricePerItem.toLocaleString('ko-KR')}원</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex gap-2">
-                    {partnerMallAddData ? (
-                      <button
-                        onClick={handleSaveToMall}
-                        disabled={isSavingToMall}
-                        className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-                      >
-                        {isSavingToMall ? (<><Loader2 className="w-4 h-4 animate-spin" />저장 중...</>) : '몰에 저장'}
-                      </button>
+                {/* Color Swatches */}
+                <div className="px-5 pb-4">
+                  {(() => {
+                    const currentSide = product.configuration.find(side => side.id === activeSideId);
+                    const hasLayers = currentSide?.layers && currentSide.layers.length > 0;
+                    return hasLayers || (currentSide?.colorOptions && currentSide.colorOptions.length > 0) ? (
+                      <LayerColorSelector side={currentSide!} />
                     ) : (
-                      <button
-                        onClick={handleEditorDone}
-                        disabled={isSaving}
-                        className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                      >
-                        {isSaving ? '처리 중...' : '완료'}
-                      </button>
-                    )}
-                  </div>
+                      productColors.length > 0 && (
+                        <div>
+                          <div className="flex flex-wrap gap-2">
+                            {productColors.map((color) => (
+                              <button
+                                key={color.id}
+                                onClick={() => handleColorChange(color.manufacturer_colors.hex)}
+                                className={`w-10 h-10 rounded-lg border-2 transition ${
+                                  productColor === color.manufacturer_colors.hex
+                                    ? 'border-black scale-110'
+                                    : 'border-gray-200 hover:border-gray-400'
+                                }`}
+                                style={{ backgroundColor: color.manufacturer_colors.hex }}
+                                title={color.manufacturer_colors.name}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    );
+                  })()}
+                </div>
+
+                {/* Price Display */}
+                <div className="px-5 py-4 border-t border-gray-100">
+                  {pricingData.totalAdditionalPrice > 0 && (
+                    <p className="text-sm text-gray-400 line-through">{formattedPrice}원</p>
+                  )}
+                  <p className="text-2xl font-bold text-gray-900">{pricePerItem.toLocaleString('ko-KR')}원</p>
+                  {pricingData.totalAdditionalPrice > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      기본가 {formattedPrice}원 + 디자인 {pricingData.totalAdditionalPrice.toLocaleString('ko-KR')}원
+                    </p>
+                  )}
+                  {/* <p className="text-xs text-gray-400 mt-1">배송비 3,000원</p> */}
+                </div>
+
+                {/* Object Preview */}
+                <div className="flex-1 overflow-y-auto px-5 py-3 border-t border-gray-100 min-h-0">
+                  <ObjectPreviewPanel sides={product.configuration} />
+                </div>
+
+                {/* Action Button */}
+                <div className="p-4 border-t border-gray-200">
+                  {partnerMallAddData ? (
+                    <button
+                      onClick={handleSaveToMall}
+                      disabled={isSavingToMall}
+                      className="w-full bg-black py-3.5 text-sm font-medium rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+                    >
+                      {isSavingToMall ? (<><Loader2 className="w-4 h-4 animate-spin" />저장 중...</>) : '몰에 저장'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleEditorDone}
+                      disabled={isSaving}
+                      className="w-full bg-black py-3.5 text-sm font-medium rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+                    >
+                      {isSaving ? '처리 중...' : '완료'}
+                    </button>
+                  )}
                 </div>
               </>
             )}

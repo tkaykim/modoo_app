@@ -155,12 +155,21 @@ export default function CheckoutPage() {
     return { orderId: id, orderName: name };
   }, [groupedItems]);
 
-  // Fetch cart items
+  // Fetch cart items (filtered to direct checkout items if applicable)
   useEffect(() => {
     const fetchCartItems = async () => {
       setIsLoading(true);
       try {
-        const cartItems = await getCartItemsWithDesigns();
+        let cartItems = await getCartItemsWithDesigns();
+
+        // If direct checkout, filter to only the specific items
+        const directIdsRaw = sessionStorage.getItem('directCheckoutItemIds');
+        if (directIdsRaw) {
+          sessionStorage.removeItem('directCheckoutItemIds');
+          const directIds: string[] = JSON.parse(directIdsRaw);
+          cartItems = cartItems.filter(item => directIds.includes(item.id!));
+        }
+
         if (cartItems.length === 0) {
           router.push('/cart');
           return;
@@ -360,9 +369,9 @@ export default function CheckoutPage() {
         </div>
 
       {/* Page Title */}
-      <div className="bg-white px-4 py-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-black">주문/결제</h1>
-      </div>
+      {/* <div className="bg-white px-4 py-4 border-b border-gray-200">
+        <h1 className="text-xl font-bold text-black">주문서</h1>
+      </div> */}
 
       {/* Order Summary */}
       <div className="bg-white mt-2 p-4">
@@ -448,7 +457,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* Shipping Method */}
-      <div className="bg-white mt-2 p-4">
+      <div className="bg-white mt-2 p-4 text-sm">
         <h2 className="font-medium text-black mb-4">배송 방법</h2>
         <div className="space-y-2">
           <button
@@ -524,15 +533,15 @@ export default function CheckoutPage() {
 
       {/* Address Input - Domestic */}
       {shippingMethod === 'domestic' && (
-        <div className="bg-white mt-2 p-4">
-          <h2 className="font-medium text-black mb-4">배송지 정보</h2>
+        <div className="bg-white mt-2 p-4 text-sm">
+          <h2 className="font-medium text-black mb-4">배송지 정보<span className='text-red-500'>*</span></h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm text-gray-700 mb-1">주소</label>
+              {/* <label className="block text-sm text-gray-700 mb-1">주소</label> */}
               <div className="flex gap-2">
                 <button
                   onClick={handleAddressSearch}
-                  className="w-25 px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition font-medium"
+                  className="w-full px-4 py-2.5 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition font-medium"
                 >
                   주소 검색
                 </button>
@@ -540,35 +549,36 @@ export default function CheckoutPage() {
                   type="text"
                   value={domesticAddress.postalCode}
                   readOnly
-                  className="flex-3 px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-50"
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-50"
                   placeholder="우편번호"
                 />
               </div>
             </div>
             {domesticAddress.roadAddress && (
-              <>
+              <div className='flex flex-col gap-2'>
                 <input
                   type="text"
                   value={domesticAddress.roadAddress}
                   readOnly
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-100"
                   placeholder="도로명 주소"
                 />
                 <input
                   type="text"
                   value={domesticAddress.jibunAddress}
                   readOnly
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black bg-gray-100"
                   placeholder="지번 주소"
                 />
+                <label className='text-xs'>상세 주소</label>
                 <input
                   type="text"
                   value={domesticAddress.detailAddress}
                   onChange={(e) => setDomesticAddress({ ...domesticAddress, detailAddress: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black"
-                  placeholder="상세 주소를 입력하세요"
+                  placeholder="상세 주소 입력"
                 />
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -827,12 +837,11 @@ export default function CheckoutPage() {
             <span className="text-black">{deliveryFee.toLocaleString('ko-KR')}원</span>
           </div>
           {couponDiscount > 0 && (
-            <div className="flex justify-between text-sm p-2 -mx-2 bg-red-50 rounded-lg">
-              <span className="text-red-600 font-medium flex items-center gap-1">
-                <Ticket className="w-4 h-4" />
+            <div className="flex justify-between text-sm p-2 -mx-2 bg-blue-50 rounded-lg">
+              <span className="text-blue-600 font-medium flex items-center gap-1">
                 쿠폰 할인
               </span>
-              <span className="text-red-600 font-bold">-{couponDiscount.toLocaleString('ko-KR')}원</span>
+              <span className="text-blue-600 font-bold">-{couponDiscount.toLocaleString('ko-KR')}원</span>
             </div>
           )}
           <div className="h-px bg-gray-200 my-3"></div>
@@ -921,7 +930,7 @@ export default function CheckoutPage() {
 
       {/* Toss Payment Widget - Only show when Toss is selected */}
       {paymentMethod === 'toss' && (
-        <div className='w-full px-4 mt-4'>
+        <div className='w-full px-4 bg-white '>
           <TossPaymentWidget
             key={tossWidgetKey}
             amount={finalTotal}

@@ -10,7 +10,7 @@ import { calculateAllSidesPricing } from '@/app/utils/canvasPricing';
 interface QuantitySelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (designName: string, selectedItems: CartItem[]) => Promise<void>;
+  onConfirm: (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => Promise<void>;
   sizeOptions: SizeOption[];
   pricePerItem: number;
   isSaving?: boolean;
@@ -38,6 +38,8 @@ export default function QuantitySelectorModal({
   const [designName, setDesignName] = useState(defaultDesignName);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPurchaseChoice, setShowPurchaseChoice] = useState(false);
+  const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
   const [dynamicPricePerItem, setDynamicPricePerItem] = useState(pricePerItem);
   const [printingCostPerItem, setPrintingCostPerItem] = useState(0);
   const [hasBulkMethods, setHasBulkMethods] = useState(false);
@@ -172,44 +174,60 @@ export default function QuantitySelectorModal({
     }
   };
 
-  const handleConfirm = async () => {
-    const totalQuantity = getTotalQuantity();
-
-    if (totalQuantity === 0) {
+  const handleShowPurchaseChoice = () => {
+    if (getTotalQuantity() === 0) {
       alert('수량을 선택해주세요.');
       return;
     }
-
     if (!designName.trim()) {
       alert('디자인 이름을 입력해주세요.');
       return;
     }
+    setShowPurchaseChoice(true);
+  };
 
-    // Convert quantities to CartItem array
-    // SizeOption is now just a string (e.g., "S", "M", "L")
+  const handlePurchaseChoice = async (type: 'direct' | 'cart') => {
+    setShowPurchaseChoice(false);
+    setPurchaseType(type);
+
     const selectedItems: CartItem[] = Object.entries(quantities).map(([size, quantity]) => ({
       size,
       quantity
     }));
 
-    await onConfirm(designName, selectedItems);
-    setShowSuccess(true);
+    await onConfirm(designName, selectedItems, type);
+
+    if (type === 'direct') {
+      resetState();
+      onClose();
+      router.push('/checkout');
+    } else {
+      setShowSuccess(true);
+    }
+  };
+
+  const resetState = () => {
+    setShowSuccess(false);
+    setShowPurchaseChoice(false);
+    setPurchaseType(null);
+    setDesignName('');
+    setQuantities({});
   };
 
   const handleGoToCart = () => {
     router.push('/cart');
-    // Reset state when navigating away
-    setShowSuccess(false);
-    setDesignName('');
-    setQuantities({});
+    resetState();
+    onClose();
+  };
+
+  const handleGoToCheckout = () => {
+    router.push('/checkout');
+    resetState();
     onClose();
   };
 
   const handleClose = () => {
-    // Reset state when closing
-    setShowSuccess(false);
-    setDesignName('');
-    setQuantities({});
+    resetState();
     onClose();
   };
 
@@ -223,7 +241,7 @@ export default function QuantitySelectorModal({
 
       {/* Modal Content - Slide up from bottom */}
       <div
-        className={`relative bg-white rounded-t-2xl w-full max-h-[80vh] overflow-y-auto transform transition-transform duration-300 ease-out ${
+        className={`relative bg-white rounded-t-2xl w-full max-h-[80vh] flex flex-col transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -232,7 +250,11 @@ export default function QuantitySelectorModal({
           <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
           <div className="flex items-center justify-between px-4 pb-2">
             <h2 className="text-lg font-bold">
-              {!showSuccess ? '옵션 선택' : '장바구니에 담겼습니다'}
+              {!showSuccess
+                ? '옵션 선택'
+                : purchaseType === 'direct'
+                  ? '주문 준비 완료'
+                  : '장바구니에 담겼습니다'}
             </h2>
             <button
               onClick={handleClose}
@@ -244,7 +266,7 @@ export default function QuantitySelectorModal({
           </div>
         </div>
 
-        <div className="px-4 pb-6">
+        <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
           {!showSuccess ? (
             <>
               {/* Design Name Input */}
@@ -273,7 +295,7 @@ export default function QuantitySelectorModal({
                     return (
                       <div
                         key={sizeLabel}
-                        className={`flex items-center justify-between p-4 border rounded-lg transition ${
+                        className={`flex items-center px-3 py-2 justify-between border rounded-lg transition ${
                           quantity > 0
                             ? 'border-black bg-gray-50'
                             : 'border-gray-300 bg-white'
@@ -310,116 +332,6 @@ export default function QuantitySelectorModal({
                 </div>
               </div>
 
-              {/* Price Summary */}
-              {getTotalQuantity() > 0 && (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  {/* Price Breakdown */}
-                  {basePrice && printingCostPerItem > 0 ? (
-                    <>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">기본 제품 가격</span>
-                        <span className="font-medium">{Math.round(basePrice).toLocaleString('ko-KR')}원</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">인쇄 비용 (개당)</span>
-                        <span className="font-medium">{Math.round(printingCostPerItem).toLocaleString('ko-KR')}원</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-2 pb-2 border-b border-gray-200">
-                        <span className="text-gray-700 font-medium">개당 가격 (디자인 포함)</span>
-                        <span className="font-semibold">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-between text-sm mb-2 pb-2 border-b border-gray-200">
-                      <span className="text-gray-600">개당 가격 (디자인 포함)</span>
-                      <span className="font-medium">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-gray-600">총 수량</span>
-                    <span className="font-medium">{getTotalQuantity()}개</span>
-                  </div>
-
-                  {/* Discount Rate Display */}
-                  {discountRate > 0 && (
-                    <>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-gray-600">상품 금액</span>
-                        <span className="font-medium line-through text-gray-400">{Math.round(getOriginalTotalPrice()).toLocaleString('ko-KR')}원</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-red-600 font-medium">대량 주문 할인 ({discountRate}%)</span>
-                        <span className="font-medium text-red-600">-{Math.round(getOriginalTotalPrice() - getTotalPrice()).toLocaleString('ko-KR')}원</span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                    <span className="font-bold">총 금액</span>
-                    <span className="text-lg font-bold">{Math.round(getTotalPrice()).toLocaleString('ko-KR')}원</span>
-                  </div>
-
-                  {/* Discount Rate Tiers Info */}
-                  {discountRates && discountRates.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
-                        <span className="shrink-0">🏷️</span>
-                        <div className="flex-1">
-                          <p className="font-semibold mb-1">대량 주문 할인 안내</p>
-                          {[...discountRates]
-                            .sort((a, b) => a.min_quantity - b.min_quantity)
-                            .map((tier, index) => {
-                              const isActive = currentDiscount?.min_quantity === tier.min_quantity;
-                              return (
-                                <p
-                                  key={index}
-                                  className={`${isActive ? 'text-blue-800 font-semibold' : 'text-blue-600'}`}
-                                >
-                                  • {tier.min_quantity}개 이상: {tier.discount_rate}% 할인
-                                  {isActive && ' ✓'}
-                                </p>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bulk Pricing Info */}
-                  {hasBulkMethods && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                        <span className="shrink-0">💡</span>
-                        <div className="flex-1">
-                          <p className="font-semibold mb-1">대량 주문 할인 안내</p>
-                          <p className="text-amber-600">
-                            나염/자수/아플리케 방식이 포함되어 있습니다.
-                          </p>
-                          <p className="text-amber-600 mt-1">
-                            • 100개까지: 기본 인쇄 가격
-                          </p>
-                          <p className="text-amber-600">
-                            • 101개부터: 1개당 +600원씩 인쇄 가격 증가
-                          </p>
-                          <p className="text-amber-600 text-[10px] mt-1 italic">
-                            (총 인쇄비가 더 많은 수량에 분산되어 개당 가격은 저렴해집니다)
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Confirm Button */}
-              <button
-                onClick={handleConfirm}
-                disabled={isSaving || getTotalQuantity() === 0 || !designName.trim()}
-                className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isSaving ? '처리 중...' : '장바구니에 담기'}
-              </button>
             </>
           ) : (
             <>
@@ -430,17 +342,28 @@ export default function QuantitySelectorModal({
                   </svg>
                 </div>
                 <p className="text-gray-600 mb-6">
-                  {getTotalQuantity()}개의 상품이 담겼습니다
+                  {purchaseType === 'direct'
+                    ? `${getTotalQuantity()}개의 상품이 주문 준비되었습니다`
+                    : `${getTotalQuantity()}개의 상품이 장바구니에 담겼습니다`}
                 </p>
               </div>
 
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleGoToCart}
-                  className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
-                >
-                  장바구니로 가기
-                </button>
+                {purchaseType === 'direct' ? (
+                  <button
+                    onClick={handleGoToCheckout}
+                    className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
+                  >
+                    결제 페이지로 이동
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGoToCart}
+                    className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
+                  >
+                    장바구니로 가기
+                  </button>
+                )}
 
                 <button
                   onClick={handleClose}
@@ -452,7 +375,148 @@ export default function QuantitySelectorModal({
             </>
           )}
         </div>
+
+        {/* Fixed Bottom Bar - Price Summary & Confirm */}
+        {!showSuccess && getTotalQuantity() > 0 && (
+          <div className="border-t border-gray-200 bg-white px-4 py-3 shrink-0">
+            <div className="p-3 bg-gray-50 rounded-lg mb-3">
+              {/* Price Breakdown */}
+              {basePrice && printingCostPerItem > 0 ? (
+                <>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-gray-600">기본 제품 가격</span>
+                    <span className="font-medium">{Math.round(basePrice).toLocaleString('ko-KR')}원</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-gray-600">인쇄 비용 (개당)</span>
+                    <span className="font-medium">{Math.round(printingCostPerItem).toLocaleString('ko-KR')}원</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
+                    <span className="text-gray-700 font-medium">개당 가격</span>
+                    <span className="font-semibold">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
+                  <span className="text-gray-600">개당 가격 (디자인 포함)</span>
+                  <span className="font-medium">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span className="text-gray-600">총 수량</span>
+                <span className="font-medium">{getTotalQuantity()}개</span>
+              </div>
+
+              {/* Discount Rate Display */}
+              {discountRate > 0 && (
+                <>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-gray-600">상품 금액</span>
+                    <span className="font-medium line-through text-gray-400">{Math.round(getOriginalTotalPrice()).toLocaleString('ko-KR')}원</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-red-600 font-medium">대량 주문 할인 ({discountRate}%)</span>
+                    <span className="font-medium text-red-600">-{Math.round(getOriginalTotalPrice() - getTotalPrice()).toLocaleString('ko-KR')}원</span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+                <span className="font-bold">총 금액</span>
+                <span className="text-lg font-bold">{Math.round(getTotalPrice()).toLocaleString('ko-KR')}원</span>
+              </div>
+
+              {/* Discount Rate Tiers Info */}
+              {discountRates && discountRates.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
+                    <span className="shrink-0">🏷️</span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-1">대량 주문 할인 안내</p>
+                      {[...discountRates]
+                        .sort((a, b) => a.min_quantity - b.min_quantity)
+                        .map((tier, index) => {
+                          const isActive = currentDiscount?.min_quantity === tier.min_quantity;
+                          return (
+                            <p
+                              key={index}
+                              className={`${isActive ? 'text-blue-800 font-semibold' : 'text-blue-600'}`}
+                            >
+                              • {tier.min_quantity}개 이상: {tier.discount_rate}% 할인
+                              {isActive && ' ✓'}
+                            </p>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bulk Pricing Info */}
+              {hasBulkMethods && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                    <span className="shrink-0">💡</span>
+                    <div className="flex-1">
+                      <p className="font-semibold mb-1">대량 주문 할인 안내</p>
+                      <p className="text-amber-600">
+                        나염/자수/아플리케 방식이 포함되어 있습니다.
+                      </p>
+                      <p className="text-amber-600 mt-1">
+                        • 100개까지: 기본 인쇄 가격
+                      </p>
+                      <p className="text-amber-600">
+                        • 101개부터: 1개당 +600원씩 인쇄 가격 증가
+                      </p>
+                      <p className="text-amber-600 text-[10px] mt-1 italic">
+                        (총 인쇄비가 더 많은 수량에 분산되어 개당 가격은 저렴해집니다)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleShowPurchaseChoice}
+              disabled={isSaving || !designName.trim()}
+              className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isSaving ? '처리 중...' : '구매하기'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Purchase Choice Modal Overlay */}
+      {showPurchaseChoice && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/40"
+            onClick={() => setShowPurchaseChoice(false)}
+          />
+          <div className="relative bg-white rounded-2xl p-6 mx-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-lg font-bold text-center mb-6">구매 방식 선택</h3>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handlePurchaseChoice('direct')}
+                disabled={isSaving}
+                className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isSaving ? '처리 중...' : '바로 구매하기'}
+              </button>
+              <button
+                onClick={() => handlePurchaseChoice('cart')}
+                disabled={isSaving}
+                className="w-full py-4 bg-white text-black border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                {isSaving ? '처리 중...' : '장바구니에 담기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

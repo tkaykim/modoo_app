@@ -70,71 +70,71 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
           console.log(`Canvas objects count:`, canvas?.getObjects?.()?.length ?? 'N/A');
 
           // Wait for fonts to load before extracting (ensures curved text becomes paths)
-          const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas);
-          console.log(`Side ${sideId}: Found ${textObjects.length} text objects, ${objectSvgs.length} SVGs generated`);
+          // const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas);
+          // console.log(`Side ${sideId}: Found ${textObjects.length} text objects, ${objectSvgs.length} SVGs generated`);
 
-          if (objectSvgs.length > 0) {
-            const sideObjectUrls: Record<string, string> = {};
-            const sidePngUrls: Record<string, string> = {};
+          // if (objectSvgs.length > 0) {
+          //   const sideObjectUrls: Record<string, string> = {};
+          //   const sidePngUrls: Record<string, string> = {};
 
-            // Generate a unique design ID for filenames (will use actual ID after insert)
-            const tempDesignId = `temp-${Date.now()}`;
+          //   // Generate a unique design ID for filenames (will use actual ID after insert)
+          //   const tempDesignId = `temp-${Date.now()}`;
 
-            for (const objectSvg of objectSvgs) {
-              // Upload SVG
-              const svgFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.svg`;
-              const uploadResult = await uploadSVGToStorage(
-                supabase,
-                objectSvg.svg,
-                STORAGE_BUCKETS.TEXT_EXPORTS,
-                STORAGE_FOLDERS.SVG,
-                svgFileName
-              );
+          //   for (const objectSvg of objectSvgs) {
+          //     // Upload SVG
+          //     const svgFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.svg`;
+          //     const uploadResult = await uploadSVGToStorage(
+          //       supabase,
+          //       objectSvg.svg,
+          //       STORAGE_BUCKETS.TEXT_EXPORTS,
+          //       STORAGE_FOLDERS.SVG,
+          //       svgFileName
+          //     );
 
-              if (uploadResult.success && uploadResult.url) {
-                sideObjectUrls[objectSvg.objectId] = uploadResult.url;
-              } else {
-                console.error(`Failed to upload SVG for ${sideId}/${objectSvg.objectId}:`, uploadResult.error);
-              }
+          //     if (uploadResult.success && uploadResult.url) {
+          //       sideObjectUrls[objectSvg.objectId] = uploadResult.url;
+          //     } else {
+          //       console.error(`Failed to upload SVG for ${sideId}/${objectSvg.objectId}:`, uploadResult.error);
+          //     }
 
-              // Upload PNG (300 DPI, transparent background)
-              if (objectSvg.pngDataUrl) {
-                const pngFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.png`;
-                const pngUploadResult = await uploadDataUrlToStorage(
-                  supabase,
-                  objectSvg.pngDataUrl,
-                  STORAGE_BUCKETS.TEXT_EXPORTS,
-                  STORAGE_FOLDERS.SVG, // Using same folder for now
-                  pngFileName
-                );
+          //     // Upload PNG (300 DPI, transparent background)
+          //     if (objectSvg.pngDataUrl) {
+          //       const pngFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.png`;
+          //       const pngUploadResult = await uploadDataUrlToStorage(
+          //         supabase,
+          //         objectSvg.pngDataUrl,
+          //         STORAGE_BUCKETS.TEXT_EXPORTS,
+          //         STORAGE_FOLDERS.SVG, // Using same folder for now
+          //         pngFileName
+          //       );
 
-                if (pngUploadResult.success && pngUploadResult.url) {
-                  sidePngUrls[objectSvg.objectId] = pngUploadResult.url;
-                  console.log(`Uploaded 300 DPI PNG for ${sideId}/${objectSvg.objectId}: ${objectSvg.pngWidth}x${objectSvg.pngHeight}`);
-                } else {
-                  console.error(`Failed to upload PNG for ${sideId}/${objectSvg.objectId}:`, pngUploadResult.error);
-                }
-              }
-            }
+          //       if (pngUploadResult.success && pngUploadResult.url) {
+          //         sidePngUrls[objectSvg.objectId] = pngUploadResult.url;
+          //         console.log(`Uploaded 300 DPI PNG for ${sideId}/${objectSvg.objectId}: ${objectSvg.pngWidth}x${objectSvg.pngHeight}`);
+          //       } else {
+          //         console.error(`Failed to upload PNG for ${sideId}/${objectSvg.objectId}:`, pngUploadResult.error);
+          //       }
+          //     }
+          //   }
 
-            if (Object.keys(sideObjectUrls).length > 0) {
-              if (!textSvgExports.__objects) {
-                textSvgExports.__objects = {};
-              }
-              // Type assertion needed due to index signature in TextSvgExports
-              const objectsMap = textSvgExports.__objects as Record<string, Record<string, string>>;
-              objectsMap[sideId] = sideObjectUrls;
-            }
+          //   if (Object.keys(sideObjectUrls).length > 0) {
+          //     if (!textSvgExports.__objects) {
+          //       textSvgExports.__objects = {};
+          //     }
+          //     // Type assertion needed due to index signature in TextSvgExports
+          //     const objectsMap = textSvgExports.__objects as Record<string, Record<string, string>>;
+          //     objectsMap[sideId] = sideObjectUrls;
+          //   }
 
-            // Store PNG URLs separately under __pngs
-            if (Object.keys(sidePngUrls).length > 0) {
-              if (!textSvgExports.__pngs) {
-                (textSvgExports as Record<string, unknown>).__pngs = {};
-              }
-              const pngsMap = (textSvgExports as Record<string, unknown>).__pngs as Record<string, Record<string, string>>;
-              pngsMap[sideId] = sidePngUrls;
-            }
-          }
+          //   // Store PNG URLs separately under __pngs
+          //   if (Object.keys(sidePngUrls).length > 0) {
+          //     if (!textSvgExports.__pngs) {
+          //       (textSvgExports as Record<string, unknown>).__pngs = {};
+          //     }
+          //     const pngsMap = (textSvgExports as Record<string, unknown>).__pngs as Record<string, Record<string, string>>;
+          //     pngsMap[sideId] = sidePngUrls;
+          //   }
+          // }
         } catch (error) {
           console.error(`Error exporting SVG for side ${sideId}:`, error);
         }

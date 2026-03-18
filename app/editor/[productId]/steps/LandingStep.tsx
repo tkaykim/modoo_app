@@ -25,51 +25,63 @@ export default function LandingStep({
   const thumbnailImages = product.thumbnail_image_link ?? []
 
   return (
-    <div className="text-black bg-white pb-24">
-      {/* Product Image Gallery */}
-      <ProductImageGallery images={thumbnailImages} />
-
-      {/* Product Info */}
-      <div className="p-4 flex flex-col gap-1">
-        {/* Title Section */}
-        <div className="w-full flex justify-between">
-          <div>
-            <h2 className="text-xs font-bold">{product.manufacturer_name || '제조사'}</h2>
-            <p className="text-black font-normal">{product.title}</p>
+    <div className="text-black bg-white pb-24 lg:pb-0">
+      <div className="lg:max-w-360 lg:mx-auto lg:px-6 lg:py-6">
+        {/* Desktop: side-by-side / Mobile: stacked */}
+        <div className="lg:flex lg:gap-8">
+          {/* Image Gallery */}
+          <div className="lg:flex-1 lg:min-w-0">
+            <ProductImageGallery images={thumbnailImages} />
           </div>
-          <ShareProductButton url={`/editor/${product.id}`} />
+
+          {/* Product Details Sidebar */}
+          <div className="p-4 lg:p-0 lg:w-96 lg:shrink-0 flex flex-col gap-1 border-b border-gray-200">
+            {/* Title Section */}
+            <div className="w-full flex justify-between items-start">
+              <div>
+                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                  {product.manufacturer_name || '제조사'}
+                </p>
+                <h2 className="text-base font-bold text-gray-900 leading-snug mt-1">{product.title}</h2>
+              </div>
+              <ShareProductButton url={`/editor/${product.id}`} />
+            </div>
+
+            {/* Price */}
+            <div>
+              <p className="text-lg font-bold text-gray-900">{formattedPrice}원</p>
+            </div>
+
+            {/* Print Methods */}
+            {/* <PrintMethodsDisplay
+              allPrintMethods={allPrintMethods}
+              enabledPrintMethodIds={enabledPrintMethodIds}
+              className=""
+            /> */}
+
+            {/* Desktop action button */}
+            <button
+              onClick={onNext}
+              className="hidden lg:block mt-6 w-full bg-black py-3.5 text-sm font-medium rounded-lg text-white transition hover:bg-gray-800"
+            >
+              디자인하기
+            </button>
+          </div>
         </div>
 
-        {/* Price and Delivery */}
-        <div className="w-full flex justify-between">
-          <p className="text-sm text-black">
-            1개당 <span className="font-bold">{formattedPrice}원</span>
-          </p>
-          <p className="text-sm text-black/80">배송비 3,000원</p>
+        {/* Full-width sections below */}
+        <div className="px-4 lg:px-0 lg:mt-8">
+          <ReviewsSection productId={product.id} limit={10} />
+          <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
+          <DescriptionImageSection
+            title="사이즈 차트"
+            imageUrls={sizingChartImageUrl ? [sizingChartImageUrl] : null}
+          />
         </div>
-
-        {/* Print Methods */}
-        <PrintMethodsDisplay
-          allPrintMethods={allPrintMethods}
-          enabledPrintMethodIds={enabledPrintMethodIds}
-          className="mt-4"
-        />
-
-        {/* Reviews */}
-        <ReviewsSection productId={product.id} limit={10} />
-
-        {/* Description Images */}
-        <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
-
-        {/* Sizing Chart */}
-        <DescriptionImageSection
-          title="사이즈 차트"
-          imageUrls={sizingChartImageUrl ? [sizingChartImageUrl] : null}
-        />
       </div>
 
-      {/* Bottom Action Bar */}
-      <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-50">
+      {/* Bottom Action Bar - mobile only */}
+      <div className="lg:hidden w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-50">
         <button
           onClick={onNext}
           className="w-full bg-black py-3 text-sm rounded-lg text-white transition"

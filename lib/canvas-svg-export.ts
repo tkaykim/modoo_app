@@ -17,9 +17,9 @@ const fontCache: Map<string, opentype.Font> = new Map();
 
 // System font URLs (using Google Fonts CDN) - fallbacks for common fonts
 const systemFontUrls: Record<string, string> = {
-  Arial: 'https://fonts.gstatic.com/s/arimo/v29/P5sfzZCDf9_T_3cV7NCUECyoxNk.ttf',
+  Arial: 'https://fonts.gstatic.com/s/arimo/v28/P5sfzZCDf9_T_3cV7NCUECyoxNk.ttf',
   'Times New Roman':
-    'https://fonts.gstatic.com/s/tinos/v24/buE4poGnedXvwgX8dGVh8TI-.ttf',
+    'https://fonts.gstatic.com/s/tinos/v21/buE4poGnedXvwgX8dGVh8TI-.ttf',
   'Courier New':
     'https://fonts.gstatic.com/s/cousine/v27/d6lIkaiiRdih4SpPzSMlzTbtz9k.ttf',
   Georgia: 'https://fonts.gstatic.com/s/tinos/v24/buE4poGnedXvwgX8dGVh8TI-.ttf',
