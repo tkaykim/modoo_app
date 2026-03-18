@@ -117,7 +117,7 @@ function OrderLookupContent() {
                 type="text"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
                 placeholder="ORD-XXXXXXXX-XXXXXX"
               />
             </div>
@@ -127,14 +127,14 @@ function OrderLookupContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
                 placeholder="주문 시 입력한 이메일"
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm"
+              className="w-full py-2.5 bg-[#3B55A5] text-white rounded-lg font-medium hover:bg-[#2D4280] transition disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -172,8 +172,8 @@ function OrderLookupContent() {
                 <div className="flex items-center gap-1">
                   {progressSteps.map((step, idx) => (
                     <div key={step.key} className="flex-1 flex flex-col items-center">
-                      <div className={`w-full h-1.5 rounded-full ${idx < currentStep ? 'bg-black' : 'bg-gray-200'}`} />
-                      <span className={`text-[10px] mt-1 ${idx < currentStep ? 'text-black font-medium' : 'text-gray-400'}`}>
+                      <div className={`w-full h-1.5 rounded-full ${idx < currentStep ? 'bg-[#3B55A5]' : 'bg-gray-200'}`} />
+                      <span className={`text-[10px] mt-1 ${idx < currentStep ? 'text-[#3B55A5] font-medium' : 'text-gray-400'}`}>
                         {step.label}
                       </span>
                     </div>
@@ -267,7 +267,7 @@ export default function OrderLookupPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#3B55A5] rounded-full animate-spin"></div>
       </div>
     }>
       <OrderLookupContent />
