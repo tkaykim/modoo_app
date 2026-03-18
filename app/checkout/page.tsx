@@ -17,6 +17,7 @@ import {
 } from '@/lib/couponService';
 import TossPaymentWidget from '../components/toss/TossPaymentWidget';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
 import { generateOrderId } from '@/lib/orderIdUtils';
 import { CouponUsage } from '@/types/types';
 import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Upload } from 'lucide-react';
@@ -169,7 +170,30 @@ export default function CheckoutPage() {
     const fetchCartItems = async () => {
       setIsLoading(true);
       try {
-        let cartItems = await getCartItemsWithDesigns();
+        let cartItems: CartItemWithDesign[];
+
+        if (isAuthenticated) {
+          cartItems = await getCartItemsWithDesigns();
+        } else {
+          // Guest: transform cart store items to CartItemWithDesign format
+          const storeItems = useCartStore.getState().items;
+          cartItems = storeItems.map(item => ({
+            id: item.id,
+            product_id: item.productId,
+            product_title: item.productTitle,
+            product_color: item.productColor,
+            product_color_name: item.productColorName,
+            product_color_code: item.productColorCode,
+            size_id: item.size,
+            size_name: item.size,
+            quantity: item.quantity,
+            price_per_item: item.pricePerItem,
+            thumbnail_url: item.thumbnailUrl,
+            saved_design_id: item.savedDesignId,
+            designName: item.designName,
+            canvasState: item.canvasState,
+          }));
+        }
 
         // If direct checkout, filter to only the specific items (passed via URL param)
         const directItemsParam = searchParams.get('directItems');
@@ -191,7 +215,7 @@ export default function CheckoutPage() {
     };
 
     fetchCartItems();
-  }, [router, searchParams]);
+  }, [router, searchParams, isAuthenticated]);
 
   // Fetch available coupons
   const fetchCoupons = useCallback(async () => {

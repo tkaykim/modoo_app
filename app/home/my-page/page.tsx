@@ -220,12 +220,28 @@ export default function MyPage() {
       <div>
 
         {/* Shopping Section */}
-        <section className="bg-white">
-          <div className="max-w-7xl mx-auto px-4 py-2">
-            <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">쇼핑</h3>
-            <MenuList items={shoppingMenuItems} />
-          </div>
-        </section>
+        {isAuthenticated ? (
+          <section className="bg-white">
+            <div className="max-w-7xl mx-auto px-4 py-2">
+              <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">쇼핑</h3>
+              <MenuList items={shoppingMenuItems} />
+            </div>
+          </section>
+        ) : (
+          <section className="bg-white">
+            <div className="max-w-7xl mx-auto px-4 py-2">
+              <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">주문</h3>
+              <Link
+                href="/order/lookup"
+                className="flex items-center gap-3 px-2 py-2.5 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <Package className="w-5 h-5 text-gray-600" />
+                <span className="flex-1 text-sm text-gray-900 md:text-base">비회원 주문 조회하기</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* Support Section */}
         <section className="bg-white border-t border-gray-100">

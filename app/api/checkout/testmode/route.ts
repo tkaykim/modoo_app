@@ -41,6 +41,10 @@ interface CartItem {
   price_per_item: number;
   thumbnail_url?: string;
   canvasState?: Record<string, unknown>;
+  // Guest checkout: inline design data
+  colorSelections?: Record<string, unknown>;
+  textSvgExports?: TextSvgExports;
+  customFonts?: FontMetadata[];
 }
 
 interface TestModeRequestBody {
@@ -207,11 +211,11 @@ export async function POST(request: NextRequest) {
           design_id: item.saved_design_id || null,
           design_title: savedDesign?.title || null,
           canvas_state: savedDesign?.canvas_state || item.canvasState || {},
-          color_selections: savedDesign?.color_selections || {},
+          color_selections: savedDesign?.color_selections || item.colorSelections || {},
           thumbnail_url: savedDesign?.preview_url || item.thumbnail_url || null,
           image_urls: savedDesign?.image_urls || {},
-          text_svg_exports: savedDesign?.text_svg_exports,
-          custom_fonts: savedDesign?.custom_fonts || [],
+          text_svg_exports: savedDesign?.text_svg_exports || item.textSvgExports,
+          custom_fonts: savedDesign?.custom_fonts || item.customFonts || [],
           price_per_item: item.price_per_item,
           variants: [{
             size_id: item.size_id,

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { FontMetadata } from '@/lib/fontUtils';
 
 export interface CartItemData {
   id: string; // Unique identifier for this cart item
@@ -16,6 +17,11 @@ export interface CartItemData {
   addedAt: number; // Timestamp
   savedDesignId?: string; // Reference to the saved design in Supabase
   designName?: string; // Custom name for the design
+  // Guest-specific design data (stored inline since no saved_designs DB row)
+  colorSelections?: Record<string, string>;
+  textSvgExports?: Record<string, unknown>;
+  customFonts?: FontMetadata[];
+  previewImage?: string;
 }
 
 interface CartState {

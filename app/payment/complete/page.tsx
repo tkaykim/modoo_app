@@ -4,10 +4,12 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
 
 function PaymentCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuthStore();
   const orderId = searchParams.get('orderId');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,7 +63,7 @@ function PaymentCompleteContent() {
           {/* Action Buttons */}
           <div className="w-full space-y-3">
             <Link
-              href={`/order/${orderId}`}
+              href={isAuthenticated ? `/order/${orderId}` : `/order/lookup?orderId=${orderId}`}
               className="w-full block px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition text-center"
             >
               주문 상세보기
@@ -74,6 +76,24 @@ function PaymentCompleteContent() {
               계속 쇼핑하기
             </Link>
           </div>
+
+          {/* Guest Signup Prompt */}
+          {!isAuthenticated && (
+            <div className="w-full mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-left">
+              <p className="text-sm text-blue-800 font-medium mb-1">
+                회원가입하고 더 편리하게 이용하세요
+              </p>
+              <p className="text-xs text-blue-600 mb-3">
+                주문 내역 관리, 디자인 저장, 쿠폰 할인 등 다양한 혜택을 받을 수 있습니다.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-md font-medium hover:bg-blue-700 transition"
+              >
+                회원가입 / 로그인
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

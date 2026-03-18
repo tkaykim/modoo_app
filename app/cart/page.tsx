@@ -14,6 +14,8 @@ import {
   clearCart as clearCartDB,
   type CartItemWithDesign
 } from '@/lib/cartService';
+import { useCartStore } from '@/store/useCartStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { SizeOption, DiscountTier } from '@/types/types';
 import { generateOrderId } from '@/lib/orderIdUtils';
 
@@ -30,6 +32,8 @@ interface GroupedCartItem {
 
 export default function CartPage() {
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+  const cartStore = useCartStore();
   const [items, setItems] = useState<CartItemWithDesign[]>([]);
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,11 +49,38 @@ export default function CartPage() {
   // Check if test mode is enabled
   const isTestMode = process.env.NEXT_PUBLIC_TESTMODE === 'true';
 
-  // Fetch cart items from Supabase
+  // Transform guest cart store items to CartItemWithDesign format
+  const getGuestCartItems = (): CartItemWithDesign[] => {
+    return cartStore.items.map(item => ({
+      id: item.id,
+      product_id: item.productId,
+      product_title: item.productTitle,
+      product_color: item.productColor,
+      product_color_name: item.productColorName,
+      product_color_code: item.productColorCode,
+      size_id: item.size,
+      size_name: item.size,
+      quantity: item.quantity,
+      price_per_item: item.pricePerItem,
+      thumbnail_url: item.thumbnailUrl,
+      saved_design_id: item.savedDesignId,
+      designName: item.designName,
+      canvasState: item.canvasState,
+    }));
+  };
+
+  // Fetch cart items - from DB for authenticated users, from store for guests
   const fetchCartItems = async () => {
     setIsLoading(true);
     try {
-      const cartItems = await getCartItemsWithDesigns();
+      let cartItems: CartItemWithDesign[];
+
+      if (isAuthenticated) {
+        cartItems = await getCartItemsWithDesigns();
+      } else {
+        cartItems = getGuestCartItems();
+      }
+
       setItems(cartItems);
 
       // Fetch product details for each unique product
@@ -93,7 +124,7 @@ export default function CartPage() {
   // Initial fetch
   useEffect(() => {
     fetchCartItems();
-  }, []);
+  }, [isAuthenticated]);
 
   // Group items by saved_design_id
   const groupedItems: GroupedCartItem[] = items.reduce((acc: GroupedCartItem[], item: CartItemWithDesign) => {
@@ -124,7 +155,6 @@ export default function CartPage() {
   const finalTotal = totalPrice;
 
   const handleCheckout = () => {
-    // Navigate to checkout page
     window.location.href = '/checkout';
   };
 
@@ -137,7 +167,6 @@ export default function CartPage() {
     setIsTestModeProcessing(true);
 
     try {
-      // Generate order ID and name
       const orderId = generateOrderId();
 
       const firstItemName = groupedItems[0]?.designName || groupedItems[0]?.productTitle || '주문 상품';
@@ -145,7 +174,6 @@ export default function CartPage() {
         ? `${firstItemName} 외 ${groupedItems.length - 1}건`
         : firstItemName;
 
-      // Hardcoded dummy data
       const orderData = {
         id: orderId,
         name: '테스트 사용자',
@@ -163,7 +191,6 @@ export default function CartPage() {
         total_amount: finalTotal,
       };
 
-      // Call test mode API
       const response = await fetch('/api/checkout/testmode', {
         method: 'POST',
         headers: {
@@ -182,11 +209,13 @@ export default function CartPage() {
         throw new Error(result.error || '주문 생성에 실패했습니다.');
       }
 
-      // Clear cart
-      await clearCartDB();
+      // Clear cart - DB for authenticated, store for guests
+      if (isAuthenticated) {
+        await clearCartDB();
+      }
+      cartStore.clearCart();
       await fetchCartItems();
 
-      // Redirect to success page with test mode indicator
       router.push(`/checkout/success?orderId=${result.orderId}&testMode=true`);
     } catch (error) {
       console.error('Test mode checkout error:', error);
@@ -197,6 +226,7 @@ export default function CartPage() {
   };
 
   const handleEditDesign = (cartItemId: string) => {
+    if (!isAuthenticated) return; // Design editing not available for guests
     setSelectedCartItemId(cartItemId);
     setIsModalOpen(true);
   };
@@ -207,15 +237,19 @@ export default function CartPage() {
   };
 
   const handleSaveComplete = () => {
-    // Refresh cart items after design update
     fetchCartItems();
   };
 
   // Handle removing an item from cart
   const handleRemoveItem = async (itemId: string) => {
+    if (!isAuthenticated) {
+      // Guest: remove from store
+      cartStore.removeItem(itemId);
+      setItems(prev => prev.filter(item => item.id !== itemId));
+      return;
+    }
     const success = await removeCartItem(itemId);
     if (success) {
-      // Refresh cart items
       await fetchCartItems();
     }
   };
@@ -223,12 +257,18 @@ export default function CartPage() {
   // Handle updating item quantity
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      // Remove item if quantity is 0 or less
       await handleRemoveItem(itemId);
     } else {
+      if (!isAuthenticated) {
+        // Guest: update in store
+        cartStore.updateQuantity(itemId, newQuantity);
+        setItems(prev => prev.map(item =>
+          item.id === itemId ? { ...item, quantity: newQuantity } : item
+        ));
+        return;
+      }
       const result = await updateCartItemQuantity(itemId, newQuantity);
       if (result) {
-        // Refresh cart items
         await fetchCartItems();
       }
     }
@@ -238,6 +278,12 @@ export default function CartPage() {
   const handleClearCart = async () => {
     const confirmed = confirm('장바구니를 비우시겠습니까?');
     if (confirmed) {
+      if (!isAuthenticated) {
+        // Guest: clear store
+        cartStore.clearCart();
+        setItems([]);
+        return;
+      }
       const success = await clearCartDB();
       if (success) {
         await fetchCartItems();
@@ -258,27 +304,52 @@ export default function CartPage() {
       const group = quantityChangeGroup;
       if (!group) return;
 
-      // Get reference item for design information
       const referenceItem = group.items[0];
       if (!referenceItem) return;
 
-      // Update each item
+      if (!isAuthenticated) {
+        // Guest: update items in store
+        for (const update of updates) {
+          if (update.itemId) {
+            if (update.quantity === 0) {
+              cartStore.removeItem(update.itemId);
+            } else {
+              cartStore.updateQuantity(update.itemId, update.quantity);
+            }
+          } else if (update.quantity > 0) {
+            // Add new item with same design data
+            cartStore.addItem({
+              productId: referenceItem.product_id,
+              productTitle: referenceItem.product_title,
+              productColor: referenceItem.product_color,
+              productColorName: referenceItem.product_color_name,
+              size: update.sizeId,
+              quantity: update.quantity,
+              pricePerItem: referenceItem.price_per_item,
+              canvasState: referenceItem.canvasState || {},
+              thumbnailUrl: referenceItem.thumbnail_url,
+              designName: referenceItem.designName,
+            });
+          }
+        }
+        // Refresh from store
+        setItems(getGuestCartItems());
+        return;
+      }
+
+      // Authenticated: use DB operations
       for (const update of updates) {
         if (update.itemId) {
-          // Existing item - update or remove
           if (update.quantity === 0) {
             await handleRemoveItem(update.itemId);
           } else {
             await updateCartItemQuantity(update.itemId, update.quantity);
           }
         } else if (update.quantity > 0) {
-          // New item - add to cart with same design
           const { createClient } = await import('@/lib/supabase-client');
           const supabase = createClient();
 
-          // Verify size option exists
           const sizeOptions = productSizeOptions[referenceItem.product_id] || [];
-          // Handle both old string format and new object format
           const sizeExists = sizeOptions.some((opt) =>
             typeof opt === 'string' ? opt === update.sizeId : opt.label === update.sizeId
           );
@@ -288,13 +359,11 @@ export default function CartPage() {
             continue;
           }
 
-          // Add new cart item with same design
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) {
             throw new Error('User must be authenticated');
           }
 
-          // size_id and size_name are the same value now (just the size string)
           const newCartItem = {
             user_id: user.id,
             product_id: referenceItem.product_id,
@@ -319,7 +388,6 @@ export default function CartPage() {
           }
         }
       }
-      // Refresh cart items
       await fetchCartItems();
     } catch (error) {
       console.error('Error updating quantities:', error);
@@ -393,10 +461,10 @@ export default function CartPage() {
               {groupedItems.map((group) => (
                 <div key={group.savedDesignId} className="p-4">
                   <div className="flex gap-4">
-                    {/* Product Thumbnail - Clickable */}
-                    <button
-                      onClick={() => group.items[0]?.id && handleEditDesign(group.items[0].id)}
-                      className="w-24 h-24 bg-gray-100 rounded-lg shrink-0 overflow-hidden border border-gray-200 hover:border-gray-400 transition cursor-pointer"
+                    {/* Product Thumbnail */}
+                    <div
+                      onClick={() => group.items[0]?.id && isAuthenticated && handleEditDesign(group.items[0].id)}
+                      className={`w-24 h-24 bg-gray-100 rounded-lg shrink-0 overflow-hidden border border-gray-200 ${isAuthenticated ? 'hover:border-gray-400 transition cursor-pointer' : ''}`}
                     >
                       {group.thumbnailUrl ? (
                         <img
@@ -412,16 +480,13 @@ export default function CartPage() {
                           />
                         </div>
                       )}
-                    </button>
+                    </div>
 
                     {/* Item Details */}
                     <div className="flex-1 min-w-0">
-                      <button
-                        onClick={() => handleEditDesign(group.items[0].id!)}
-                        className="w-full text-left mb-2 cursor-pointer hover:opacity-80 transition"
-                      >
+                      <div className="w-full text-left mb-2">
                         <div className="flex justify-between items-start">
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-black mb-1 truncate">
                               {group.designName || group.productTitle}
                             </h3>
@@ -432,7 +497,7 @@ export default function CartPage() {
                             )}
                           </div>
                         </div>
-                      </button>
+                      </div>
 
                       {/* Options List */}
                       <div className="space-y-2 mb-2">
@@ -523,13 +588,15 @@ export default function CartPage() {
         </div>
       )}
 
-      {/* Design Edit Modal */}
-      <DesignEditModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        cartItemId={selectedCartItemId}
-        onSaveComplete={handleSaveComplete}
-      />
+      {/* Design Edit Modal - only for authenticated users */}
+      {isAuthenticated && (
+        <DesignEditModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          cartItemId={selectedCartItemId}
+          onSaveComplete={handleSaveComplete}
+        />
+      )}
 
       {/* Quantity Change Modal */}
       {quantityChangeGroup && (

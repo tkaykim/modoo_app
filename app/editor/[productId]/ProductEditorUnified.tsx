@@ -93,14 +93,13 @@ export default function ProductEditorUnified({
 
   const handleEditorDone = () => {
     if (!isAuthenticated) {
+      // Save guest design as backup, but allow proceeding to quantity selector
       const canvasState = saveAllCanvasState();
       saveGuestDesign({
         productId: product.id,
         productColor,
         canvasState,
       });
-      setIsLoginPromptOpen(true);
-      return;
     }
     setCurrentStep('quantity');
     setIsQuantitySelectorOpen(true);
@@ -192,9 +191,52 @@ export default function ProductEditorUnified({
   // ─── Save to cart ────────────────────────────────────────────────
   const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
     if (!isAuthenticated) {
+      // Guest flow: save to cart store (localStorage) and navigate
       const canvasState = saveAllCanvasState();
+      const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
+      const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
+      const colorName = selectedColor?.manufacturer_colors.name || '색상';
+      const colorCode = selectedColor?.manufacturer_colors.color_code;
+      const customFonts = useFontStore.getState().customFonts;
+
+      // Also save guest design as backup
       saveGuestDesign({ productId: product.id, productColor, canvasState });
-      setIsLoginPromptOpen(true);
+
+      for (const item of selectedItems) {
+        addToCart({
+          productId: product.id,
+          productTitle: product.title,
+          productColor,
+          productColorName: colorName,
+          productColorCode: colorCode,
+          size: item.size,
+          quantity: item.quantity,
+          pricePerItem,
+          canvasState,
+          thumbnailUrl: thumbnail,
+          designName,
+          customFonts,
+        });
+      }
+
+      // Clear canvas
+      Object.values(canvasMap).forEach((canvas) => {
+        const objectsToRemove = canvas.getObjects().filter(obj => {
+          if (obj.excludeFromExport) return false;
+          // @ts-expect-error - Checking custom data property
+          if (obj.data?.id === 'background-product-image') return false;
+          return true;
+        });
+        objectsToRemove.forEach(obj => canvas.remove(obj));
+        canvas.requestRenderAll();
+      });
+      setProductColor('#FFFFFF');
+
+      if (purchaseType === 'direct') {
+        router.push('/checkout?guest=true');
+      } else {
+        router.push('/cart');
+      }
       return;
     }
     setIsSaving(true);

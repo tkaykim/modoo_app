@@ -4,6 +4,7 @@
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clearCart } from "@/lib/cartService";
+import { useCartStore } from "@/store/useCartStore";
 
 function WidgetSuccessPageContent() {
   const router = useRouter();
@@ -45,8 +46,9 @@ function WidgetSuccessPageContent() {
         // Clear pending order data
         sessionStorage.removeItem('pendingTossOrder');
 
-        // Clear cart from the cart store
-        clearCart();
+        // Clear cart - DB clear for authenticated users, store clear for all
+        clearCart().catch(() => {}); // Silently ignore for guests (no auth session)
+        useCartStore.getState().clearCart();
 
         // Redirect to complete page with order ID
         router.push(`/payment/complete?orderId=${json.orderId}`);

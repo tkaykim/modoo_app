@@ -4,36 +4,71 @@ import { ShoppingBasket } from "lucide-react";
 import Link from "next/link";
 import { useCartStore } from "@/store/useCartStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase-client";
-import LoginPromptModal from "./LoginPromptModal";
+import { addToCartDB } from "@/lib/cartService";
 
 export default function CartButton() {
   const [mounted, setMounted] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const items = useCartStore((state) => state.items);
   const setItems = useCartStore((state) => state.setItems);
   const clearCart = useCartStore((state) => state.clearCart);
   const { isAuthenticated, user } = useAuthStore();
+  const prevAuthRef = useRef(isAuthenticated);
 
-  // Count unique designs based on savedDesignId
-  const uniqueDesignCount = items.reduce((acc, item) => {
-    if (item.savedDesignId && !acc.includes(item.savedDesignId)) {
-      acc.push(item.savedDesignId);
-    }
-    return acc;
-  }, [] as string[]).length;
+  // Count items: for authenticated users count by savedDesignId, for guests count all items
+  const itemCount = isAuthenticated
+    ? items.reduce((acc, item) => {
+        if (item.savedDesignId && !acc.includes(item.savedDesignId)) {
+          acc.push(item.savedDesignId);
+        }
+        return acc;
+      }, [] as string[]).length
+    : items.length;
 
-  // Sync cart with auth state: fetch items on login, clear on logout
+  // Sync cart with auth state
   useEffect(() => {
     async function syncCart() {
-      // User logged out - clear the cart
-      if (!isAuthenticated || !user) {
+      const wasAuthenticated = prevAuthRef.current;
+      prevAuthRef.current = isAuthenticated;
+
+      // User just logged out - clear the cart (DB items no longer valid)
+      if (!isAuthenticated && wasAuthenticated) {
         clearCart();
         return;
       }
 
-      // User logged in - fetch cart items from database
+      // Not authenticated - leave guest cart items in store
+      if (!isAuthenticated || !user) {
+        return;
+      }
+
+      // User just logged in - merge any guest cart items into DB, then fetch from DB
+      const guestItems = useCartStore.getState().items;
+      if (wasAuthenticated === false && guestItems.length > 0) {
+        try {
+          for (const guestItem of guestItems) {
+            await addToCartDB({
+              productId: guestItem.productId,
+              productTitle: guestItem.productTitle,
+              productColor: guestItem.productColor,
+              productColorName: guestItem.productColorName,
+              productColorCode: guestItem.productColorCode,
+              size: guestItem.size,
+              quantity: guestItem.quantity,
+              pricePerItem: guestItem.pricePerItem,
+              canvasState: guestItem.canvasState,
+              thumbnailUrl: guestItem.thumbnailUrl,
+              designName: guestItem.designName,
+              customFonts: guestItem.customFonts,
+            });
+          }
+        } catch (err) {
+          console.error('Error merging guest cart items:', err);
+        }
+      }
+
+      // Fetch cart items from database
       try {
         const supabase = createClient();
 
@@ -49,22 +84,20 @@ export default function CartButton() {
         }
 
         if (data) {
-          // Transform database cart items to match CartItemData interface
-          // size_id and size_name are the same value now (just the size string)
           const cartItems = data.map((item) => ({
             id: item.id,
             productId: item.product_id || '',
             productTitle: item.product_title,
             productColor: item.product_color,
             productColorName: item.product_color_name,
-            size: item.size_id || item.size_name, // Use either (they're the same)
+            size: item.size_id || item.size_name,
             quantity: item.quantity,
             pricePerItem: Number(item.price_per_item),
-            canvasState: {}, // Canvas state is stored in saved_designs, not cart_items
+            canvasState: {} as Record<string, string>,
             thumbnailUrl: item.thumbnail_url || undefined,
             addedAt: new Date(item.created_at).getTime(),
             savedDesignId: item.saved_design_id || undefined,
-            designName: undefined, // Not stored in cart_items table
+            designName: undefined,
           }));
 
           setItems(cartItems);
@@ -77,40 +110,18 @@ export default function CartButton() {
     syncCart();
   }, [isAuthenticated, user, setItems, clearCart]);
 
-  // Only render cart count after hydration to avoid mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleCartClick = (e: React.MouseEvent) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      setShowLoginModal(true);
-    }
-  };
-
   return (
-    <>
-      {isAuthenticated ? (
-        <Link href="/cart" className="relative">
-          <ShoppingBasket className="text-gray-700 size-6"/>
-          {mounted && uniqueDesignCount > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-              {uniqueDesignCount > 99 ? '99+' : uniqueDesignCount}
-            </div>
-          )}
-        </Link>
-      ) : (
-        <button onClick={handleCartClick} className="relative">
-          <ShoppingBasket className="text-gray-700 size-6"/>
-        </button>
+    <Link href="/cart" className="relative">
+      <ShoppingBasket className="text-gray-700 size-6"/>
+      {mounted && itemCount > 0 && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          {itemCount > 99 ? '99+' : itemCount}
+        </div>
       )}
-
-      <LoginPromptModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        message="장바구니 기능을 사용하려면 로그인이 필요합니다."
-      />
-    </>
+    </Link>
   )
 }

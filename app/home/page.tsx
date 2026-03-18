@@ -24,7 +24,7 @@ const getActiveProducts = unstable_cache(
       .select('*, manufacturers(name)')
       .eq('is_active', true)
       .eq('is_featured', true)
-      .order('created_at', { ascending: false })
+      .order('sort_order', { ascending: true })
       .limit(6);
 
     if (error) {

@@ -3,8 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-// import { formatKRW, formatJPY, formatUSD } from "@/lib/utils";
-// import { sendDiscordMessage } from "@/lib/discord";
+import { useAuthStore } from "@/store/useAuthStore";
 
 type Order = {
   id: string;
@@ -35,6 +34,7 @@ type OrderItem = {
  */
 function PurchaseCompleteContent() {
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuthStore();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -167,6 +167,14 @@ function PurchaseCompleteContent() {
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-4 justify-center">
+            {orderId && (
+              <Link
+                href={isAuthenticated ? `/order/${orderId}` : `/order/lookup?orderId=${orderId}`}
+                className="px-6 py-3 bg-black text-white rounded-md font-medium hover:opacity-90 transition-opacity"
+              >
+                주문 상세보기
+              </Link>
+            )}
             <Link
               href="/"
               className="px-6 py-3 bg-zinc-200 text-black rounded-md font-medium hover:opacity-90 transition-opacity"
@@ -177,6 +185,24 @@ function PurchaseCompleteContent() {
               이메일은 <span className="text-red-500">스팸 {"(Spam)"}</span> 메일에서 확인 부탁드립니다.
             </p>
           </div>
+
+          {/* Guest Signup Prompt */}
+          {!isAuthenticated && (
+            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800 font-medium mb-2">
+                회원가입하고 더 편리하게 이용하세요
+              </p>
+              <p className="text-xs text-blue-600 mb-3">
+                주문 내역 관리, 디자인 저장, 쿠폰 할인 등 다양한 혜택을 받을 수 있습니다.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-md font-medium hover:bg-blue-700 transition"
+              >
+                회원가입 / 로그인
+              </Link>
+            </div>
+          )}
 
 
           {/* Additional Info */}
