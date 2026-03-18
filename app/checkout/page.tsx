@@ -19,7 +19,9 @@ import TossPaymentWidget from '../components/toss/TossPaymentWidget';
 import { useAuthStore } from '@/store/useAuthStore';
 import { generateOrderId } from '@/lib/orderIdUtils';
 import { CouponUsage } from '@/types/types';
-import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle } from 'lucide-react';
+import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Upload } from 'lucide-react';
+import { createClient as createBrowserClient } from '@/lib/supabase-client';
+import { uploadFileToStorage } from '@/lib/supabase-storage';
 
 type ShippingMethod = 'domestic' | 'international' | 'pickup';
 type PaymentMethod = 'toss' | 'paypal';
@@ -76,6 +78,12 @@ export default function CheckoutPage() {
     addressLine1: '',
     addressLine2: '',
   });
+
+  // Customer note & attachments
+  const [customerNote, setCustomerNote] = useState('');
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Coupon state
   const [availableCoupons, setAvailableCoupons] = useState<CouponUsage[]>([]);
@@ -233,6 +241,40 @@ export default function CheckoutPage() {
     }).open();
   };
 
+  // File upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newFiles = Array.from(files);
+    setAttachmentFiles(prev => [...prev, ...newFiles]);
+    setIsUploading(true);
+
+    try {
+      const supabase = createBrowserClient();
+      const uploadedUrls: string[] = [];
+
+      for (const file of newFiles) {
+        const result = await uploadFileToStorage(supabase, file, 'order-attachments', `attachments/${orderId}`);
+        if (result.success && result.url) {
+          uploadedUrls.push(result.url);
+        }
+      }
+
+      setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
+    } catch (error) {
+      console.error('File upload error:', error);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setAttachmentFiles(prev => prev.filter((_, i) => i !== index));
+    setAttachmentUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Coupon handlers
   const handleRegisterCoupon = async () => {
     if (!couponCode.trim()) {
@@ -332,6 +374,9 @@ export default function CheckoutPage() {
       // Coupon data
       coupon_usage_id: selectedCoupon?.id || null,
       coupon_discount: couponDiscount,
+      // Customer note & attachments
+      customer_note: customerNote || null,
+      attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
     };
 
     // Store in sessionStorage for use in success page
@@ -672,6 +717,54 @@ export default function CheckoutPage() {
           </div>
         </div>
       )}
+
+      {/* Customer Note & Attachments */}
+      <div className="bg-white mt-2 p-4">
+        <h2 className="font-medium text-black mb-3">요청사항</h2>
+        <textarea
+          value={customerNote}
+          onChange={(e) => setCustomerNote(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-black resize-none"
+          rows={3}
+          placeholder="배송 메모, 인쇄 관련 요청 등을 입력해주세요"
+        />
+        <div className="mt-3">
+          <label className="text-sm text-gray-600 mb-2 block">첨부파일</label>
+          <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition w-fit text-sm text-gray-500">
+            <Upload className="w-4 h-4" />
+            <span>파일 선택</span>
+            <input
+              type="file"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+              accept="image/*,.pdf,.ai,.psd,.eps,.svg,.zip"
+            />
+          </label>
+          {attachmentFiles.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {attachmentFiles.map((file, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 px-2 py-1 rounded">
+                  <Paperclip className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="truncate flex-1">{file.name}</span>
+                  <span className="text-xs text-gray-400 shrink-0">
+                    {(file.size / 1024).toFixed(0)}KB
+                  </span>
+                  <button
+                    onClick={() => handleRemoveFile(idx)}
+                    className="text-gray-400 hover:text-red-500 shrink-0"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {isUploading && (
+            <p className="text-xs text-gray-500 mt-1">업로드 중...</p>
+          )}
+        </div>
+      </div>
 
       {/* Coupon Section - Only show for authenticated users */}
       {isAuthenticated && (

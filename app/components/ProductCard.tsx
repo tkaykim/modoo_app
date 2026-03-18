@@ -142,42 +142,42 @@ export default function ProductCard({ product }: ProductCardProps) {
               fill
               unoptimized
               className="object-contain"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+              sizes="(max-width: 640px) 33vw, (max-width: 1024px) 33vw, 20vw"
             />
           )}
           {/* Favorite Button */}
           <button
             onClick={handleFavoriteClick}
             disabled={isLoading}
-            className="absolute right-2 bottom-2 p-1.5 lg:p-2 bg-white rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm"
+            className="absolute right-1 bottom-1 p-1 sm:p-1.5 lg:p-2 bg-white rounded-full hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-sm"
           >
             <Heart
-              size={16}
-              className={`lg:w-[18px] lg:h-[18px] ${isFavorited ? "fill-red-500 text-red-500" : "text-gray-600"}`}
+              size={14}
+              className={`sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px] ${isFavorited ? "fill-red-500 text-red-500" : "text-gray-600"}`}
             />
           </button>
         </div>
         {/* Product Details */}
-        <div className="p-2 lg:p-3">
+        <div className="p-1.5 sm:p-2 lg:p-3">
           {/* Manufacturer */}
           {product.manufacturer_name && (
-            <p className="text-black text-[10px] lg:text-xs font-bold mb-0.5">{product.manufacturer_name}</p>
+            <p className="text-black text-[8px] sm:text-[10px] lg:text-xs font-bold mb-0.5">{product.manufacturer_name}</p>
           )}
           {/* Product Name */}
-          <p className="text-xs lg:text-sm text-gray-900 line-clamp-2 mb-1 lg:mb-1.5">{product.title}</p>
+          <p className="text-[10px] sm:text-xs lg:text-sm text-gray-900 line-clamp-2 mb-0.5 sm:mb-1 lg:mb-1.5">{product.title}</p>
           {/* Pricing */}
-          <p className="text-sm lg:text-base font-bold text-gray-900 mb-0.5">{formattedPrice}원</p>
+          <p className="text-xs sm:text-sm lg:text-base font-bold text-gray-900 mb-0.5">{formattedPrice}원</p>
           {/* Reviews */}
           {reviewStats.totalReviews > 0 ? (
-            <div className="flex items-center gap-1">
-              <Star size={12} className="text-orange-400 fill-orange-400 lg:w-3.5 lg:h-3.5"/>
-              <p className="text-[10px] lg:text-xs text-orange-400 font-bold">{reviewStats.averageRating.toFixed(2)}</p>
-              <p className="text-[10px] lg:text-xs text-gray-400">({reviewStats.totalReviews}{reviewStats.totalReviews >= 100 ? '+' : ''})</p>
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Star size={10} className="sm:w-3 sm:h-3 text-orange-400 fill-orange-400 lg:w-3.5 lg:h-3.5"/>
+              <p className="text-[8px] sm:text-[10px] lg:text-xs text-orange-400 font-bold">{reviewStats.averageRating.toFixed(2)}</p>
+              <p className="text-[8px] sm:text-[10px] lg:text-xs text-gray-400">({reviewStats.totalReviews}{reviewStats.totalReviews >= 100 ? '+' : ''})</p>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
-              <Star size={12} className="text-gray-300 lg:w-3.5 lg:h-3.5"/>
-              <p className="text-[10px] lg:text-xs text-gray-400">리뷰 없음</p>
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Star size={10} className="sm:w-3 sm:h-3 text-gray-300 lg:w-3.5 lg:h-3.5"/>
+              <p className="text-[8px] sm:text-[10px] lg:text-xs text-gray-400">리뷰 없음</p>
             </div>
           )}
         </div>

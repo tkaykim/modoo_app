@@ -25,7 +25,7 @@ const getActiveProducts = unstable_cache(
       .eq('is_active', true)
       .eq('is_featured', true)
       .order('created_at', { ascending: false })
-      .limit(4);
+      .limit(6);
 
     if (error) {
       console.error('Error fetching products:', error);
@@ -95,6 +95,7 @@ const getBestReviews = unstable_cache(
         )
       `)
       .eq('is_best', true)
+      .order('best_order', { ascending: true })
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -160,7 +161,7 @@ export default async function HomePage() {
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 lg:gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 lg:gap-4">
             {products.length > 0 ? (
               products.map((product) => (
                 <ProductCard key={product.id} product={product}/>

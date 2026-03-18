@@ -756,14 +756,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           </button>
         </div>
       )}
-      {!selectedObject && 
+      {!selectedObject &&
+        <>
+        {isExpanded && (
+          <div className="fixed inset-0 z-40" onClick={() => setIsExpanded(false)} />
+        )}
         <div className="fixed bottom-25 right-6 flex flex-col items-end gap-3 z-50">
           {/* Inner buttons - expand upwards */}
           <div className={`flex flex-col gap-2 transition-all duration-700 overflow-hidden ${
             isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
           }`}>
             <button
-              onClick={addText}
+              onClick={() => { addText(); setIsExpanded(false); }}
             >
               <div className='bg-white rounded-full p-3 text-sm font-medium transition hover:bg-gray-50 border border-gray-200 whitespace-nowrap'>
                 <TextCursor />
@@ -771,7 +775,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
               <p className='text-xs'>텍스트</p>
             </button>
             <button
-              onClick={handleAddImageClick}
+              onClick={() => { handleAddImageClick(); setIsExpanded(false); }}
             >
               <div className='bg-white rounded-full p-3 text-sm font-medium transition hover:bg-gray-50 border border-gray-200 whitespace-nowrap'>
                 <FileImage />
@@ -802,6 +806,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             <Plus className={`${isExpanded ? 'rotate-45' : ''} size-8 transition-all duration-300`}/>
           </button>
         </div>
+        </>
       }
 
 

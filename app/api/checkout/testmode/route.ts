@@ -22,6 +22,9 @@ interface OrderData {
   shipping_method: 'domestic' | 'international' | 'pickup';
   delivery_fee: number;
   total_amount: number;
+  // Customer note & attachments
+  customer_note?: string | null;
+  attachment_urls?: string[] | null;
 }
 
 interface CartItem {
@@ -95,6 +98,9 @@ export async function POST(request: NextRequest) {
         payment_key: `TESTMODE-${Date.now()}`, // Prefix with TESTMODE to identify test orders
         payment_status: 'completed',
         order_status: 'pending',
+        // Customer note & attachments
+        customer_note: orderData.customer_note || null,
+        attachment_urls: orderData.attachment_urls || [],
       })
       .select()
       .single();

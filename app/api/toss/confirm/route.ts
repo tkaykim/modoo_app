@@ -28,6 +28,9 @@ interface OrderData {
   // Coupon data
   coupon_usage_id: string | null;
   coupon_discount: number;
+  // Customer note & attachments
+  customer_note: string | null;
+  attachment_urls: string[] | null;
 }
 
 interface CartItem {
@@ -133,6 +136,9 @@ export async function POST(request: NextRequest) {
         // Coupon data
         coupon_usage_id: orderData.coupon_usage_id || null,
         coupon_discount: orderData.coupon_discount || 0,
+        // Customer note & attachments
+        customer_note: orderData.customer_note || null,
+        attachment_urls: orderData.attachment_urls || [],
       })
       .select()
       .single();
