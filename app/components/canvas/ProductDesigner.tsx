@@ -19,7 +19,7 @@ interface ProductDesignerProps {
 }
 
 const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode }) => {
-  const { isEditMode, setEditMode, setActiveSide, activeSideId, canvasMap, zoomIn, zoomOut, zoomLevels } = useCanvasStore();
+  const { isEditMode, setEditMode, setActiveSide, activeSideId, canvasMap } = useCanvasStore();
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [translateX, setTranslateX] = useState(0);
@@ -28,8 +28,6 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
   const isDesktop = layout === 'desktop';
   const allowSwipe = !isDesktop && !isEditMode;
   const shouldFullscreen = isEditMode && !isDesktop;
-  const currentZoom = zoomLevels[activeSideId] || 1.0;
-
   // Derive current index from activeSideId
   const currentIndex = config.sides.findIndex(side => side.id === activeSideId);
   const validCurrentIndex = currentIndex !== -1 ? currentIndex : 0;
