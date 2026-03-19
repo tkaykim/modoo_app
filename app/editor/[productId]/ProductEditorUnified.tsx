@@ -760,10 +760,6 @@ export default function ProductEditorUnified({
           sizeOptions={product.size_options || []}
           pricePerItem={pricePerItem}
           isSaving={isSaving}
-          canvasMap={canvasMap}
-          sides={product.configuration}
-          basePrice={product.base_price}
-          discountRates={product.discount_rates}
         />
 
         <LoginPromptModal
@@ -985,10 +981,6 @@ export default function ProductEditorUnified({
         sizeOptions={product.size_options || []}
         pricePerItem={pricePerItem}
         isSaving={isSaving}
-        canvasMap={canvasMap}
-        sides={product.configuration}
-        basePrice={product.base_price}
-        discountRates={product.discount_rates}
       />
 
       <LoginPromptModal

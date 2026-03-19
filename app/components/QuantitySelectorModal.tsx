@@ -3,9 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
-import { SizeOption, CartItem, ProductSide, DiscountTier } from '@/types/types';
-import * as fabric from 'fabric';
-import { calculateAllSidesPricing } from '@/app/utils/canvasPricing';
+import { SizeOption, CartItem } from '@/types/types';
 
 interface QuantitySelectorModalProps {
   isOpen: boolean;
@@ -15,10 +13,6 @@ interface QuantitySelectorModalProps {
   pricePerItem: number;
   isSaving?: boolean;
   defaultDesignName?: string;
-  canvasMap?: Record<string, fabric.Canvas>;
-  sides?: ProductSide[];
-  basePrice?: number;
-  discountRates?: DiscountTier[];
 }
 
 export default function QuantitySelectorModal({
@@ -29,10 +23,6 @@ export default function QuantitySelectorModal({
   pricePerItem,
   isSaving = false,
   defaultDesignName = '',
-  canvasMap,
-  sides,
-  basePrice,
-  discountRates
 }: QuantitySelectorModalProps) {
   const router = useRouter();
   const [designName, setDesignName] = useState(defaultDesignName);
@@ -40,35 +30,13 @@ export default function QuantitySelectorModal({
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPurchaseChoice, setShowPurchaseChoice] = useState(false);
   const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
-  const [dynamicPricePerItem, setDynamicPricePerItem] = useState(pricePerItem);
-  const [printingCostPerItem, setPrintingCostPerItem] = useState(0);
-  const [hasBulkMethods, setHasBulkMethods] = useState(false);
 
-  // Helper function to get total quantity
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
   };
 
-  // Get the applicable discount rate based on quantity
-  const getApplicableDiscount = (quantity: number): DiscountTier | null => {
-    if (!discountRates || discountRates.length === 0) return null;
-
-    // Sort by min_quantity descending to find the highest applicable tier
-    const sortedRates = [...discountRates].sort((a, b) => b.min_quantity - a.min_quantity);
-    return sortedRates.find(tier => quantity >= tier.min_quantity) || null;
-  };
-
-  const currentDiscount = getApplicableDiscount(getTotalQuantity());
-  const discountRate = currentDiscount?.discount_rate || 0;
-  const discountMultiplier = 1 - (discountRate / 100);
-
   const getTotalPrice = () => {
-    const subtotal = getTotalQuantity() * dynamicPricePerItem;
-    return subtotal * discountMultiplier;
-  };
-
-  const getOriginalTotalPrice = () => {
-    return getTotalQuantity() * dynamicPricePerItem;
+    return getTotalQuantity() * pricePerItem;
   };
 
   // Auto-generate design name when modal opens
@@ -87,51 +55,6 @@ export default function QuantitySelectorModal({
     }
   }, [isOpen, defaultDesignName]);
 
-  // Calculate pricing based on total quantity for bulk methods
-  useEffect(() => {
-    const calculateDynamicPricing = async () => {
-      if (!canvasMap || !sides || !basePrice) {
-        setDynamicPricePerItem(pricePerItem);
-        setHasBulkMethods(false);
-        return;
-      }
-
-      const totalQuantity = getTotalQuantity();
-      if (totalQuantity === 0) {
-        setDynamicPricePerItem(pricePerItem);
-        setHasBulkMethods(false);
-        return;
-      }
-
-      try {
-        const result = await calculateAllSidesPricing(canvasMap, sides, totalQuantity);
-
-        // Check if any objects use bulk methods
-        const usesBulkMethods = result.sidePricing.some(sp =>
-          sp.objects.some(obj =>
-            obj.printMethod === 'screen_printing' ||
-            obj.printMethod === 'embroidery' ||
-            obj.printMethod === 'applique'
-          )
-        );
-
-        setHasBulkMethods(usesBulkMethods);
-
-        // For bulk methods, the printing cost is TOTAL for all items, not per-item
-        // So we need to divide by quantity to get per-item price
-        const perItemPrintCost = result.totalAdditionalPrice / totalQuantity;
-        setPrintingCostPerItem(perItemPrintCost);
-        setDynamicPricePerItem(basePrice + perItemPrintCost);
-      } catch (error) {
-        console.error('Error calculating dynamic pricing:', error);
-        setDynamicPricePerItem(pricePerItem);
-        setHasBulkMethods(false);
-      }
-    };
-
-    calculateDynamicPricing();
-  }, [canvasMap, sides, quantities, basePrice, pricePerItem]);
-
   if (!isOpen) return null;
 
   const handleQuantityChange = (sizeId: string, change: number) => {
@@ -149,7 +72,6 @@ export default function QuantitySelectorModal({
   };
 
   const handleManualQuantityChange = (sizeId: string, value: string) => {
-    // Allow empty string for easier editing
     if (value === '') {
       setQuantities(prev => {
         const { [sizeId]: _, ...rest } = prev;
@@ -158,10 +80,9 @@ export default function QuantitySelectorModal({
       return;
     }
 
-    // Parse the value and ensure it's a valid non-negative integer
     const numValue = parseInt(value, 10);
     if (isNaN(numValue) || numValue < 0) {
-      return; // Ignore invalid input
+      return;
     }
 
     if (numValue === 0) {
@@ -198,7 +119,6 @@ export default function QuantitySelectorModal({
     await onConfirm(designName, selectedItems, type);
 
     if (type === 'direct') {
-      // Read direct checkout item IDs set by onConfirm and pass via URL
       const directIds = sessionStorage.getItem('directCheckoutItemIds');
       if (directIds) {
         sessionStorage.removeItem('directCheckoutItemIds');
@@ -294,7 +214,6 @@ export default function QuantitySelectorModal({
                 <h3 className="text-sm font-medium text-gray-700 mb-3">사이즈 및 수량</h3>
                 <div className="space-y-3">
                   {sizeOptions.map((size) => {
-                    // Handle both old string format and new object format
                     const sizeLabel = typeof size === 'string' ? size : size.label;
                     const quantity = quantities[sizeLabel] || 0;
                     return (
@@ -385,102 +304,20 @@ export default function QuantitySelectorModal({
         {!showSuccess && getTotalQuantity() > 0 && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 shrink-0">
             <div className="p-3 bg-gray-50 rounded-lg mb-3">
-              {/* Price Breakdown */}
-              {basePrice && printingCostPerItem > 0 ? (
-                <>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600">기본 제품 가격</span>
-                    <span className="font-medium">{Math.round(basePrice).toLocaleString('ko-KR')}원</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600">인쇄 비용 (개당)</span>
-                    <span className="font-medium">{Math.round(printingCostPerItem).toLocaleString('ko-KR')}원</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
-                    <span className="text-gray-700 font-medium">개당 가격</span>
-                    <span className="font-semibold">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
-                  <span className="text-gray-600">개당 가격 (디자인 포함)</span>
-                  <span className="font-medium">{Math.round(dynamicPricePerItem).toLocaleString('ko-KR')}원</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
+                <span className="text-gray-600">개당 가격 (디자인 포함)</span>
+                <span className="font-medium">{Math.round(pricePerItem).toLocaleString('ko-KR')}원</span>
+              </div>
 
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="text-gray-600">총 수량</span>
                 <span className="font-medium">{getTotalQuantity()}개</span>
               </div>
 
-              {/* Discount Rate Display */}
-              {discountRate > 0 && (
-                <>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600">상품 금액</span>
-                    <span className="font-medium line-through text-gray-400">{Math.round(getOriginalTotalPrice()).toLocaleString('ko-KR')}원</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-red-600 font-medium">대량 주문 할인 ({discountRate}%)</span>
-                    <span className="font-medium text-red-600">-{Math.round(getOriginalTotalPrice() - getTotalPrice()).toLocaleString('ko-KR')}원</span>
-                  </div>
-                </>
-              )}
-
               <div className="flex items-center justify-between pt-1 border-t border-gray-200">
                 <span className="font-bold">총 금액</span>
                 <span className="text-lg font-bold">{Math.round(getTotalPrice()).toLocaleString('ko-KR')}원</span>
               </div>
-
-              {/* Discount Rate Tiers Info */}
-              {discountRates && discountRates.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
-                    <span className="shrink-0">🏷️</span>
-                    <div className="flex-1">
-                      <p className="font-semibold mb-1">대량 주문 할인 안내</p>
-                      {[...discountRates]
-                        .sort((a, b) => a.min_quantity - b.min_quantity)
-                        .map((tier, index) => {
-                          const isActive = currentDiscount?.min_quantity === tier.min_quantity;
-                          return (
-                            <p
-                              key={index}
-                              className={`${isActive ? 'text-blue-800 font-semibold' : 'text-blue-600'}`}
-                            >
-                              • {tier.min_quantity}개 이상: {tier.discount_rate}% 할인
-                              {isActive && ' ✓'}
-                            </p>
-                          );
-                        })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Bulk Pricing Info */}
-              {hasBulkMethods && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                    <span className="shrink-0">💡</span>
-                    <div className="flex-1">
-                      <p className="font-semibold mb-1">대량 주문 할인 안내</p>
-                      <p className="text-amber-600">
-                        나염/자수/아플리케 방식이 포함되어 있습니다.
-                      </p>
-                      <p className="text-amber-600 mt-1">
-                        • 100개까지: 기본 인쇄 가격
-                      </p>
-                      <p className="text-amber-600">
-                        • 101개부터: 1개당 +600원씩 인쇄 가격 증가
-                      </p>
-                      <p className="text-amber-600 text-[10px] mt-1 italic">
-                        (총 인쇄비가 더 많은 수량에 분산되어 개당 가격은 저렴해집니다)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <button

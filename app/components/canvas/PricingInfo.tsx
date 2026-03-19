@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 interface PricingInfoProps {
   basePrice: number;
   sides: ProductSide[];
-  quantity?: number; // For bulk pricing
 }
 
 // Print method display names in Korean
@@ -26,7 +25,7 @@ const PRINT_SIZE_NAMES: Record<string, string> = {
   'A3': 'A3'
 };
 
-export default function PricingInfo({ basePrice, sides, quantity = 1 }: PricingInfoProps) {
+export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
   const { canvasMap, canvasVersion } = useCanvasStore();
   const [pricingData, setPricingData] = useState<PricingSummary | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -38,7 +37,7 @@ export default function PricingInfo({ basePrice, sides, quantity = 1 }: PricingI
     const calculatePricing = async () => {
       setIsCalculating(true);
       try {
-        const result = await calculateAllSidesPricing(canvasMap, sides, quantity);
+        const result = await calculateAllSidesPricing(canvasMap, sides);
         if (isMounted) {
           setPricingData(result);
         }
@@ -56,7 +55,7 @@ export default function PricingInfo({ basePrice, sides, quantity = 1 }: PricingI
     return () => {
       isMounted = false;
     };
-  }, [canvasMap, sides, canvasVersion, quantity]);
+  }, [canvasMap, sides, canvasVersion]);
 
   if (!pricingData || pricingData.totalObjectCount === 0) {
     return null;
@@ -135,27 +134,6 @@ export default function PricingInfo({ basePrice, sides, quantity = 1 }: PricingI
           * 1개당 가격입니다 ({pricingData.totalObjectCount}개 오브젝트)
           {isCalculating && ' • 계산 중...'}
         </p>
-
-        {/* Info about bulk pricing */}
-        {sidesWithObjects.some(sp =>
-          sp.objects.some(obj => obj.printMethod === 'screen_printing' || obj.printMethod === 'embroidery' || obj.printMethod === 'applique')
-        ) && (
-          <div className="bg-amber-50 p-2 rounded">
-            <p className="text-xs font-semibold text-amber-700 mb-1">💡 대량 주문 할인 안내</p>
-            <p className="text-xs text-amber-600 mb-1">
-              나염/자수/아플리케 방식이 포함되어 있습니다.
-            </p>
-            <p className="text-xs text-amber-600">
-              • 100개까지: 기본 인쇄 가격
-            </p>
-            <p className="text-xs text-amber-600">
-              • 101개부터: 1개당 +600원씩 인쇄 가격 증가
-            </p>
-            <p className="text-xs text-amber-600 italic mt-1">
-              (총 인쇄비가 더 많은 수량에 분산되어 개당 가격은 저렴해집니다)
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

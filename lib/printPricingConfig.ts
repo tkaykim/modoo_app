@@ -112,24 +112,14 @@ export function getPrintPricingConfig(): PrintPricingConfig {
 }
 
 /**
- * Recommend print method based on number of colors
- * If 4+ colors, recommend transfer methods (DTF or DTG)
+ * Recommend print method — always DTF
  */
-export function recommendPrintMethod(colorCount: number, objectSize: '10x10' | 'A4' | 'A3'): {
-  recommended: 'dtf' | 'dtg' | 'screen_printing' | 'embroidery' | 'applique';
+export function recommendPrintMethod(): {
+  recommended: 'dtf';
   reason: string;
 } {
-  if (colorCount >= 4) {
-    return {
-      recommended: 'dtf',
-      reason: '4가지 이상의 색상은 전사 방식을 추천합니다'
-    };
-  }
-
-  // For bulk orders with few colors, screen printing might be better
-  // But for single items, transfer is usually better
   return {
     recommended: 'dtf',
-    reason: '소량 주문에는 전사 방식이 적합합니다'
+    reason: 'DTF 전사 방식이 적용됩니다'
   };
 }

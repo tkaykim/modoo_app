@@ -11,7 +11,7 @@ import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
 import { addToCartDB } from '@/lib/cartService';
 import { useCartStore } from '@/store/useCartStore';
 import { deleteDesign } from '@/lib/designService';
-import { SizeOption, CartItem, ProductColor, DiscountTier } from '@/types/types';
+import { SizeOption, CartItem, ProductColor } from '@/types/types';
 import { ShoppingCart, Search, Trash2, Plus } from 'lucide-react';
 import Header from '@/app/components/Header';
 import ProductSelectionForDesignModal from '@/app/components/ProductSelectionForDesignModal';
@@ -65,7 +65,6 @@ export default function DesignsPage() {
   const [selectedDesign, setSelectedDesign] = useState<SavedDesign | null>(null);
   const [productSizeOptions, setProductSizeOptions] = useState<SizeOption[]>([]);
   const [productColors, setProductColors] = useState<ProductColor[]>([]);
-  const [productDiscountRates, setProductDiscountRates] = useState<DiscountTier[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Delete state
@@ -226,7 +225,6 @@ export default function DesignsPage() {
           }))
         : [];
       setProductColors(colors);
-      setProductDiscountRates(product.discount_rates || []);
       setIsQuantitySelectorOpen(true);
     } catch (error) {
       console.error('Error fetching product details:', error);
@@ -521,7 +519,6 @@ export default function DesignsPage() {
         pricePerItem={selectedDesign?.price_per_item || 0}
         isSaving={isSaving}
         defaultDesignName={selectedDesign?.title || selectedDesign?.product.title || ''}
-        discountRates={productDiscountRates}
       />
 
       {/* Product Selection Modal for Creating New Design */}
