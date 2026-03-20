@@ -743,7 +743,7 @@ export default function ProductEditorUnified({
                 )}
                 <button
                   onClick={handleEditorDone}
-                  disabled={isSaving || pricingData.totalObjectCount === 0}
+                  disabled={isSaving}
                   className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                 >
                   {isSaving ? '처리 중...' : '완료'}
@@ -957,7 +957,7 @@ export default function ProductEditorUnified({
                   ) : (
                     <button
                       onClick={handleEditorDone}
-                      disabled={isSaving || pricingData.totalObjectCount === 0}
+                      disabled={isSaving}
                       className="w-full bg-black py-3.5 text-sm font-medium rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                     >
                       {isSaving ? '처리 중...' : '완료'}
