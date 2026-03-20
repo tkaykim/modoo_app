@@ -137,7 +137,7 @@ export default async function HomePage() {
       <main className="mx-auto max-w-7xl space-y-4 px-4 sm:px-0 lg:space-y-8 py-4 lg:py-6">
 
         {/* CoBuy Request CTA */}
-        <section className="w-full">
+        {/* <section className="w-full">
           <Link
             href="/home/cobuy/request/create"
             className="block rounded-md lg:rounded-2xl bg-gradient-to-r from-[#3B55A5] to-[#8da3e6] px-5 lg:px-6 py-3 text-white hover:from-[#2D4280] hover:to-[#243366] transition-all"
@@ -150,7 +150,7 @@ export default async function HomePage() {
               <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6 shrink-0 text-white/60" />
             </div>
           </Link>
-        </section>
+        </section> */}
 
         {/* Featured Products Section */}
         <section className="w-full">
