@@ -16,9 +16,12 @@ interface ProductDesignerProps {
   config: ProductConfig;
   layout?: 'mobile' | 'desktop';
   onExitEditMode?: () => void;
+  onColorPress?: () => void;
+  displayColor?: string;
+  hasColorOptions?: boolean;
 }
 
-const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode }) => {
+const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode, onColorPress, displayColor, hasColorOptions }) => {
   const { isEditMode, setEditMode, setActiveSide, activeSideId, canvasMap } = useCanvasStore();
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -194,7 +197,7 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
       </div>
 
       {/* Toolbar - shows only in edit mode */}
-      {!isDesktop && <Toolbar sides={config.sides} handleExitEditMode={handleExitEditMode} productId={config.productId} />}
+      {!isDesktop && <Toolbar sides={config.sides} handleExitEditMode={handleExitEditMode} productId={config.productId} onColorPress={onColorPress} displayColor={displayColor} hasColorOptions={hasColorOptions} />}
     </div>
   );
 };

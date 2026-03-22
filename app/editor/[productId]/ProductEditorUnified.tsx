@@ -204,6 +204,9 @@ export default function ProductEditorUnified({
       // Also save guest design as backup
       saveGuestDesign({ productId: product.id, productColor, canvasState, customFonts });
 
+      // Generate a shared design ID so all sizes from this design are grouped together
+      const guestDesignId = `guest-${product.id}-${Date.now()}`;
+
       for (const item of selectedItems) {
         addToCart({
           productId: product.id,
@@ -216,6 +219,7 @@ export default function ProductEditorUnified({
           pricePerItem,
           canvasState,
           thumbnailUrl: thumbnail,
+          savedDesignId: guestDesignId,
           designName,
           customFonts,
           previewImage,
@@ -733,6 +737,9 @@ export default function ProductEditorUnified({
           config={productConfig}
           layout="mobile"
           onExitEditMode={goBackToLanding}
+          onColorPress={() => setIsColorModalOpen(true)}
+          displayColor={displayColor}
+          hasColorOptions={hasAnyColorOptions}
         />
 
         {/* Bottom bar */}
@@ -749,23 +756,13 @@ export default function ProductEditorUnified({
                 ) : '몰에 저장'}
               </button>
             ) : (
-              <>
-                {hasAnyColorOptions && (
-                  <button
-                    onClick={() => setIsColorModalOpen(true)}
-                    className="shrink-0 w-10 h-10 rounded-full border-2 border-gray-300 transition hover:border-gray-500"
-                    style={{ backgroundColor: displayColor }}
-                    title="색상 선택"
-                  />
-                )}
-                <button
-                  onClick={handleEditorDone}
-                  disabled={isSaving}
-                  className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                >
-                  {isSaving ? '처리 중...' : '완료'}
-                </button>
-              </>
+              <button
+                onClick={handleEditorDone}
+                disabled={isSaving}
+                className="w-full bg-black py-3 text-sm rounded-lg text-white disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+              >
+                {isSaving ? '처리 중...' : '완료'}
+              </button>
             )}
           </div>
         </div>

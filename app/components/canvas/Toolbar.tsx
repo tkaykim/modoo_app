@@ -17,9 +17,12 @@ interface ToolbarProps {
   handleExitEditMode?: () => void;
   variant?: 'mobile' | 'desktop';
   productId?: string;
+  onColorPress?: () => void;
+  displayColor?: string;
+  hasColorOptions?: boolean;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions }) => {
   const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel } = useCanvasStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -797,13 +800,29 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             )}
           </div>
 
+          {/* Color button */}
+          {hasColorOptions && onColorPress && (
+            <button
+              onClick={onColorPress}
+              className="flex flex-col items-center gap-1"
+            >
+              <div
+                className="size-12 rounded-full border-2 border-gray-300 shadow-xl transition hover:border-gray-500"
+                style={{ backgroundColor: displayColor || '#FFFFFF' }}
+              />
+              <p className="text-[10px] font-medium">색상 선택</p>
+            </button>
+          )}
+
           {/* Plus button */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`size-12 ${isExpanded ? "bg-black text-white" : "bg-white text-black"} shadow-xl rounded-full flex items-center justify-center hover:bg-gray-200 transition-all duration-300`}
-            aria-label={isExpanded ? 'Close menu' : 'Open menu'}
+            className="flex flex-col items-center gap-1"
           >
-            <Plus className={`${isExpanded ? 'rotate-45' : ''} size-8 transition-all duration-300`}/>
+            <div className={`size-12 ${isExpanded ? "bg-black text-white" : "bg-white text-black"} shadow-xl rounded-full flex items-center justify-center hover:bg-gray-200 transition-all duration-300`}>
+              <Plus className={`${isExpanded ? 'rotate-45' : ''} size-8 transition-all duration-300`}/>
+            </div>
+            <p className="text-[10px] font-medium">디자인하기</p>
           </button>
         </div>
         </>
