@@ -271,7 +271,7 @@ export default function CheckoutPage() {
         }
 
         if (cartItems.length === 0) {
-          router.push('/cart');
+          router.replace('/home');
           return;
         }
         setItems(cartItems);
@@ -1297,7 +1297,7 @@ export default function CheckoutPage() {
     {showEmptyModal && (
       <div
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-        onClick={() => router.push('/cart')}
+        onClick={() => router.replace('/home')}
       >
         <div
           className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full text-center"
@@ -1305,10 +1305,10 @@ export default function CheckoutPage() {
         >
           <p className="text-sm font-medium text-black mb-4">결제할 상품이 없습니다</p>
           <button
-            onClick={() => router.push('/cart')}
+            onClick={() => router.replace('/home')}
             className="w-full py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
           >
-            장바구니로 이동
+            홈으로 이동
           </button>
         </div>
       </div>
