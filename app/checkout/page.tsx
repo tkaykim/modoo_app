@@ -184,52 +184,50 @@ export default function CheckoutPage() {
     const fetchCartItems = async () => {
       setIsLoading(true);
       try {
-        // Check for items saved before login redirect (avoids race with CartButton sync)
+        // Check for items saved before login redirect
         const savedItems = sessionStorage.getItem('checkout:pendingItems');
         if (savedItems && isAuthenticated) {
           sessionStorage.removeItem('checkout:pendingItems');
+          // Clean up the return-to key left over from the login flow
+          try { sessionStorage.removeItem('login:returnTo'); } catch {}
           const parsedItems: CartItemWithDesign[] = JSON.parse(savedItems);
           if (parsedItems.length > 0) {
             restoredFromLoginRef.current = true;
-            setItems(parsedItems);
 
-            // Clear Zustand store so CartButton doesn't duplicate these items
-            useCartStore.getState().clearCart();
-
-            // Save items to DB in background (links designs to the user)
-            (async () => {
-              try {
-                const createdIds: string[] = [];
-                for (const item of parsedItems) {
-                  const result = await addToCartDB({
-                    productId: item.product_id,
-                    productTitle: item.product_title,
-                    productColor: item.product_color,
-                    productColorName: item.product_color_name,
-                    productColorCode: item.product_color_code,
-                    size: item.size_id,
-                    quantity: item.quantity,
-                    pricePerItem: item.price_per_item,
-                    canvasState: item.canvasState || {},
-                    thumbnailUrl: item.thumbnail_url,
-                    designName: item.designName,
-                    previewImage: (item as any).previewImage || item.thumbnail_url,
-                    customFonts: (item as any).customFonts,
-                  });
-                  if (result?.id) createdIds.push(result.id);
-                }
-                // Re-fetch to get DB-linked items with saved_design_id
-                if (createdIds.length > 0) {
-                  const dbItems = await getCartItemsWithDesigns();
-                  const linkedItems = dbItems.filter(i => createdIds.includes(i.id!));
-                  if (linkedItems.length > 0) {
-                    setItems(linkedItems);
-                  }
-                }
-              } catch (e) {
-                console.error('Error linking items to user:', e);
+            // Save guest items to DB first, then display DB-linked items
+            try {
+              const createdIds: string[] = [];
+              for (const item of parsedItems) {
+                const result = await addToCartDB({
+                  productId: item.product_id,
+                  productTitle: item.product_title,
+                  productColor: item.product_color,
+                  productColorName: item.product_color_name,
+                  productColorCode: item.product_color_code,
+                  size: item.size_id,
+                  quantity: item.quantity,
+                  pricePerItem: item.price_per_item,
+                  canvasState: item.canvasState || {},
+                  thumbnailUrl: item.thumbnail_url,
+                  designName: item.designName,
+                  previewImage: (item as any).previewImage || item.thumbnail_url,
+                  customFonts: (item as any).customFonts,
+                });
+                if (result?.id) createdIds.push(result.id);
               }
-            })();
+              // Fetch DB-linked items with saved_design_id
+              if (createdIds.length > 0) {
+                const dbItems = await getCartItemsWithDesigns();
+                const linkedItems = dbItems.filter(i => createdIds.includes(i.id!));
+                setItems(linkedItems.length > 0 ? linkedItems : parsedItems);
+              } else {
+                setItems(parsedItems);
+              }
+            } catch (e) {
+              console.error('Error linking items to user:', e);
+              // Fallback: show the original items so user can still checkout
+              setItems(parsedItems);
+            }
 
             return;
           }
@@ -1122,6 +1120,8 @@ export default function CheckoutPage() {
             <button
               onClick={() => {
                 sessionStorage.setItem('checkout:pendingItems', JSON.stringify(items));
+                // Clear Zustand store now so CartButton won't duplicate-sync these items after login
+                useCartStore.getState().clearCart();
                 setShowLoginModal(true);
               }}
               className="text-sm font-medium text-[#3B55A5] hover:text-[#2D4280] shrink-0 ml-2"

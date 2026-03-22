@@ -17,12 +17,15 @@ export async function GET(request: NextRequest) {
     })
 
     if (!error) {
+      const isValidNext = next.startsWith('/') && !next.startsWith('//')
+      const redirectPath = isValidNext ? next : '/home'
+
       // For password recovery, redirect to the update password page
       if (type === 'recovery') {
-        return NextResponse.redirect(`${origin}${next}`)
+        return NextResponse.redirect(`${origin}${redirectPath}`)
       }
-      // For email confirmation, redirect to home
-      return NextResponse.redirect(`${origin}/home`)
+      // For email confirmation, redirect to saved path or home
+      return NextResponse.redirect(`${origin}${redirectPath}`)
     }
   }
 

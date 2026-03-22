@@ -243,10 +243,19 @@ export const useAuthStore = create<AuthState>()(
           const supabase = createClient();
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+          // Carry the saved return URL through the OAuth redirect
+          let returnTo = '/home';
+          try {
+            const saved = sessionStorage.getItem('login:returnTo');
+            if (saved && saved.startsWith('/') && !saved.startsWith('//')) {
+              returnTo = saved;
+            }
+          } catch {}
+
           const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-              redirectTo: `${origin}/auth/callback?mode=${mode}`,
+              redirectTo: `${origin}/auth/callback?mode=${mode}&next=${encodeURIComponent(returnTo)}`,
             },
           });
 
