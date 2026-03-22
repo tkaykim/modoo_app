@@ -51,6 +51,7 @@ interface CartItem {
   colorSelections?: Record<string, unknown>;
   textSvgExports?: TextSvgExports;
   customFonts?: FontMetadata[];
+  retouchRequested?: boolean;
 }
 
 interface PaymentRequestBody {
@@ -215,13 +216,14 @@ export async function POST(request: NextRequest) {
       image_urls: Record<string, unknown>;
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
+      retouch_requested?: boolean;
     }>();
 
     // Fetch saved designs from database if there are any
     if (uniqueDesignIds.length > 0) {
       const { data: savedDesigns, error: designsError } = await supabase
         .from('saved_designs')
-        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts')
+        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts, retouch_requested')
         .in('id', uniqueDesignIds);
 
       if (designsError) {
@@ -236,6 +238,7 @@ export async function POST(request: NextRequest) {
             image_urls: design.image_urls || {},
             text_svg_exports: design.text_svg_exports as TextSvgExports | undefined,
             custom_fonts: (design.custom_fonts as FontMetadata[]) || [],
+            retouch_requested: design.retouch_requested || false,
           });
         });
       }
@@ -254,6 +257,7 @@ export async function POST(request: NextRequest) {
       image_urls: Record<string, unknown>;
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
+      retouch_requested: boolean;
       variants: Array<{
         size_id: string;
         size_name: string;
@@ -297,6 +301,7 @@ export async function POST(request: NextRequest) {
           image_urls: savedDesign?.image_urls || {},
           text_svg_exports: savedDesign?.text_svg_exports || item.textSvgExports,
           custom_fonts: savedDesign?.custom_fonts || item.customFonts || [],
+          retouch_requested: savedDesign?.retouch_requested || item.retouchRequested || false,
           price_per_item: item.price_per_item,
           variants: [{
             size_id: item.size_id,
@@ -333,6 +338,7 @@ export async function POST(request: NextRequest) {
         thumbnail_url: group.thumbnail_url,
         image_urls: group.image_urls,
         custom_fonts: group.custom_fonts || [], // Include custom fonts in order
+        retouch_requested: group.retouch_requested,
       };
     });
 

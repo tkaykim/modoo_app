@@ -22,6 +22,7 @@ export interface CartItemData {
   textSvgExports?: Record<string, unknown>;
   customFonts?: FontMetadata[];
   previewImage?: string;
+  retouchRequested?: boolean;
 }
 
 interface CartState {

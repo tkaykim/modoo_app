@@ -764,7 +764,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         {isExpanded && (
           <div className="fixed inset-0 z-40" onClick={() => setIsExpanded(false)} />
         )}
-        <div className="fixed bottom-25 right-6 flex flex-col items-end gap-3 z-50">
+        <div className="fixed bottom-36 right-6 flex flex-col items-end gap-3 z-50">
           {/* Inner buttons - expand upwards */}
           <div className={`flex flex-col gap-2 transition-all duration-700 overflow-hidden ${
             isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'

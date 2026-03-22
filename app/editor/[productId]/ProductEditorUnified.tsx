@@ -8,7 +8,7 @@ import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
-import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2 } from "lucide-react";
+import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import * as fabric from 'fabric';
 import { isCurvedText } from '@/lib/curvedText';
@@ -77,6 +77,9 @@ export default function ProductEditorUnified({
   const [guestDesign, setGuestDesign] = useState<GuestDesign | null>(null);
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null);
   const [isSavingToMall, setIsSavingToMall] = useState(false);
+  const [retouchRequested, setRetouchRequested] = useState(false);
+  const [showRetouchModal, setShowRetouchModal] = useState(false);
+  const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
 
   const productConfig: ProductConfig = {
     productId: product.id,
@@ -189,6 +192,26 @@ export default function ProductEditorUnified({
     }
   };
 
+  // ─── Background removal toggle ──────────────────────────────────
+  const isBgRemovalRequested = selectedObject
+    // @ts-expect-error - Custom data property
+    ? !!selectedObject.data?.backgroundRemovalRequested
+    : false;
+
+  const toggleBgRemoval = () => {
+    if (!selectedObject) return;
+    const canvas = canvasMap[activeSideId];
+    if (!canvas) return;
+    // @ts-expect-error - Custom data property
+    if (!selectedObject.data) selectedObject.data = {};
+    const newValue = !isBgRemovalRequested;
+    // @ts-expect-error - Custom data property
+    selectedObject.data.backgroundRemovalRequested = newValue;
+    if (newValue) setShowBgRemovalModal(true);
+    incrementCanvasVersion();
+    canvas.requestRenderAll();
+  };
+
   // ─── Save to cart ────────────────────────────────────────────────
   const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
     if (!isAuthenticated) {
@@ -223,6 +246,7 @@ export default function ProductEditorUnified({
           designName,
           customFonts,
           previewImage,
+          retouchRequested,
         });
       }
 
@@ -276,6 +300,7 @@ export default function ProductEditorUnified({
           previewImage,
           customFonts,
           canvasMap,
+          retouchRequested,
         });
 
         if (dbCartItem?.id) {
@@ -303,6 +328,7 @@ export default function ProductEditorUnified({
           designName,
           customFonts,
           previewImage,
+          retouchRequested,
         });
       }
 
@@ -583,9 +609,8 @@ export default function ProductEditorUnified({
     };
   }, [isMobile, currentStep]);
 
-  // Desktop: listen for canvas selection changes
+  // Listen for canvas selection changes (both mobile and desktop)
   useEffect(() => {
-    if (isMobile) return;
     const activeCanvas = canvasMap[activeSideId];
     if (!activeCanvas) return;
 
@@ -607,7 +632,7 @@ export default function ProductEditorUnified({
       activeCanvas.off('selection:updated', handleSelectionUpdated);
       activeCanvas.off('selection:cleared', handleSelectionCleared);
     };
-  }, [isMobile, activeSideId, canvasMap]);
+  }, [activeSideId, canvasMap]);
 
   // Pricing
   const [pricingData, setPricingData] = useState<PricingSummary>({
@@ -744,6 +769,32 @@ export default function ProductEditorUnified({
 
         {/* Bottom bar */}
         <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
+          {/* Background removal checkbox - shown when image object is selected */}
+          {selectedObject && selectedObject.type === 'image' && (
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${isBgRemovalRequested ? 'bg-red-500 border-red-500' : 'border-gray-300'}`}>
+                {isBgRemovalRequested && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <input type="checkbox" className="hidden" checked={isBgRemovalRequested} onChange={toggleBgRemoval} />
+              <span className="text-xs text-gray-700">배경제거 요청</span>
+              <button type="button" onClick={(e) => { e.preventDefault(); setShowBgRemovalModal(true); }} className="p-0.5">
+                <Info className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            </label>
+          )}
+          {/* Retouch request checkbox */}
+          {!partnerMallAddData && (
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${retouchRequested ? 'bg-orange-500 border-orange-500' : 'border-gray-300'}`}>
+                {retouchRequested && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <input type="checkbox" className="hidden" checked={retouchRequested} onChange={() => { const newVal = !retouchRequested; setRetouchRequested(newVal); if (newVal) setShowRetouchModal(true); }} />
+              <span className="text-xs text-gray-700">담당자 리터치 요청</span>
+              <button type="button" onClick={(e) => { e.preventDefault(); setShowRetouchModal(true); }} className="p-0.5 py-2">
+                <Info className="w-3.5 h-3.5 text-gray-400" />
+              </button>
+            </label>
+          )}
           <div className="flex items-center gap-2">
             {partnerMallAddData ? (
               <button
@@ -789,6 +840,28 @@ export default function ProductEditorUnified({
           side={product.configuration[0]}
           productColors={productColors}
         />
+
+        {/* Retouch info modal */}
+        {showRetouchModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowRetouchModal(false)}>
+            <div className="bg-white rounded-lg p-5 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">담당자 리터치 요청</h3>
+              <p className="text-sm text-gray-600">체크하시면 담당자가 자주 사용되는 위치로 변경하여 작업을 진행해드립니다.</p>
+              <button onClick={() => setShowRetouchModal(false)} className="mt-4 w-full py-2 bg-black text-white text-sm rounded-lg">확인</button>
+            </div>
+          </div>
+        )}
+
+        {/* Background removal info modal */}
+        {showBgRemovalModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBgRemovalModal(false)}>
+            <div className="bg-white rounded-lg p-5 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">배경제거 요청</h3>
+              <p className="text-sm text-gray-600">체크하시면 담당자가 배경 제거 후 안내드립니다.</p>
+              <button onClick={() => setShowBgRemovalModal(false)} className="mt-4 w-full py-2 bg-black text-white text-sm rounded-lg">확인</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -857,6 +930,22 @@ export default function ProductEditorUnified({
                 <button onClick={handleDeleteObject} className="p-2 rounded-full border border-red-200 bg-white hover:bg-red-50 transition" title="삭제">
                   <Trash2 className="size-4 text-red-600" />
                 </button>
+                {/* Background removal checkbox - image objects only */}
+                {selectedObject.type === 'image' && (
+                  <>
+                    <div className="h-6 w-px bg-gray-300 mx-1" />
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition ${isBgRemovalRequested ? 'bg-red-500 border-red-500' : 'border-gray-300'}`}>
+                        {isBgRemovalRequested && <Check className="w-2.5 h-2.5 text-white" />}
+                      </div>
+                      <input type="checkbox" className="hidden" checked={isBgRemovalRequested} onChange={toggleBgRemoval} />
+                      <span className="text-xs text-gray-700">배경제거</span>
+                      <button type="button" onClick={(e) => { e.preventDefault(); setShowBgRemovalModal(true); }} className="p-0.5">
+                        <Info className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </label>
+                  </>
+                )}
               </div>
             )}
 
@@ -960,6 +1049,19 @@ export default function ProductEditorUnified({
 
                 {/* Action Button */}
                 <div className="p-4 border-t border-gray-200">
+                  {/* Retouch request checkbox */}
+                  {!partnerMallAddData && (
+                    <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${retouchRequested ? 'bg-orange-500 border-orange-500' : 'border-gray-300'}`}>
+                        {retouchRequested && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <input type="checkbox" className="hidden" checked={retouchRequested} onChange={() => { const newVal = !retouchRequested; setRetouchRequested(newVal); if (newVal) setShowRetouchModal(true); }} />
+                      <span className="text-xs text-gray-700">담당자 리터치 요청</span>
+                      <button type="button" onClick={(e) => { e.preventDefault(); setShowRetouchModal(true); }} className="p-0.5">
+                        <Info className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </label>
+                  )}
                   {partnerMallAddData ? (
                     <button
                       onClick={handleSaveToMall}
@@ -1029,6 +1131,28 @@ export default function ProductEditorUnified({
           setIsRecallGuestDesignOpen(false);
         }}
       />
+
+      {/* Retouch info modal */}
+      {showRetouchModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowRetouchModal(false)}>
+          <div className="bg-white rounded-lg p-5 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">담당자 리터치 요청</h3>
+            <p className="text-sm text-gray-600">체크하시면 담당자가 자주 사용되는 위치로 변경하여 작업을 진행해드립니다.</p>
+            <button onClick={() => setShowRetouchModal(false)} className="mt-4 w-full py-2 bg-black text-white text-sm rounded-lg">확인</button>
+          </div>
+        </div>
+      )}
+
+      {/* Background removal info modal */}
+      {showBgRemovalModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBgRemovalModal(false)}>
+          <div className="bg-white rounded-lg p-5 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">배경제거 요청</h3>
+            <p className="text-sm text-gray-600">체크하시면 담당자가 배경 제거 후 안내드립니다.</p>
+            <button onClick={() => setShowBgRemovalModal(false)} className="mt-4 w-full py-2 bg-black text-white text-sm rounded-lg">확인</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

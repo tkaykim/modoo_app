@@ -38,6 +38,7 @@ export interface AddToCartParams {
   previewImage?: string; // Optional: preview image for the design (base64 data URL)
   canvasMap?: Record<string, fabric.Canvas>; // Optional: canvas instances for SVG export
   customFonts?: FontMetadata[]; // Optional: custom fonts used in the design
+  retouchRequested?: boolean; // Optional: whether user requests admin retouch
 }
 
 /**
@@ -72,6 +73,7 @@ export async function addToCartDB(params: AddToCartParams): Promise<CartItemData
         pricePerItem: params.pricePerItem,
         canvasMap: params.canvasMap, // Pass canvas instances for SVG export
         customFonts: params.customFonts, // Pass custom fonts metadata
+        retouchRequested: params.retouchRequested,
       };
 
       const savedDesign = await saveDesign(designData);

@@ -7,6 +7,8 @@ import Header from '@/app/components/Header';
 import {
   getCartItemsWithDesigns,
   addToCartDB,
+  removeCartItem,
+  updateCartItemQuantity,
   type CartItemWithDesign
 } from '@/lib/cartService';
 import {
@@ -21,7 +23,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { generateOrderId } from '@/lib/orderIdUtils';
 import { CouponUsage } from '@/types/types';
-import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Upload } from 'lucide-react';
+import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Upload, Minus, Plus, Trash2 } from 'lucide-react';
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import LoginPromptModal from '@/app/components/LoginPromptModal';
@@ -97,6 +99,8 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [showCouponList, setShowCouponList] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showEmptyModal, setShowEmptyModal] = useState(false);
+  const cartStore = useCartStore();
 
   // Group items by design for display
   const groupedItems = items.reduce<Array<{
@@ -108,6 +112,7 @@ export default function CheckoutPage() {
     thumbnail_url?: string;
     price_per_item: number;
     variants: Array<{
+      itemId: string;
       product_color: string;
       product_color_name: string;
       size_id: string;
@@ -125,6 +130,7 @@ export default function CheckoutPage() {
     if (existingGroup) {
       // Add variant to existing group
       existingGroup.variants.push({
+        itemId: item.id!,
         product_color: item.product_color,
         product_color_name: item.product_color_name,
         size_id: item.size_id,
@@ -143,6 +149,7 @@ export default function CheckoutPage() {
         thumbnail_url: item.thumbnail_url,
         price_per_item: item.price_per_item,
         variants: [{
+          itemId: item.id!,
           product_color: item.product_color,
           product_color_name: item.product_color_name,
           size_id: item.size_id,
@@ -403,6 +410,52 @@ export default function CheckoutPage() {
     setCouponMessage(null);
   };
 
+  // Update quantity for a single variant
+  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      await handleRemoveItem(itemId);
+      return;
+    }
+    if (isAuthenticated) {
+      await updateCartItemQuantity(itemId, newQuantity);
+    } else {
+      cartStore.updateQuantity(itemId, newQuantity);
+    }
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    ));
+  };
+
+  // Remove a single variant item
+  const handleRemoveItem = async (itemId: string) => {
+    if (isAuthenticated) {
+      await removeCartItem(itemId);
+    } else {
+      cartStore.removeItem(itemId);
+    }
+    const newItems = items.filter(item => item.id !== itemId);
+    setItems(newItems);
+    if (newItems.length === 0) {
+      setShowEmptyModal(true);
+    }
+  };
+
+  // Remove all variants in a group
+  const handleRemoveGroup = async (variantItemIds: string[]) => {
+    for (const itemId of variantItemIds) {
+      if (isAuthenticated) {
+        await removeCartItem(itemId);
+      } else {
+        cartStore.removeItem(itemId);
+      }
+    }
+    const newItems = items.filter(item => !variantItemIds.includes(item.id!));
+    setItems(newItems);
+    if (newItems.length === 0) {
+      setShowEmptyModal(true);
+    }
+  };
+
   const handlePayPalPayment = () => {
     // Validate customer info
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
@@ -527,40 +580,73 @@ export default function CheckoutPage() {
         <h2 className="text-sm font-semibold text-black mb-3">주문 상품 ({groupedItems.length})</h2>
         <div className="space-y-3">
           {groupedItems.map((group) => (
-            <div key={group.id} className="flex gap-3 pb-3 border-b border-gray-100 last:border-0">
-              <div className="w-16 h-16 bg-gray-100 rounded-lg shrink-0 overflow-hidden">
-                {group.thumbnail_url ? (
-                  <img
-                    src={group.thumbnail_url}
-                    alt={group.product_title}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div
-                      className="w-12 h-12 rounded"
-                      style={{ backgroundColor: group.variants[0].product_color }}
+            <div key={group.id} className="pb-3 border-b border-gray-100 last:border-0">
+              <div className="flex gap-3">
+                <div className="w-16 h-16 bg-gray-100 rounded-lg shrink-0 overflow-hidden">
+                  {group.thumbnail_url ? (
+                    <img
+                      src={group.thumbnail_url}
+                      alt={group.product_title}
+                      className="w-full h-full object-contain"
                     />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-black truncate">
-                  {group.designName || group.product_title}
-                </h3>
-                {/* Show all variants */}
-                <div className="mt-1 space-y-0.5">
-                  {group.variants.map((variant, idx) => (
-                    <p key={idx} className="text-xs text-gray-500">
-                      {variant.product_color_name} / {variant.size_name} - {variant.quantity}개
-                    </p>
-                  ))}
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div
+                        className="w-12 h-12 rounded"
+                        style={{ backgroundColor: group.variants[0].product_color }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs text-gray-600">총 {group.totalQuantity}개</span>
-                  <span className="text-sm font-medium text-black">
-                    {(group.price_per_item * group.totalQuantity).toLocaleString('ko-KR')}원
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-medium text-black truncate">
+                      {group.designName || group.product_title}
+                    </h3>
+                    <button
+                      onClick={() => handleRemoveGroup(group.variants.map(v => v.itemId))}
+                      className="p-1 text-gray-400 hover:text-red-500 transition shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {/* Variants with quantity controls */}
+                  <div className="mt-1.5 space-y-1.5">
+                    {group.variants.map((variant) => (
+                      <div key={variant.itemId} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-500 truncate">
+                          {variant.product_color_name} / {variant.size_name}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleUpdateQuantity(variant.itemId, variant.quantity - 1)}
+                            className="w-5 h-5 flex items-center justify-center rounded border border-gray-300 text-gray-500 hover:border-black hover:text-black transition"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs font-medium text-black w-5 text-center">{variant.quantity}</span>
+                          <button
+                            onClick={() => handleUpdateQuantity(variant.itemId, variant.quantity + 1)}
+                            className="w-5 h-5 flex items-center justify-center rounded border border-gray-300 text-gray-500 hover:border-black hover:text-black transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleRemoveItem(variant.itemId)}
+                            className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-500 transition ml-0.5"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between items-center mt-1.5">
+                    <span className="text-xs text-gray-600">총 {group.totalQuantity}개</span>
+                    <span className="text-sm font-medium text-black">
+                      {(group.price_per_item * group.totalQuantity).toLocaleString('ko-KR')}원
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1206,6 +1292,27 @@ export default function CheckoutPage() {
       onClose={() => setShowLoginModal(false)}
       message="쿠폰을 사용하려면 로그인이 필요합니다."
     />
+
+    {/* Empty cart modal */}
+    {showEmptyModal && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+        onClick={() => router.push('/cart')}
+      >
+        <div
+          className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-sm font-medium text-black mb-4">결제할 상품이 없습니다</p>
+          <button
+            onClick={() => router.push('/cart')}
+            className="w-full py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
+          >
+            장바구니로 이동
+          </button>
+        </div>
+      </div>
+    )}
     </>
   );
 }

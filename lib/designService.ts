@@ -19,6 +19,7 @@ export interface SaveDesignData {
   pricePerItem: number;
   canvasMap?: Record<string, fabric.Canvas>; // Optional canvas instances for SVG export
   customFonts?: FontMetadata[]; // Custom fonts used in the design
+  retouchRequested?: boolean; // Whether the user requests admin retouch
 }
 
 export interface SavedDesign {
@@ -153,7 +154,8 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
       preview_url: data.previewImage || null, // Save preview image as base64 data URL
       image_urls: imageUrls, // Save extracted image URLs for easy access
       price_per_item: data.pricePerItem,
-      custom_fonts: data.customFonts || [] // Save custom fonts metadata
+      custom_fonts: data.customFonts || [], // Save custom fonts metadata
+      retouch_requested: data.retouchRequested || false,
     };
 
     // Add text SVG exports if available
@@ -278,6 +280,9 @@ export async function updateDesign(
     }
     if (data.customFonts !== undefined) {
       updateData.custom_fonts = data.customFonts;
+    }
+    if (data.retouchRequested !== undefined) {
+      updateData.retouch_requested = data.retouchRequested;
     }
 
     // Export text objects to SVG and PNG if canvas instances are provided
