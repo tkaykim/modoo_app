@@ -396,7 +396,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
     {/* Font Upload Agreement Modal */}
     {showFontUploadModal && (
       <div
-        className="fixed inset-0 z-200 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+        className="fixed inset-0 z-[300] flex items-center justify-center bg-black/30 backdrop-blur-sm"
         onClick={() => setShowFontUploadModal(false)}
       >
         <div
@@ -558,7 +558,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
 
     {/* Copyright Notice Modal */}
     {showCopyrightNotice && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
         <div className="bg-white rounded-2xl shadow-xl max-w-sm mx-4 overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
