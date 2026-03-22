@@ -1,9 +1,12 @@
+import type { FontMetadata } from '@/lib/fontUtils';
+
 export type GuestDesign = {
   version: 1;
   productId: string;
   savedAt: string;
   productColor: string;
   canvasState: Record<string, string>;
+  customFonts?: FontMetadata[];
 };
 
 const STORAGE_PREFIX = 'guest-design:';

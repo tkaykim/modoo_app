@@ -300,8 +300,8 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
         // Load the font into the browser
         await loadAllFonts();
 
-        // Apply the font to selected text
-        handleFontFamilyChange(result.fontMetadata.fontFamily);
+        // Apply the font to selected text (pass URL so it's stored on the fabric object)
+        handleFontFamilyChange(result.fontMetadata.fontFamily, result.fontMetadata.url);
 
         // Show copyright notice modal
         setUploadedFontName(result.fontMetadata.fontFamily);
