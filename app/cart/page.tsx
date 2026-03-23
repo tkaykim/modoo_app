@@ -83,6 +83,26 @@ export default function CartPage() {
 
       setItems(cartItems);
 
+      // Sync Zustand store so CartButton badge updates in realtime
+      if (isAuthenticated) {
+        cartStore.setItems(cartItems.map(item => ({
+          id: item.id || `cart-${Date.now()}-${Math.random()}`,
+          productId: item.product_id,
+          productTitle: item.product_title,
+          productColor: item.product_color,
+          productColorName: item.product_color_name,
+          productColorCode: item.product_color_code,
+          size: item.size_id || item.size_name,
+          quantity: item.quantity,
+          pricePerItem: item.price_per_item,
+          canvasState: item.canvasState || {},
+          thumbnailUrl: item.thumbnail_url,
+          addedAt: new Date(item.created_at || Date.now()).getTime(),
+          savedDesignId: item.saved_design_id || undefined,
+          designName: item.designName,
+        })));
+      }
+
       // Fetch product details for each unique product
       const uniqueProductIds = [...new Set(cartItems.map(item => item.product_id))];
       const productOptions: Record<string, SizeOption[]> = {};
