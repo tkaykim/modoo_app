@@ -555,6 +555,59 @@ export default function CheckoutPage() {
     console.log('Order data stored for Toss payment:', orderData);
   };
 
+  // Handle free order (0원 total after coupon discount)
+  const [freeOrderLoading, setFreeOrderLoading] = useState(false);
+  const handleFreeOrder = async () => {
+    try {
+      handleBeforePaymentRequest(); // validates and builds order data
+    } catch (e) {
+      alert((e as Error).message);
+      return;
+    }
+
+    setFreeOrderLoading(true);
+    try {
+      const pendingOrderJson = sessionStorage.getItem('pendingTossOrder');
+      if (!pendingOrderJson) throw new Error('주문 정보를 찾을 수 없습니다.');
+
+      const { orderData, cartItems } = JSON.parse(pendingOrderJson);
+
+      const response = await fetch('/api/toss/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderData.id,
+          amount: 0,
+          paymentKey: 'FREE_ORDER',
+          orderData,
+          cartItems,
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok || !json.success) {
+        throw new Error(json.error || '주문 처리에 실패했습니다.');
+      }
+
+      sessionStorage.removeItem('pendingTossOrder');
+
+      // Clear cart
+      if (isAuthenticated) {
+        const { clearCart: clearCartDB } = await import('@/lib/cartService');
+        clearCartDB().catch(() => {});
+      }
+      useCartStore.getState().clearCart();
+
+      router.replace(`/payment/complete?orderId=${json.orderId}`);
+    } catch (error) {
+      console.error('Free order error:', error);
+      alert(error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.');
+    } finally {
+      setFreeOrderLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -1247,8 +1300,18 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Toss Payment Widget - Only show when Toss is selected */}
-      {paymentMethod === 'toss' && (
+      {/* Payment action */}
+      {finalTotal <= 0 ? (
+        <div className='w-full px-4 py-4 bg-white lg:rounded-lg'>
+          <button
+            onClick={handleFreeOrder}
+            disabled={freeOrderLoading}
+            className="w-full py-3 px-6 bg-black text-white rounded-md font-medium text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {freeOrderLoading ? '주문 처리 중...' : '주문하기'}
+          </button>
+        </div>
+      ) : paymentMethod === 'toss' ? (
         <div className='w-full px-4 bg-white lg:rounded-lg'>
           <TossPaymentWidget
             key={tossWidgetKey}
@@ -1269,7 +1332,7 @@ export default function CheckoutPage() {
             onBeforePaymentRequest={handleBeforePaymentRequest}
           />
         </div>
-      )}
+      ) : null}
 
       </div>{/* End sticky wrapper */}
       </div>{/* End Right Column */}

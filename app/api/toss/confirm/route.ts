@@ -67,14 +67,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as PaymentRequestBody;
     const { orderId, amount, paymentKey, orderData, cartItems } = body;
 
-    // Validate required fields
-    if (!orderId || !amount || !paymentKey) {
-      return NextResponse.json(
-        { success: false, error: '필수 결제 정보가 누락되었습니다.' },
-        { status: 400 }
-      );
-    }
-
     if (!orderData || !cartItems) {
       return NextResponse.json(
         { success: false, error: '주문 정보가 누락되었습니다.' },
@@ -82,32 +74,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Confirm payment with Toss Payments API
-    const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${widgetSecretKey}:`).toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        orderId,
-        amount,
-        paymentKey,
-      }),
-    });
+    const isFreeOrder = paymentKey === 'FREE_ORDER' && amount === 0;
+    let tossData = null;
 
-    const tossData = await tossResponse.json();
+    if (isFreeOrder) {
+      // Free order (100% coupon discount) — skip Toss payment confirmation
+      if (!orderId) {
+        return NextResponse.json(
+          { success: false, error: '주문 ID가 누락되었습니다.' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Paid order — confirm payment with Toss Payments API
+      if (!orderId || !amount || !paymentKey) {
+        return NextResponse.json(
+          { success: false, error: '필수 결제 정보가 누락되었습니다.' },
+          { status: 400 }
+        );
+      }
 
-    if (!tossResponse.ok) {
-      console.error('Toss payment confirmation failed:', tossData);
-      return NextResponse.json(
-        {
-          success: false,
-          error: tossData.message || '결제 확인에 실패했습니다.',
-          code: tossData.code,
+      const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${widgetSecretKey}:`).toString('base64')}`,
+          'Content-Type': 'application/json',
         },
-        { status: tossResponse.status }
-      );
+        body: JSON.stringify({
+          orderId,
+          amount,
+          paymentKey,
+        }),
+      });
+
+      tossData = await tossResponse.json();
+
+      if (!tossResponse.ok) {
+        console.error('Toss payment confirmation failed:', tossData);
+        return NextResponse.json(
+          {
+            success: false,
+            error: tossData.message || '결제 확인에 실패했습니다.',
+            code: tossData.code,
+          },
+          { status: tossResponse.status }
+        );
+      }
     }
 
     // Create Supabase client
@@ -134,8 +146,8 @@ export async function POST(request: NextRequest) {
         address_line_2: orderData.address_line_2,
         delivery_fee: orderData.delivery_fee,
         total_amount: orderData.total_amount,
-        payment_method: 'toss',
-        payment_key: paymentKey,
+        payment_method: isFreeOrder ? 'free' : 'toss',
+        payment_key: isFreeOrder ? null : paymentKey,
         payment_status: 'completed',
         order_status: 'payment_completed',
         // Coupon data
