@@ -79,7 +79,7 @@ export async function registerCoupon(code: string): Promise<CouponValidationResu
     return {
       valid: true,
       coupon: coupon as Coupon,
-      couponUsage: usage as CouponUsage,
+      couponUsage: { ...usage, coupon: coupon } as CouponUsage,
     };
   } catch (error) {
     console.error('Error in registerCoupon:', error);
