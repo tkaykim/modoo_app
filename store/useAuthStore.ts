@@ -184,12 +184,22 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ isLoading: true });
           const supabase = createClient();
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+          // Carry the saved return URL through email confirmation
+          let returnTo = '/home';
+          try {
+            const saved = sessionStorage.getItem('login:returnTo');
+            if (saved && saved.startsWith('/') && !saved.startsWith('//')) {
+              returnTo = saved;
+            }
+          } catch {}
 
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+              emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(returnTo)}`,
               data: {
                 name: name || '',
                 phone_number: phone || '',
@@ -316,6 +326,10 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 );

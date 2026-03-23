@@ -13,8 +13,9 @@ export default function CartButton() {
   const items = useCartStore((state) => state.items);
   const setItems = useCartStore((state) => state.setItems);
   const clearCart = useCartStore((state) => state.clearCart);
-  const { isAuthenticated, user } = useAuthStore();
-  const prevAuthRef = useRef(isAuthenticated);
+  const { isAuthenticated, user, isLoading: isAuthLoading } = useAuthStore();
+  // null = haven't seen a confirmed auth state yet (isLoading was still true)
+  const prevAuthRef = useRef<boolean | null>(null);
 
   // Count items: for authenticated users count by savedDesignId, for guests count all items
   const itemCount = isAuthenticated
@@ -28,12 +29,17 @@ export default function CartButton() {
 
   // Sync cart with auth state
   useEffect(() => {
+    // Wait until auth store has finished initializing (isLoading starts true,
+    // becomes false after initialize() resolves). This prevents reacting to
+    // Zustand persist hydration flipping isAuthenticated from false→true.
+    if (isAuthLoading) return;
+
     async function syncCart() {
       const wasAuthenticated = prevAuthRef.current;
       prevAuthRef.current = isAuthenticated;
 
       // User just logged out - clear the cart (DB items no longer valid)
-      if (!isAuthenticated && wasAuthenticated) {
+      if (!isAuthenticated && wasAuthenticated === true) {
         clearCart();
         return;
       }
@@ -43,30 +49,34 @@ export default function CartButton() {
         return;
       }
 
-      // User just logged in - merge any guest cart items into DB, then fetch from DB
-      // Skip if checkout page is handling the restore (checkout:pendingItems exists)
-      const checkoutHandling = !!sessionStorage.getItem('checkout:pendingItems');
-      const guestItems = useCartStore.getState().items;
-      if (wasAuthenticated === false && guestItems.length > 0 && !checkoutHandling) {
-        try {
-          for (const guestItem of guestItems) {
-            await addToCartDB({
-              productId: guestItem.productId,
-              productTitle: guestItem.productTitle,
-              productColor: guestItem.productColor,
-              productColorName: guestItem.productColorName,
-              productColorCode: guestItem.productColorCode,
-              size: guestItem.size,
-              quantity: guestItem.quantity,
-              pricePerItem: guestItem.pricePerItem,
-              canvasState: guestItem.canvasState,
-              thumbnailUrl: guestItem.thumbnailUrl,
-              designName: guestItem.designName,
-              customFonts: guestItem.customFonts,
-            });
+      // First confirmed auth check (wasAuthenticated === null) - just fetch from DB.
+      // Only merge guest items on a genuine login transition (wasAuthenticated === false),
+      // which happens when the user was confirmed unauthenticated and then logged in.
+      const isGenuineLogin = wasAuthenticated === false;
+      if (isGenuineLogin) {
+        const checkoutHandling = !!sessionStorage.getItem('checkout:pendingItems');
+        const guestItems = useCartStore.getState().items;
+        if (guestItems.length > 0 && !checkoutHandling) {
+          try {
+            for (const guestItem of guestItems) {
+              await addToCartDB({
+                productId: guestItem.productId,
+                productTitle: guestItem.productTitle,
+                productColor: guestItem.productColor,
+                productColorName: guestItem.productColorName,
+                productColorCode: guestItem.productColorCode,
+                size: guestItem.size,
+                quantity: guestItem.quantity,
+                pricePerItem: guestItem.pricePerItem,
+                canvasState: guestItem.canvasState,
+                thumbnailUrl: guestItem.thumbnailUrl,
+                designName: guestItem.designName,
+                customFonts: guestItem.customFonts,
+              });
+            }
+          } catch (err) {
+            console.error('Error merging guest cart items:', err);
           }
-        } catch (err) {
-          console.error('Error merging guest cart items:', err);
         }
       }
 
@@ -110,7 +120,7 @@ export default function CartButton() {
     }
 
     syncCart();
-  }, [isAuthenticated, user, setItems, clearCart]);
+  }, [isAuthenticated, user, isAuthLoading, setItems, clearCart]);
 
   useEffect(() => {
     setMounted(true);

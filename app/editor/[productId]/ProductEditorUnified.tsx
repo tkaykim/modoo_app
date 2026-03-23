@@ -27,6 +27,8 @@ import { getGuestDesign, removeGuestDesign, saveGuestDesign, type GuestDesign } 
 import { setPrintPricingConfig } from "@/lib/printPricingConfig";
 import LandingStep from "./steps/LandingStep";
 import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
+import ReviewsSection from "@/app/components/ReviewsSection";
+import DescriptionImageSection from "@/app/components/DescriptionImageSection";
 
 type EditorStep = 'landing' | 'editor' | 'quantity';
 
@@ -64,6 +66,7 @@ export default function ProductEditorUnified({
     canvasVersion,
     incrementCanvasVersion,
     activeSideId,
+    resetCanvasState,
   } = useCanvasStore();
 
   const { addItem: addToCart, items: cartStoreItems } = useCartStore();
@@ -264,7 +267,12 @@ export default function ProductEditorUnified({
       setProductColor('#FFFFFF');
 
       if (purchaseType === 'direct') {
-        router.push('/checkout?guest=true');
+        // Filter to only the just-added items so checkout doesn't show old cart items
+        const currentItems = useCartStore.getState().items;
+        const newItemIds = currentItems
+          .filter(i => i.savedDesignId === guestDesignId)
+          .map(i => i.id);
+        router.push(`/checkout?directItems=${encodeURIComponent(JSON.stringify(newItemIds))}`);
       } else {
         router.push('/cart');
       }
@@ -587,6 +595,14 @@ export default function ProductEditorUnified({
     return () => setEditMode(false);
   }, [isSpecialMode, setEditMode]);
 
+  // Clean up canvas state on unmount (prevents ghost designs across products)
+  useEffect(() => {
+    return () => {
+      resetCanvasState();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Mobile: scroll lock when in editor step
   useEffect(() => {
     if (isMobile && currentStep === 'editor') {
@@ -818,6 +834,21 @@ export default function ProductEditorUnified({
           </div>
         </div>
 
+        {/* Product info below canvas - scrollable */}
+        <div className="pb-24">
+          <div className="px-4">
+            <ReviewsSection productId={product.id} limit={10} />
+          </div>
+          <div className="px-4">
+            <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
+          </div>
+          {product.sizing_chart_image && (
+            <div className="px-4">
+              <DescriptionImageSection title="사이즈 차트" imageUrls={[product.sizing_chart_image]} />
+            </div>
+          )}
+        </div>
+
         <QuantitySelectorModal
           isOpen={isQuantitySelectorOpen}
           onClose={() => { setIsQuantitySelectorOpen(false); setCurrentStep('editor'); }}
@@ -825,6 +856,7 @@ export default function ProductEditorUnified({
           sizeOptions={product.size_options || []}
           pricePerItem={pricePerItem}
           isSaving={isSaving}
+          sizingChartImage={product.sizing_chart_image}
         />
 
         <LoginPromptModal
@@ -1086,6 +1118,15 @@ export default function ProductEditorUnified({
         </div>
       </div>
 
+      {/* Product info below editor */}
+      <div className="max-w-360 mx-auto px-6 mt-6 pb-12">
+        <ReviewsSection productId={product.id} limit={10} />
+        <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
+        {product.sizing_chart_image && (
+          <DescriptionImageSection title="사이즈 차트" imageUrls={[product.sizing_chart_image]} />
+        )}
+      </div>
+
       <QuantitySelectorModal
         isOpen={isQuantitySelectorOpen}
         onClose={() => { setIsQuantitySelectorOpen(false); setCurrentStep('editor'); }}
@@ -1093,6 +1134,7 @@ export default function ProductEditorUnified({
         sizeOptions={product.size_options || []}
         pricePerItem={pricePerItem}
         isSaving={isSaving}
+        sizingChartImage={product.sizing_chart_image}
       />
 
       <LoginPromptModal

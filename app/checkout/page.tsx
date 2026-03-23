@@ -107,6 +107,7 @@ export default function CheckoutPage() {
     try {
       sessionStorage.removeItem('pendingTossOrder');
       sessionStorage.removeItem('checkout:pendingItems');
+      sessionStorage.removeItem('directCheckoutItemIds');
     } catch {}
     setShowLeaveModal(true);
   };
@@ -1408,7 +1409,24 @@ export default function CheckoutPage() {
               계속 결제
             </button>
             <button
-              onClick={() => router.replace('/home')}
+              onClick={async () => {
+                // Remove direct-checkout items from cart so they don't persist
+                const directItemsParam = searchParams.get('directItems');
+                if (directItemsParam) {
+                  try {
+                    const directIds: string[] = JSON.parse(decodeURIComponent(directItemsParam));
+                    for (const itemId of directIds) {
+                      if (isAuthenticated) {
+                        await removeCartItem(itemId);
+                      } else {
+                        cartStore.removeItem(itemId);
+                      }
+                    }
+                  } catch {}
+                }
+                try { sessionStorage.removeItem('directCheckoutItemIds'); } catch {}
+                router.replace('/home');
+              }}
               className="flex-1 py-2.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
             >
               나가기

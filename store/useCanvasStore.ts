@@ -709,8 +709,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       canvas.requestRenderAll();
     });
 
-    // Reset all state to initial values
+    // Reset all state to initial values (including canvasMap to prevent ghost designs)
     set({
+      canvasMap: {},
+      imageLoadedMap: {},
       activeSideId: 'front',
       isEditMode: false,
       productColor: '#FFFFFF',

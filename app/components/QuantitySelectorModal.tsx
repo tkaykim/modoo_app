@@ -13,6 +13,7 @@ interface QuantitySelectorModalProps {
   pricePerItem: number;
   isSaving?: boolean;
   defaultDesignName?: string;
+  sizingChartImage?: string | null;
 }
 
 export default function QuantitySelectorModal({
@@ -23,6 +24,7 @@ export default function QuantitySelectorModal({
   pricePerItem,
   isSaving = false,
   defaultDesignName = '',
+  sizingChartImage,
 }: QuantitySelectorModalProps) {
   const router = useRouter();
   const [designName, setDesignName] = useState(defaultDesignName);
@@ -30,6 +32,7 @@ export default function QuantitySelectorModal({
   const [showSuccess, setShowSuccess] = useState(false);
   const [showPurchaseChoice, setShowPurchaseChoice] = useState(false);
   const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
+  const [showSizeChart, setShowSizeChart] = useState(false);
 
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
@@ -211,7 +214,17 @@ export default function QuantitySelectorModal({
 
               {/* Size Options */}
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">사이즈 및 수량</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">사이즈 및 수량</h3>
+                  {sizingChartImage && (
+                    <button
+                      onClick={() => setShowSizeChart(true)}
+                      className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs text-gray-500 hover:bg-gray-100"
+                    >
+                      ?
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-3">
                   {sizeOptions.map((size) => {
                     const sizeLabel = typeof size === 'string' ? size : size.label;
@@ -330,6 +343,28 @@ export default function QuantitySelectorModal({
           </div>
         )}
       </div>
+
+      {/* Size Chart Overlay */}
+      {showSizeChart && sizingChartImage && (
+        <div
+          className="fixed inset-0 z-300 flex items-center justify-center bg-black/60"
+          onClick={() => setShowSizeChart(false)}
+        >
+          <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowSizeChart(false)}
+              className="absolute -top-8 right-0 text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={sizingChartImage}
+              alt="사이즈 차트"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Purchase Choice Modal Overlay */}
       {showPurchaseChoice && (
