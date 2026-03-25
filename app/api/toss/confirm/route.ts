@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
           design_id: item.saved_design_id || null,
           design_title: savedDesign?.title || null,
           canvas_state: savedDesign?.canvas_state || item.canvasState || {},
-          color_selections: savedDesign?.color_selections || item.colorSelections || {},
+          color_selections: savedDesign?.color_selections || item.colorSelections || { productColor: item.product_color },
           thumbnail_url: savedDesign?.preview_url || item.thumbnail_url || null,
           image_urls: savedDesign?.image_urls || {},
           text_svg_exports: savedDesign?.text_svg_exports || item.textSvgExports,
