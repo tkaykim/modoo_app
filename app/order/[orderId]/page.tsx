@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
-import { ChevronLeft, Package, Phone, X, XCircle } from 'lucide-react';
+import { ChevronLeft, Package, Phone, X, XCircle, MessageSquare } from 'lucide-react';
 import { OrderItem } from '@/types/types';
+import DesignChatSection from '@/app/components/DesignChatSection';
 
 interface OrderDetail {
   id: string;
@@ -61,6 +62,7 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [chatItem, setChatItem] = useState<OrderItem | null>(null);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -361,6 +363,15 @@ export default function OrderDetailPage() {
                   ))}
                 </div>
               )}
+
+              {/* Design Chat Button */}
+              <button
+                onClick={() => setChatItem(item)}
+                className="mt-3 flex items-center gap-1.5 text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                디자인 소통
+              </button>
             </div>
           );
         })}
@@ -375,6 +386,17 @@ export default function OrderDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Design Chat */}
+      {chatItem && (
+        <DesignChatSection
+          orderId={orderId}
+          orderItemId={chatItem.id}
+          productTitle={chatItem.product_title}
+          designTitle={chatItem.design_title || undefined}
+          onClose={() => setChatItem(null)}
+        />
+      )}
 
       {/* Inquiry Modal */}
       {showInquiryModal && (
