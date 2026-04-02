@@ -62,7 +62,8 @@ export default function CartButton() {
         (wasAuthenticated === null && hasUnmergedGuestItems);
 
       if (shouldMerge) {
-        const checkoutHandling = !!localStorage.getItem('checkout:pendingItems');
+        const checkoutHandling = !!localStorage.getItem('checkout:loginReturn')
+                              || !!localStorage.getItem('checkout:pendingItems');
         if (guestItems.length > 0 && !checkoutHandling) {
           try {
             const mergedProductIds = new Set<string>();

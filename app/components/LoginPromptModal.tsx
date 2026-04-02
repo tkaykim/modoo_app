@@ -15,13 +15,15 @@ interface LoginPromptModalProps {
   onClose: () => void;
   title?: string;
   message?: string;
+  returnTo?: string;
 }
 
 export default function LoginPromptModal({
   isOpen,
   onClose,
   title = "로그인이 필요합니다",
-  message = "이 기능을 사용하려면 로그인이 필요합니다."
+  message = "이 기능을 사용하려면 로그인이 필요합니다.",
+  returnTo,
 }: LoginPromptModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -34,9 +36,8 @@ export default function LoginPromptModal({
     onClose();
 
     try {
-      const search = searchParams?.toString();
-      const currentRoute = `${pathname}${search ? `?${search}` : ''}`;
-      sessionStorage.setItem(LOGIN_RETURN_TO_KEY, currentRoute);
+      const returnUrl = returnTo || `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ''}`;
+      sessionStorage.setItem(LOGIN_RETURN_TO_KEY, returnUrl);
     } catch {
       // ignore
     }
