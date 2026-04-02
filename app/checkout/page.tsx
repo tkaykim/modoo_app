@@ -236,6 +236,7 @@ export default function CheckoutPage() {
                 designName: item.designName,
                 previewImage: (item as any).previewImage || item.thumbnail_url,
                 customFonts: (item as any).customFonts,
+                retouchRequested: (item as any).retouchRequested,
               });
               if (result?.id) createdIds.push(result.id);
             }
@@ -285,6 +286,7 @@ export default function CheckoutPage() {
                     thumbnailUrl: item.thumbnailUrl,
                     designName: item.designName,
                     customFonts: item.customFonts,
+                    retouchRequested: item.retouchRequested,
                   });
                   if (result?.id) createdIds.push(result.id);
                 }
@@ -317,6 +319,7 @@ export default function CheckoutPage() {
             canvasState: item.canvasState,
             previewImage: item.previewImage,
             customFonts: item.customFonts,
+            retouchRequested: item.retouchRequested,
           } as CartItemWithDesign));
         }
 

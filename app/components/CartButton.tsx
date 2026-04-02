@@ -80,6 +80,7 @@ export default function CartButton() {
                 thumbnailUrl: guestItem.thumbnailUrl,
                 designName: guestItem.designName,
                 customFonts: guestItem.customFonts,
+                retouchRequested: guestItem.retouchRequested,
               });
               mergedProductIds.add(guestItem.productId);
             }
