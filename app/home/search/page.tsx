@@ -243,6 +243,33 @@ export default function SearchPage() {
             </div>
           </div>
 
+          {/* Category Chips */}
+          <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategory("all")}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                selectedCategory === "all"
+                  ? "bg-[#3B55A5] text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              전체
+            </button>
+            {dbCategories.map((category) => (
+              <button
+                key={category.key}
+                onClick={() => setSelectedCategory(category.key)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                  selectedCategory === category.key
+                    ? "bg-[#3B55A5] text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+
           {/* Filter Section */}
           {showFilters && (
             <div className="mt-4 pb-2 border-t pt-4 space-y-3">
@@ -259,34 +286,6 @@ export default function SearchPage() {
                   필터 초기화
                 </button>
               )}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">카테고리</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setSelectedCategory("all")}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      selectedCategory === "all"
-                        ? "bg-[#3B55A5] text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    전체
-                  </button>
-                  {dbCategories.map((category) => (
-                    <button
-                      key={category.key}
-                      onClick={() => setSelectedCategory(category.key)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        selectedCategory === category.key
-                          ? "bg-[#3B55A5] text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
               {manufacturers.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">제조사</h3>
