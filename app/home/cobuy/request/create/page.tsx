@@ -174,7 +174,7 @@ export default function CreateCoBuyRequestPage() {
 
   const canProceed = useMemo(() => {
     if (currentStep === 'basic-info') {
-      return !!(expectedQuantity !== '' && Number(expectedQuantity) >= 10);
+      return !!(expectedQuantity !== '' && Number(expectedQuantity) >= 5);
     }
     return true;
   }, [currentStep, expectedQuantity]);
@@ -1465,7 +1465,7 @@ export default function CreateCoBuyRequestPage() {
                         inputMode="numeric"
                         value={expectedQuantity}
                         onChange={e => setExpectedQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                        min={10}
+                        min={5}
                         className="w-20 px-2 py-1 text-xl font-bold text-center border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#3B55A5] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <span className="text-sm text-gray-600 font-medium">벌</span>
@@ -1473,7 +1473,7 @@ export default function CreateCoBuyRequestPage() {
                     <div className="flex items-center justify-center mb-6">
                       <input
                         type="range"
-                        min={10}
+                        min={5}
                         max={200}
                         step={1}
                         value={expectedQuantity === '' ? 100 : Number(expectedQuantity)}
@@ -1484,9 +1484,9 @@ export default function CreateCoBuyRequestPage() {
                     {(() => {
                       const qty = expectedQuantity === '' ? 0 : Number(expectedQuantity);
                       const pricing = getPricingInfo(qty);
-                      if (qty < 10) return null;
+                      if (qty < 5) return null;
                       if (!pricing) return (
-                        <p className="text-xs text-red-500 text-center">최소 10벌부터 제작 가능합니다.</p>
+                        <p className="text-xs text-red-500 text-center">최소 5벌부터 제작 가능합니다.</p>
                       );
                       return (
                         <motion.div
