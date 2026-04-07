@@ -350,6 +350,37 @@ export interface OrderItem {
 }
 
 // ============================================================================
+// Custom Order (맞춤 주문 링크) Types
+// ============================================================================
+
+export interface CustomOrderData {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  shipping_method: 'domestic' | 'international' | 'pickup';
+  country_code: string | null;
+  state: string | null;
+  city: string | null;
+  postal_code: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  delivery_fee: number;
+  total_amount: number;
+  original_amount: number | null;
+  admin_discount: number;
+  admin_surcharge: number;
+  coupon_discount: number;
+  pricing_note: string | null;
+  payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
+  payment_method: string;
+  order_status: string;
+  order_items: OrderItem[];
+  product_title: string;
+  design_preview_url: string | null;
+}
+
+// ============================================================================
 // CoBuy (공동구매) Types
 // ============================================================================
 
