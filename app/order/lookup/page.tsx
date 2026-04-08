@@ -39,6 +39,7 @@ interface OrderData {
 }
 
 const orderStatusMap: Record<string, { label: string; color: string }> = {
+  payment_pending: { label: '결제대기', color: 'bg-amber-100 text-amber-700' },
   payment_completed: { label: '결제완료', color: 'bg-blue-100 text-blue-700' },
   in_production: { label: '제작중', color: 'bg-yellow-100 text-yellow-700' },
   shipping: { label: '배송중', color: 'bg-indigo-100 text-indigo-700' },
@@ -47,6 +48,7 @@ const orderStatusMap: Record<string, { label: string; color: string }> = {
 };
 
 const progressSteps = [
+  { key: 'payment_pending', label: '결제대기' },
   { key: 'payment_completed', label: '결제완료' },
   { key: 'in_production', label: '제작중' },
   { key: 'shipping', label: '배송중' },

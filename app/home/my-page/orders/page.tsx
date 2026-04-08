@@ -25,7 +25,7 @@ type Order = {
 };
 
 const statusMap: Record<string, { label: string; className: string }> = {
-  pending_payment: { label: '입금대기', className: 'bg-amber-100 text-amber-800' },
+  payment_pending: { label: '결제대기', className: 'bg-amber-100 text-amber-800' },
   payment_completed: { label: '결제완료', className: 'bg-blue-100 text-blue-800' },
   in_production: { label: '제작중', className: 'bg-yellow-100 text-yellow-800' },
   shipping: { label: '배송중', className: 'bg-indigo-100 text-indigo-800' },
@@ -128,8 +128,7 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
-              const isPendingPayment = order.payment_status === 'pending';
-              const statusKey = isPendingPayment ? 'pending_payment' : (order.order_status || 'payment_completed').toLowerCase();
+              const statusKey = (order.order_status || 'payment_completed').toLowerCase();
               const status = statusMap[statusKey] || statusMap.payment_completed;
               const itemCount = order.order_items?.length || 0;
               const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;

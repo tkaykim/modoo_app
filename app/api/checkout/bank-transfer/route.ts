@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         payment_method: 'bank_transfer',
         payment_key: null,
         payment_status: 'pending',
-        order_status: 'payment_completed',
+        order_status: 'payment_pending',
         coupon_usage_id: orderData.coupon_usage_id || null,
         coupon_discount: orderData.coupon_discount || 0,
         customer_note: customerNoteWithBankInfo,
