@@ -774,23 +774,30 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="w-full bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700">참여모집 링크</p>
+                <p className="text-xs text-gray-500 mt-0.5">이 링크를 통해 참여자 모집을 진행할 수 있습니다.</p>
+              </div>
               <button
                 onClick={copyShareLink}
-                className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                className="shrink-0 px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
               >
                 {copied ? (
                   <>
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="text-green-600">복사됨</span>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>복사됨</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    <span>링크 복사</span>
+                    <span>참여모집 링크 복사</span>
                   </>
                 )}
               </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               {session.status !== 'delivery_complete' && (
                 <>
                   <button
