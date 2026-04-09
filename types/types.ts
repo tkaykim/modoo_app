@@ -477,6 +477,8 @@ export interface CoBuySession {
   delivery_settings: CoBuyDeliverySettings | null; // Delivery configuration
   is_public: boolean; // Whether the session is publicly discoverable
   cobuy_image_urls: string[] | null; // When set, indicates image-only CoBuy (no canvas design)
+  payment_mode: 'individual' | 'survey'; // individual: each participant pays, survey: organizer pays in bulk
+  size_prices: Record<string, number> | null; // Per-size pricing override (e.g. {"S": 50000, "XL": 52000})
   bulk_order_id: string | null;
   created_at: string;
   updated_at: string;
@@ -497,7 +499,7 @@ export interface CoBuyParticipant {
   delivery_info: CoBuyDeliveryInfo | null; // Address info if delivery method is 'delivery'
   delivery_fee: number; // Fee paid for delivery (0 for pickup)
   pickup_status: CoBuyPickupStatus; // 수령 상태 for pickup participants (배부 기능)
-  payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
+  payment_status: 'pending' | 'completed' | 'failed' | 'refunded' | 'not_required';
   payment_key: string | null;
   payment_amount: number | null;
   paid_at: string | null;

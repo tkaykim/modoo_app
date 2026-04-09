@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
+import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -47,20 +49,8 @@ interface CreateCoBuyOrderRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    // Authenticate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
-    }
-
-    const body = await request.json() as CreateCoBuyOrderRequest;
-    const { sessionId, orderData, variants } = body;
+    const body = await request.json() as CreateCoBuyOrderRequest & { organizerToken?: string };
+    const { sessionId, orderData, variants, organizerToken } = body;
 
     if (!sessionId || !orderData || !variants) {
       return NextResponse.json(
@@ -69,8 +59,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const tokenOk =
+      typeof organizerToken === 'string' &&
+      verifyOrganizerTokenForSession(organizerToken, sessionId);
+
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    const db = tokenOk ? createAdminClient() : supabaseAuth;
+
+    if (!tokenOk && (authError || !user)) {
+      return NextResponse.json(
+        { success: false, error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     // Fetch CoBuy session with design data
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await db
       .from('cobuy_sessions')
       .select(`
         id,
@@ -101,13 +107,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the session belongs to the authenticated user
-    if (session.user_id !== user.id) {
+    // Verify the session belongs to the authenticated user (또는 주최자 비밀 링크 토큰)
+    if (!tokenOk && session.user_id !== user?.id) {
       return NextResponse.json(
         { success: false, error: '권한이 없습니다.' },
         { status: 403 }
       );
     }
+
+    const orderUserId = session.user_id;
 
     // Check if session has already had an order created
     const orderCreatedStates = ['order_complete', 'manufacturing', 'manufacture_complete', 'delivering', 'delivery_complete'];
@@ -139,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch product information
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await db
       .from('products')
       .select('id, title')
       .eq('id', designSnapshot.product_id)
@@ -153,7 +161,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total product amount from participants' orders
-    const { data: participantPayments, error: paymentsError } = await supabase
+    const { data: participantPayments, error: paymentsError } = await db
       .from('cobuy_participants')
       .select('payment_amount')
       .eq('cobuy_session_id', sessionId)
@@ -172,11 +180,11 @@ export async function POST(request: NextRequest) {
     const fullOrderAmount = totalProductAmount + orderData.delivery_fee;
 
     // Create the bulk order
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await db
       .from('orders')
       .insert({
         id: orderData.id,
-        user_id: user.id, // Order belongs to the CoBuy creator
+        user_id: orderUserId, // Order belongs to the CoBuy creator
         customer_name: orderData.name,
         customer_email: orderData.email,
         customer_phone: orderData.phone_num,
@@ -214,7 +222,7 @@ export async function POST(request: NextRequest) {
     const totalQuantity = variants.reduce((sum, v) => sum + v.quantity, 0);
 
     // Create order item with aggregated variants
-    const { data: orderItem, error: orderItemError } = await supabase
+    const { data: orderItem, error: orderItemError } = await db
       .from('order_items')
       .insert({
         order_id: order.id,
@@ -245,7 +253,7 @@ export async function POST(request: NextRequest) {
 
     if (orderItemError) {
       // Attempt to delete the orphaned order
-      await supabase.from('orders').delete().eq('id', order.id);
+      await db.from('orders').delete().eq('id', order.id);
       return NextResponse.json(
         {
           success: false,
@@ -288,7 +296,7 @@ export async function POST(request: NextRequest) {
             updates.image_urls = imageUrls;
           }
 
-          await supabase
+          await db
             .from('order_items')
             .update(updates)
             .eq('id', orderItem.id);
@@ -300,7 +308,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update session with bulk_order_id and set status to order_complete
-    const { error: sessionUpdateError } = await supabase
+    const { error: sessionUpdateError } = await db
       .from('cobuy_sessions')
       .update({
         bulk_order_id: order.id,

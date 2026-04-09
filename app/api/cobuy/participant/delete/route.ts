@@ -1,15 +1,18 @@
 import { createAdminClient } from '@/lib/supabase-admin';
+import { createClient } from '@/lib/supabase';
+import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface DeleteParticipantBody {
   participantId: string;
   sessionId: string;
+  organizerToken?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as DeleteParticipantBody;
-    const { participantId, sessionId } = body;
+    const { participantId, sessionId, organizerToken } = body;
 
     if (!participantId || !sessionId) {
       return NextResponse.json(
@@ -18,7 +21,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
     const supabase = createAdminClient();
+
+    const { data: sessRow, error: sessErr } = await supabase
+      .from('cobuy_sessions')
+      .select('id, user_id')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessErr || !sessRow) {
+      return NextResponse.json(
+        { success: false, error: '세션을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    const tokenOk = verifyOrganizerTokenForSession(organizerToken, sessionId);
+    const ownerOk = !authError && user && sessRow.user_id === user.id;
+
+    if (!tokenOk && !ownerOk) {
+      if (authError || !user) {
+        return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+      }
+      return NextResponse.json(
+        { success: false, error: '세션 소유자만 삭제할 수 있습니다.' },
+        { status: 403 }
+      );
+    }
 
     const { data: participant, error: participantError } = await supabase
       .from('cobuy_participants')

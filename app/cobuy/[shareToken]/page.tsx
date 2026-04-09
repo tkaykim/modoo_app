@@ -27,7 +27,8 @@ type Step =
   | 'delivery-address'
   | 'custom-fields'
   | 'review'
-  | 'payment';
+  | 'payment'
+  | 'complete';
 
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return '-';
@@ -187,7 +188,23 @@ export default function CoBuySharePage() {
 
   const currentPrice = design?.price_per_item ?? 0;
   const deliveryFee = deliveryMethod === 'delivery' ? (deliverySettings?.deliveryFee || 0) : 0;
-  const totalAmount = Math.round(currentPrice * getTotalQuantity()) + deliveryFee;
+  const isSurveyMode = session?.payment_mode === 'survey';
+
+  const getItemPrice = (size: string) => {
+    if (session?.size_prices && session.size_prices[size] != null) {
+      return session.size_prices[size];
+    }
+    return currentPrice;
+  };
+
+  const calcItemsTotal = () => {
+    if (session?.size_prices && sizeOptions.length > 0) {
+      return selectedItems.reduce((sum, item) => sum + getItemPrice(item.size) * item.quantity, 0);
+    }
+    return currentPrice * getTotalQuantity();
+  };
+
+  const totalAmount = Math.round(calcItemsTotal()) + deliveryFee;
 
   // Closed reason check
   const closedReason = useMemo(() => {
@@ -226,7 +243,8 @@ export default function CoBuySharePage() {
       steps.push('custom-fields');
     }
 
-    steps.push('review', 'payment');
+    steps.push('review');
+    steps.push(isSurveyMode ? 'complete' : 'payment');
     return steps;
   };
 
@@ -381,6 +399,8 @@ export default function CoBuySharePage() {
       deliveryMethod,
       deliveryInfo,
       deliveryFee,
+      paymentMode: session.payment_mode,
+      estimatedAmount: isSurveyMode ? totalAmount : undefined,
     });
 
     if (!participant) {
@@ -388,8 +408,6 @@ export default function CoBuySharePage() {
       setIsSubmitting(false);
       return;
     }
-
-    const generatedOrderId = generateCoBuyOrderId();
 
     // Notify participant joined
     fetch('/api/cobuy/notify/participant-joined', {
@@ -400,6 +418,21 @@ export default function CoBuySharePage() {
         participantId: participant.id,
       }),
     }).catch((error) => console.error('Failed to notify participant joined:', error));
+
+    if (isSurveyMode) {
+      setParticipantId(participant.id);
+      setIsSubmitting(false);
+
+      setSlideDirection('right');
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentStep('complete');
+        setIsAnimating(false);
+      }, 150);
+      return;
+    }
+
+    const generatedOrderId = generateCoBuyOrderId();
 
     // Store payment context
     try {
@@ -497,14 +530,14 @@ export default function CoBuySharePage() {
           <div className="flex items-center gap-3 md:gap-4">
             <div>
               <h1 className="text-base md:text-lg font-bold text-gray-900 line-clamp-1">{session.title}</h1>
-              {currentStep !== 'welcome' && currentStep !== 'payment' && (
+              {currentStep !== 'welcome' && currentStep !== 'payment' && currentStep !== 'complete' && (
                 <p className="text-xs md:text-sm text-gray-500">
                   {currentStep === 'size-quantity' && '사이즈 및 수량'}
                   {currentStep === 'personal-info' && '참여자 정보'}
                   {currentStep === 'delivery-method' && '수령 방법'}
                   {currentStep === 'delivery-address' && '배송 정보'}
                   {currentStep === 'custom-fields' && '추가 정보'}
-                  {currentStep === 'review' && '주문 확인'}
+                  {currentStep === 'review' && (isSurveyMode ? '참여 확인' : '주문 확인')}
                 </p>
               )}
             </div>
@@ -1107,9 +1140,11 @@ export default function CoBuySharePage() {
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
                   <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6 text-amber-600" />
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">주문 내용을 확인해주세요</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                  {isSurveyMode ? '참여 내용을 확인해주세요' : '주문 내용을 확인해주세요'}
+                </h2>
                 <p className="text-sm md:text-base text-gray-600">
-                  결제 전 마지막 확인 단계입니다
+                  {isSurveyMode ? '참여 전 마지막 확인 단계입니다' : '결제 전 마지막 확인 단계입니다'}
                 </p>
               </div>
 
@@ -1121,7 +1156,7 @@ export default function CoBuySharePage() {
                     selectedItems.map((item, idx) => (
                       <div key={idx} className="flex justify-between text-sm md:text-base mb-1">
                         <span className="text-gray-700">{item.size} × {item.quantity}벌</span>
-                        <span className="font-medium">{formatPrice(currentPrice * item.quantity)}</span>
+                        <span className="font-medium">{formatPrice(getItemPrice(item.size) * item.quantity)}</span>
                       </div>
                     ))
                   ) : (
@@ -1187,7 +1222,7 @@ export default function CoBuySharePage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">상품 금액</span>
-                    <span>{formatPrice(currentPrice * getTotalQuantity())}</span>
+                    <span>{formatPrice(calcItemsTotal())}</span>
                   </div>
                   {deliveryFee > 0 && (
                     <div className="flex justify-between text-sm">
@@ -1196,9 +1231,14 @@ export default function CoBuySharePage() {
                     </div>
                   )}
                   <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-                    <span>총 결제 금액</span>
+                    <span>{isSurveyMode ? '예상 결제 금액' : '총 결제 금액'}</span>
                     <span className="text-[#3B55A5]">{formatPrice(totalAmount)}</span>
                   </div>
+                  {isSurveyMode && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      실제 결제는 대표자가 일괄 진행합니다
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1207,6 +1247,46 @@ export default function CoBuySharePage() {
                   <p className="text-red-600 text-sm">{submitError}</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Complete Step (survey mode) */}
+          {currentStep === 'complete' && participantId && (
+            <div className="max-w-lg mx-auto py-6 px-4 md:py-8 md:px-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8 md:w-10 md:h-10 text-emerald-600" />
+                </div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">참여가 완료되었습니다!</h2>
+                <p className="text-sm md:text-base text-gray-600">
+                  공동구매 참여 정보가 저장되었습니다
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <p className="text-blue-800 text-sm font-medium mb-1">예상 결제 금액</p>
+                <p className="text-2xl font-bold text-blue-900">{formatPrice(totalAmount)}</p>
+                <p className="text-blue-600 text-xs mt-1">
+                  실제 결제는 대표자가 모집 완료 후 일괄 진행합니다
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">이름</span>
+                  <span className="text-gray-900">{name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">이메일</span>
+                  <span className="text-gray-900">{email}</span>
+                </div>
+                {sizeOptions.length > 0 && selectedItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="text-gray-500">{item.size}</span>
+                    <span className="text-gray-900">{item.quantity}벌</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -1271,7 +1351,7 @@ export default function CoBuySharePage() {
       </main>
 
       {/* Footer Navigation */}
-      {currentStep !== 'welcome' && currentStep !== 'payment' && (
+      {currentStep !== 'welcome' && currentStep !== 'payment' && currentStep !== 'complete' && (
         <footer className="shrink-0 border-t border-gray-200 bg-white p-3 md:p-4 safe-area-inset-bottom">
           <div className="max-w-lg mx-auto flex gap-2 md:gap-3">
             <button
@@ -1303,8 +1383,12 @@ export default function CoBuySharePage() {
                   </>
                 ) : (
                   <>
-                    <CreditCard className="w-4 h-4 md:w-5 md:h-5" />
-                    <span>결제하기</span>
+                    {isSurveyMode ? (
+                      <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
+                    ) : (
+                      <CreditCard className="w-4 h-4 md:w-5 md:h-5" />
+                    )}
+                    <span>{isSurveyMode ? '참여하기' : '결제하기'}</span>
                   </>
                 )}
               </button>

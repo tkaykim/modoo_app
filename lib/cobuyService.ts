@@ -11,14 +11,16 @@ export interface CreateCoBuySessionData {
   description?: string;
   startDate: Date;
   endDate: Date;
-  receiveByDate?: Date | null; // Date when items need to be received by (can be after endDate)
-  minQuantity?: number | null; // Minimum total quantity to proceed
-  maxQuantity?: number | null; // Maximum total quantity (optional cap)
-  maxParticipants?: number | null; // Legacy - max number of participants
-  pricingTiers?: CoBuyPricingTier[]; // Quantity-based pricing
+  receiveByDate?: Date | null;
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  maxParticipants?: number | null;
+  pricingTiers?: CoBuyPricingTier[];
   customFields: CoBuyCustomField[];
-  deliverySettings?: CoBuyDeliverySettings | null; // Delivery configuration
-  isPublic?: boolean; // Whether the session is publicly discoverable
+  deliverySettings?: CoBuyDeliverySettings | null;
+  isPublic?: boolean;
+  paymentMode?: 'individual' | 'survey';
+  sizePrices?: Record<string, number> | null;
 }
 
 export interface UpdateCoBuySessionData {
@@ -37,11 +39,13 @@ export interface AddParticipantData {
   email: string;
   phone?: string;
   fieldResponses: Record<string, string>;
-  selectedSize: string; // Legacy - kept for backward compatibility
-  selectedItems: CoBuySelectedItem[]; // New - supports multiple sizes with quantities
-  deliveryMethod?: CoBuyDeliveryMethod | null; // 'pickup' or 'delivery'
-  deliveryInfo?: CoBuyDeliveryInfo | null; // Address info if delivery method is 'delivery'
-  deliveryFee?: number; // Fee for delivery (0 for pickup)
+  selectedSize: string;
+  selectedItems: CoBuySelectedItem[];
+  deliveryMethod?: CoBuyDeliveryMethod | null;
+  deliveryInfo?: CoBuyDeliveryInfo | null;
+  deliveryFee?: number;
+  paymentMode?: 'individual' | 'survey';
+  estimatedAmount?: number | null;
 }
 
 // ============================================================================
@@ -116,6 +120,8 @@ export async function createCoBuySession(
       custom_fields: data.customFields,
       delivery_settings: data.deliverySettings ?? null,
       is_public: data.isPublic ?? false,
+      payment_mode: data.paymentMode ?? 'individual',
+      size_prices: data.sizePrices ?? null,
       status: 'gathering' as const,
       current_participant_count: 0,
       current_total_quantity: 0,
@@ -441,23 +447,29 @@ export async function addParticipant(
     // Calculate total quantity from selected items
     const totalQuantity = data.selectedItems.reduce((sum, item) => sum + item.quantity, 0);
 
+    const isSurvey = data.paymentMode === 'survey';
+
     // Create participant record
-    const participantData = {
+    const participantData: Record<string, unknown> = {
       cobuy_session_id: data.sessionId,
       name: data.name,
       email: data.email,
       phone: data.phone || null,
       field_responses: data.fieldResponses,
-      selected_size: data.selectedSize, // Display label (e.g., "S", "M", "L")
-      selected_size_code: null, // Size code is looked up from product when processing orders
+      selected_size: data.selectedSize,
+      selected_size_code: null,
       selected_items: data.selectedItems,
       total_quantity: totalQuantity,
       delivery_method: data.deliveryMethod || null,
       delivery_info: data.deliveryInfo || null,
       delivery_fee: data.deliveryFee || 0,
-      pickup_status: 'pending' as const, // Default to 미수령
-      payment_status: 'pending' as const,
+      pickup_status: 'pending',
+      payment_status: isSurvey ? 'not_required' : 'pending',
     };
+
+    if (isSurvey && data.estimatedAmount != null) {
+      participantData.payment_amount = data.estimatedAmount;
+    }
 
     const { data: participant, error: insertError } = await supabase
       .from('cobuy_participants')
@@ -474,24 +486,29 @@ export async function addParticipant(
       return null;
     }
 
+    // Survey mode: immediately increment session counts
+    if (isSurvey) {
+      await incrementSessionCounts(data.sessionId, totalQuantity);
+    }
+
     return {
       id: participant.id,
-      cobuy_session_id: participantData.cobuy_session_id,
-      name: participantData.name,
-      email: participantData.email,
-      phone: participantData.phone,
-      field_responses: participantData.field_responses,
-      selected_size: participantData.selected_size,
-      selected_size_code: participantData.selected_size_code,
-      selected_items: participantData.selected_items,
-      total_quantity: participantData.total_quantity,
-      delivery_method: participantData.delivery_method,
-      delivery_info: participantData.delivery_info,
-      delivery_fee: participantData.delivery_fee,
-      pickup_status: participantData.pickup_status,
-      payment_status: participantData.payment_status,
+      cobuy_session_id: data.sessionId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone || null,
+      field_responses: data.fieldResponses,
+      selected_size: data.selectedSize,
+      selected_size_code: null,
+      selected_items: data.selectedItems,
+      total_quantity: totalQuantity,
+      delivery_method: data.deliveryMethod || null,
+      delivery_info: data.deliveryInfo || null,
+      delivery_fee: data.deliveryFee || 0,
+      pickup_status: 'pending' as const,
+      payment_status: isSurvey ? 'not_required' as const : 'pending' as const,
       payment_key: null,
-      payment_amount: null,
+      payment_amount: isSurvey ? (data.estimatedAmount ?? null) : null,
       paid_at: null,
       joined_at: new Date().toISOString(),
     };

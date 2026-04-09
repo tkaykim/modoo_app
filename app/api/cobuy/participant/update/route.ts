@@ -1,22 +1,19 @@
 import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { participantId, sessionId, ...updates } = body;
+    const { participantId, sessionId, organizerToken, ...updates } = body;
 
     if (!participantId || !sessionId) {
       return NextResponse.json({ error: '참여자 ID와 세션 ID가 필요합니다.' }, { status: 400 });
     }
+
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     const adminClient = createAdminClient();
 
@@ -30,7 +27,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: '세션을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    if (session.user_id !== user.id) {
+    const tokenOk = verifyOrganizerTokenForSession(organizerToken, sessionId);
+    const ownerOk = !authError && user && session.user_id === user.id;
+
+    if (!tokenOk && !ownerOk) {
+      if (authError || !user) {
+        return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+      }
       return NextResponse.json({ error: '세션 소유자만 참여자를 수정할 수 있습니다.' }, { status: 403 });
     }
 
