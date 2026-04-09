@@ -40,7 +40,7 @@ const paymentLabels: Record<CoBuyParticipant['payment_status'], { label: string;
   not_required: { label: '불필요', color: 'bg-blue-100 text-blue-800' },
 };
 
-/** 마이페이지 UUID 경로 또는 참가 링크와 동일한 share_token 기반 `/cobuy/host/[shareToken]` — 모두 로그인 필요 */
+/** 마이페이지 UUID 경로(로그인 필수) 또는 share_token 기반 `/cobuy/host/[shareToken]`(누구나 접근 가능) */
 export type CoBuyOrganizerAccess =
   | { mode: 'sessionId'; sessionId: string }
   | { mode: 'shareToken'; shareToken: string };
@@ -78,13 +78,26 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
   // Check if editing is allowed (before order_complete)
   const canEditDeliverySettings = session && !['order_complete', 'manufacturing', 'manufacture_complete', 'delivering', 'delivery_complete', 'cancelled'].includes(session.status);
 
+  const isTokenAccess = isShareEntry && !isAuthenticated;
+
   const handleSaveDeliverySettings = async (settings: CoBuyDeliverySettings) => {
     if (!session) return;
-    const updated = await updateDeliverySettings(session.id, settings);
-    if (updated) {
-      setSession(updated);
+    if (isTokenAccess) {
+      const res = await fetch('/api/cobuy/host/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: routeShareToken, action: 'update_delivery', deliverySettings: settings }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update delivery settings');
+      setSession(json.data);
     } else {
-      throw new Error('Failed to update delivery settings');
+      const updated = await updateDeliverySettings(session.id, settings);
+      if (updated) {
+        setSession(updated);
+      } else {
+        throw new Error('Failed to update delivery settings');
+      }
     }
   };
 
@@ -107,9 +120,20 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
 
     setUpdatingPickupStatus((prev) => new Set(prev).add(participant.id));
 
-    const updated = await updateParticipantPickupStatus(participant.id, newStatus);
+    let success = false;
+    if (isTokenAccess) {
+      const res = await fetch('/api/cobuy/host/pickup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: routeShareToken, participantId: participant.id, pickupStatus: newStatus }),
+      });
+      success = res.ok;
+    } else {
+      const updated = await updateParticipantPickupStatus(participant.id, newStatus);
+      success = !!updated;
+    }
 
-    if (updated) {
+    if (success) {
       setParticipants((current) =>
         current.map((p) => (p.id === participant.id ? { ...p, pickup_status: newStatus } : p))
       );
@@ -129,9 +153,8 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     setError(null);
 
     try {
-      if (!user) return;
-
       if (access.mode === 'sessionId') {
+        if (!user) return;
         if (!routeSessionId) return;
         const [sessionData, participantData] = await Promise.all([
           getCoBuySession(routeSessionId, user.id),
@@ -148,16 +171,27 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       }
 
       if (!routeShareToken?.trim()) return;
-      const sessionData = await getCoBuySessionForOrganizerByShareToken(routeShareToken, user.id);
-      if (!sessionData) {
-        setError('공동구매를 찾을 수 없거나, 이 링크의 주최자 계정으로 로그인되어 있지 않습니다.');
+
+      if (isAuthenticated && user) {
+        const sessionData = await getCoBuySessionForOrganizerByShareToken(routeShareToken, user.id);
+        if (sessionData) {
+          const participantData = await getParticipants(sessionData.id);
+          setSession(sessionData);
+          setParticipants(participantData);
+          return;
+        }
+      }
+
+      const res = await fetch(`/api/cobuy/host/bootstrap?shareToken=${encodeURIComponent(routeShareToken)}`);
+      const json = await res.json();
+      if (!res.ok || !json.data) {
+        setError('공동구매를 찾을 수 없습니다.');
         setSession(null);
         setParticipants([]);
         return;
       }
-      const participantData = await getParticipants(sessionData.id);
-      setSession(sessionData);
-      setParticipants(participantData);
+      setSession(json.data.session);
+      setParticipants(json.data.participants);
     } catch (err) {
       console.error('Error fetching CoBuy session detail:', err);
       setError('공동구매 정보를 불러오는데 실패했습니다.');
@@ -167,7 +201,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (access.mode === 'sessionId' && (!isAuthenticated || !user)) {
       setIsLoading(false);
       return;
     }
@@ -180,7 +214,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     access.mode === 'sessionId' ? routeSessionId : session?.id ?? null;
 
   useEffect(() => {
-    if (!isAuthenticated || !realtimeSessionId) return;
+    if (!realtimeSessionId || !isAuthenticated) return;
 
     const supabase = createClient();
     const sessionId = realtimeSessionId;
@@ -301,6 +335,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: session.id,
+        ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
         name: data.name,
         email: data.email,
         phone: data.phone || null,
@@ -327,6 +362,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       body: JSON.stringify({
         participantId: editingParticipant.id,
         sessionId: session.id,
+        ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
         name: data.name,
         email: data.email,
         phone: data.phone || null,
@@ -360,6 +396,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         body: JSON.stringify({
           participantId: participant.id,
           sessionId: session.id,
+          ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
         }),
       });
       if (!response.ok) {
@@ -564,18 +601,35 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     if (!confirmed) return;
 
     setIsUpdating(true);
-    const updated = await closeCoBuySession(session.id);
-    if (updated) {
-      setSession(updated);
-      fetch('/api/cobuy/notify/session-closed', {
+    if (isTokenAccess) {
+      const res = await fetch('/api/cobuy/host/session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId: updated.id }),
-      }).catch((error) => console.error('Failed to notify session closed:', error));
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: routeShareToken, action: 'close_gathering' }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setSession(json.data);
+        fetch('/api/cobuy/notify/session-closed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: json.data.id, shareToken: routeShareToken }),
+        }).catch((error) => console.error('Failed to notify session closed:', error));
+      } else {
+        alert(json.error || '공동구매 마감에 실패했습니다.');
+      }
     } else {
-      alert('공동구매 마감에 실패했습니다.');
+      const updated = await closeCoBuySession(session.id);
+      if (updated) {
+        setSession(updated);
+        fetch('/api/cobuy/notify/session-closed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: updated.id }),
+        }).catch((error) => console.error('Failed to notify session closed:', error));
+      } else {
+        alert('공동구매 마감에 실패했습니다.');
+      }
     }
     setIsUpdating(false);
   };
@@ -586,11 +640,25 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     if (!confirmed) return;
 
     setIsUpdating(true);
-    const updated = await requestCancellation(session.id);
-    if (updated) {
-      setSession(updated);
+    if (isTokenAccess) {
+      const res = await fetch('/api/cobuy/host/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: routeShareToken, action: 'cancel' }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setSession(json.data);
+      } else {
+        alert(json.error || '공동구매 취소 요청에 실패했습니다.');
+      }
     } else {
-      alert('공동구매 취소 요청에 실패했습니다.');
+      const updated = await requestCancellation(session.id);
+      if (updated) {
+        setSession(updated);
+      } else {
+        alert('공동구매 취소 요청에 실패했습니다.');
+      }
     }
     setIsUpdating(false);
   };
@@ -627,10 +695,10 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isShareEntry) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <Header back backHref={isShareEntry ? '/cobuy' : undefined} />
+        <Header back />
         <div className="max-w-3xl mx-auto p-6 text-center">
           <p className="text-gray-500 mb-4">주최자 관리 화면은 로그인 후 이용할 수 있습니다.</p>
           <button
@@ -1157,6 +1225,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
           participants={participants}
           onOrderCreated={handleOrderCreated}
           onSessionUpdated={handleSessionUpdated}
+          shareToken={isTokenAccess ? routeShareToken : undefined}
         />
       )}
 

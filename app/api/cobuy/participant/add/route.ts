@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const { data: session, error: sessionError } = await adminClient
       .from('cobuy_sessions')
-      .select('id, user_id')
+      .select('id, user_id, share_token')
       .eq('id', sessionId)
       .single();
 
@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '세션을 찾을 수 없습니다.' }, { status: 404 });
     }
 
+    const shareTokenOk = typeof body.shareToken === 'string' && body.shareToken === session.share_token;
     const ownerOk = !authError && user && session.user_id === user.id;
 
-    if (!ownerOk) {
+    if (!shareTokenOk && !ownerOk) {
       if (authError || !user) {
         return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
       }

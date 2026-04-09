@@ -12,6 +12,7 @@ interface CoBuyOrderModalProps {
   participants: CoBuyParticipant[];
   onOrderCreated: () => void;
   onSessionUpdated: (session: CoBuySession) => void;
+  shareToken?: string;
 }
 
 type ModalView = 'summary' | 'extend';
@@ -23,6 +24,7 @@ export default function CoBuyOrderModal({
   participants,
   onOrderCreated,
   onSessionUpdated,
+  shareToken,
 }: CoBuyOrderModalProps) {
   const [view, setView] = useState<ModalView>('summary');
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -104,6 +106,7 @@ export default function CoBuyOrderModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: session.id,
+          ...(shareToken ? { shareToken } : {}),
           orderData: {
             id: `CB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: '공동구매 주문',
@@ -152,15 +155,29 @@ export default function CoBuyOrderModal({
     setError(null);
 
     try {
-      const updated = await updateCoBuySession(session.id, {
-        endDate: selectedDate,
-      });
-
-      if (updated) {
-        onSessionUpdated(updated);
-        setView('summary');
+      if (shareToken) {
+        const res = await fetch('/api/cobuy/host/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shareToken, action: 'extend_end_date', endDate: selectedDate.toISOString() }),
+        });
+        const json = await res.json();
+        if (res.ok && json.data) {
+          onSessionUpdated(json.data);
+          setView('summary');
+        } else {
+          setError(json.error || '종료일 연장에 실패했습니다.');
+        }
       } else {
-        setError('종료일 연장에 실패했습니다.');
+        const updated = await updateCoBuySession(session.id, {
+          endDate: selectedDate,
+        });
+        if (updated) {
+          onSessionUpdated(updated);
+          setView('summary');
+        } else {
+          setError('종료일 연장에 실패했습니다.');
+        }
       }
     } catch (err) {
       console.error('Error extending session:', err);

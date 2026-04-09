@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { sendMailjetEmail } from '@/lib/mailjet';
 
 interface SessionClosedBody {
   sessionId: string;
+  shareToken?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as SessionClosedBody;
-    const { sessionId } = body;
+    const { sessionId, shareToken } = body;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -18,7 +20,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    let supabase;
+    if (shareToken) {
+      supabase = createAdminClient();
+    } else {
+      supabase = await createClient();
+    }
 
     const { data: session, error: sessionError } = await supabase
       .from('cobuy_sessions')

@@ -5,12 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 interface DeleteParticipantBody {
   participantId: string;
   sessionId: string;
+  shareToken?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as DeleteParticipantBody;
-    const { participantId, sessionId } = body;
+    const { participantId, sessionId, shareToken } = body;
 
     if (!participantId || !sessionId) {
       return NextResponse.json(
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     const { data: sessRow, error: sessErr } = await supabase
       .from('cobuy_sessions')
-      .select('id, user_id')
+      .select('id, user_id, share_token')
       .eq('id', sessionId)
       .single();
 
@@ -37,9 +38,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const shareTokenOk = typeof shareToken === 'string' && shareToken === sessRow.share_token;
     const ownerOk = !authError && user && sessRow.user_id === user.id;
 
-    if (!ownerOk) {
+    if (!shareTokenOk && !ownerOk) {
       if (authError || !user) {
         return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
       }

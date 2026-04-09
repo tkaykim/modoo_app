@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -32,6 +33,7 @@ interface CreateCoBuyOrderRequest {
   sessionId: string;
   orderData: OrderData;
   variants: Variant[];
+  shareToken?: string;
 }
 
 /**
@@ -48,7 +50,7 @@ interface CreateCoBuyOrderRequest {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as CreateCoBuyOrderRequest;
-    const { sessionId, orderData, variants } = body;
+    const { sessionId, orderData, variants, shareToken } = body;
 
     if (!sessionId || !orderData || !variants) {
       return NextResponse.json(
@@ -57,17 +59,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let isShareTokenAccess = false;
     const supabaseAuth = await createClient();
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: '인증이 필요합니다.' },
-        { status: 401 }
-      );
-    }
-
-    const db = supabaseAuth;
+    const db = (authError || !user) ? createAdminClient() : supabaseAuth;
 
     // Fetch CoBuy session with design data
     const { data: session, error: sessionError } = await db
@@ -77,6 +73,7 @@ export async function POST(request: NextRequest) {
         user_id,
         title,
         status,
+        share_token,
         saved_design_screenshot_id,
         saved_design_screenshots (
           id,
@@ -101,11 +98,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session.user_id !== user.id) {
-      return NextResponse.json(
-        { success: false, error: '권한이 없습니다.' },
-        { status: 403 }
-      );
+    if (typeof shareToken === 'string' && shareToken === session.share_token) {
+      isShareTokenAccess = true;
+    }
+
+    if (!isShareTokenAccess) {
+      if (authError || !user) {
+        return NextResponse.json(
+          { success: false, error: '인증이 필요합니다.' },
+          { status: 401 }
+        );
+      }
+      if (session.user_id !== user.id) {
+        return NextResponse.json(
+          { success: false, error: '권한이 없습니다.' },
+          { status: 403 }
+        );
+      }
     }
 
     const orderUserId = session.user_id;
