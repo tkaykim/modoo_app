@@ -1,18 +1,16 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createClient } from '@/lib/supabase';
-import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface DeleteParticipantBody {
   participantId: string;
   sessionId: string;
-  organizerToken?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as DeleteParticipantBody;
-    const { participantId, sessionId, organizerToken } = body;
+    const { participantId, sessionId } = body;
 
     if (!participantId || !sessionId) {
       return NextResponse.json(
@@ -39,10 +37,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tokenOk = verifyOrganizerTokenForSession(organizerToken, sessionId);
     const ownerOk = !authError && user && sessRow.user_id === user.id;
 
-    if (!tokenOk && !ownerOk) {
+    if (!ownerOk) {
       if (authError || !user) {
         return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
       }

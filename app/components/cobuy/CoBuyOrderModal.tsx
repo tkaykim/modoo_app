@@ -12,8 +12,6 @@ interface CoBuyOrderModalProps {
   participants: CoBuyParticipant[];
   onOrderCreated: () => void;
   onSessionUpdated: (session: CoBuySession) => void;
-  /** 주최자 비밀 링크로 접속한 경우 주문·기간 연장 API에 전달 */
-  organizerToken?: string;
 }
 
 type ModalView = 'summary' | 'extend';
@@ -25,7 +23,6 @@ export default function CoBuyOrderModal({
   participants,
   onOrderCreated,
   onSessionUpdated,
-  organizerToken,
 }: CoBuyOrderModalProps) {
   const [view, setView] = useState<ModalView>('summary');
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -107,7 +104,6 @@ export default function CoBuyOrderModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: session.id,
-          ...(organizerToken ? { organizerToken } : {}),
           orderData: {
             id: `CB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: '공동구매 주문',
@@ -156,27 +152,6 @@ export default function CoBuyOrderModal({
     setError(null);
 
     try {
-      if (organizerToken) {
-        const res = await fetch('/api/cobuy/organizer/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: organizerToken,
-            sessionId: session.id,
-            action: 'extend_end_date',
-            endDate: selectedDate.toISOString(),
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json?.data) {
-          setError(json?.error || '종료일 연장에 실패했습니다.');
-          return;
-        }
-        onSessionUpdated(json.data);
-        setView('summary');
-        return;
-      }
-
       const updated = await updateCoBuySession(session.id, {
         endDate: selectedDate,
       });

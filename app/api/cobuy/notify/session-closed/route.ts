@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import { createAdminClient } from '@/lib/supabase-admin';
-import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { sendMailjetEmail } from '@/lib/mailjet';
 
 interface SessionClosedBody {
   sessionId: string;
-  organizerToken?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as SessionClosedBody;
-    const { sessionId, organizerToken } = body;
+    const { sessionId } = body;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -21,13 +18,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const useAdminForRead =
-      typeof organizerToken === 'string' &&
-      verifyOrganizerTokenForSession(organizerToken, sessionId);
+    const supabase = await createClient();
 
-    const db = useAdminForRead ? createAdminClient() : await createClient();
-
-    const { data: session, error: sessionError } = await db
+    const { data: session, error: sessionError } = await supabase
       .from('cobuy_sessions')
       .select('id, title, share_token, end_date')
       .eq('id', sessionId)
@@ -40,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: participants, error: participantsError } = await db
+    const { data: participants, error: participantsError } = await supabase
       .from('cobuy_participants')
       .select('id, name, email')
       .eq('cobuy_session_id', sessionId);
@@ -79,7 +72,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (sent) {
-        await db.from('cobuy_notifications').insert({
+        await supabase.from('cobuy_notifications').insert({
           cobuy_session_id: session.id,
           participant_id: participant.id,
           notification_type: 'session_closed',

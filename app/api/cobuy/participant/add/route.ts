@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest) {
       deliveryMethod,
       deliveryInfo,
       deliveryFee,
-      organizerToken,
     } = body;
 
     if (!sessionId || !name || !email || !selectedItems || !Array.isArray(selectedItems) || selectedItems.length === 0) {
@@ -38,10 +36,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '세션을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    const tokenOk = verifyOrganizerTokenForSession(organizerToken, sessionId);
     const ownerOk = !authError && user && session.user_id === user.id;
 
-    if (!tokenOk && !ownerOk) {
+    if (!ownerOk) {
       if (authError || !user) {
         return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
       }

@@ -1,6 +1,4 @@
 import { createClient } from '@/lib/supabase';
-import { createAdminClient } from '@/lib/supabase-admin';
-import { verifyOrganizerTokenForSession } from '@/lib/cobuy-organizer-request';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -49,8 +47,8 @@ interface CreateCoBuyOrderRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as CreateCoBuyOrderRequest & { organizerToken?: string };
-    const { sessionId, orderData, variants, organizerToken } = body;
+    const body = await request.json() as CreateCoBuyOrderRequest;
+    const { sessionId, orderData, variants } = body;
 
     if (!sessionId || !orderData || !variants) {
       return NextResponse.json(
@@ -59,21 +57,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tokenOk =
-      typeof organizerToken === 'string' &&
-      verifyOrganizerTokenForSession(organizerToken, sessionId);
-
     const supabaseAuth = await createClient();
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
 
-    const db = tokenOk ? createAdminClient() : supabaseAuth;
-
-    if (!tokenOk && (authError || !user)) {
+    if (authError || !user) {
       return NextResponse.json(
         { success: false, error: '인증이 필요합니다.' },
         { status: 401 }
       );
     }
+
+    const db = supabaseAuth;
 
     // Fetch CoBuy session with design data
     const { data: session, error: sessionError } = await db
@@ -107,8 +101,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the session belongs to the authenticated user (또는 주최자 비밀 링크 토큰)
-    if (!tokenOk && session.user_id !== user?.id) {
+    if (session.user_id !== user.id) {
       return NextResponse.json(
         { success: false, error: '권한이 없습니다.' },
         { status: 403 }

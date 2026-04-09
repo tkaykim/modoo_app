@@ -200,6 +200,54 @@ export async function getCoBuySession(
 }
 
 /**
+ * 주최자용: share_token으로 세션 조회 (로그인한 사용자가 해당 세션 소유자일 때만)
+ */
+export async function getCoBuySessionForOrganizerByShareToken(
+  shareToken: string,
+  userId: string
+): Promise<CoBuySessionWithDetails | null> {
+  const supabase = createClient();
+
+  try {
+    const { data: session, error } = await supabase
+      .from('cobuy_sessions')
+      .select(
+        `
+        *,
+        saved_design_screenshot:saved_design_screenshots (
+          id,
+          user_id,
+          product_id,
+          title,
+          color_selections,
+          canvas_state,
+          preview_url,
+          created_at,
+          updated_at,
+          price_per_item,
+          image_urls,
+          text_svg_exports,
+          custom_fonts
+        )
+      `
+      )
+      .eq('share_token', shareToken)
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching organizer session by share token:', error);
+      return null;
+    }
+
+    return session as CoBuySessionWithDetails;
+  } catch (e) {
+    console.error('Failed to fetch organizer session by share token:', e);
+    return null;
+  }
+}
+
+/**
  * Get a CoBuy session by share token (public access)
  * @param shareToken The unique share token
  * @returns The session data or null if not found
