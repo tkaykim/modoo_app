@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { CoBuyParticipant, CoBuySelectedItem, CoBuyCustomField } from '@/types/types';
 
@@ -11,6 +11,10 @@ interface CoBuyParticipantModalProps {
   participant?: CoBuyParticipant | null;
   customFields?: CoBuyCustomField[];
   sizeOptions?: string[];
+  /** 사이즈별 개별 가격 (없으면 basePrice 사용) */
+  sizePrices?: Record<string, number> | null;
+  /** 기본 단가 (size_prices에 해당 사이즈가 없을 때 fallback) */
+  basePrice?: number | null;
 }
 
 export interface ParticipantFormData {
@@ -29,6 +33,8 @@ export default function CoBuyParticipantModal({
   participant,
   customFields,
   sizeOptions = [],
+  sizePrices,
+  basePrice,
 }: CoBuyParticipantModalProps) {
   const isEditing = !!participant;
   const [saving, setSaving] = useState(false);
@@ -120,6 +126,26 @@ export default function CoBuyParticipantModal({
 
   const editableCustomFields = customFields?.filter(f => f.id !== 'size' && !f.fixed) || [];
 
+  const getUnitPrice = (size: string): number | null => {
+    if (sizePrices && size && sizePrices[size] != null) return sizePrices[size];
+    if (typeof basePrice === 'number') return basePrice;
+    return null;
+  };
+
+  const hasPriceInfo = !!(sizePrices && Object.keys(sizePrices).length > 0) || typeof basePrice === 'number';
+
+  const estimatedTotal = useMemo(() => {
+    if (!hasPriceInfo) return null;
+    let total = 0;
+    for (const item of selectedItems) {
+      const p = getUnitPrice(item.size);
+      if (p == null) return null;
+      total += p * item.quantity;
+    }
+    return total;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItems, sizePrices, basePrice]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -184,47 +210,70 @@ export default function CoBuyParticipantModal({
               </button>
             </div>
             <div className="space-y-2">
-              {selectedItems.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  {sizeOptions.length > 0 ? (
-                    <select
-                      value={item.size}
-                      onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      <option value="">사이즈 선택</option>
-                      {sizeOptions.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={item.size}
-                      onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
-                      placeholder="사이즈"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                  )}
-                  <input
-                    type="number"
-                    min={1}
-                    value={item.quantity}
-                    onChange={(e) => handleSizeChange(index, 'quantity', parseInt(e.target.value) || 1)}
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                  />
-                  {selectedItems.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSizeRow(index)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {selectedItems.map((item, index) => {
+                const unitPrice = getUnitPrice(item.size);
+                const lineTotal = unitPrice != null ? unitPrice * item.quantity : null;
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {sizeOptions.length > 0 ? (
+                        <select
+                          value={item.size}
+                          onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                          <option value="">사이즈 선택</option>
+                          {sizeOptions.map(s => {
+                            const p = getUnitPrice(s);
+                            return (
+                              <option key={s} value={s}>
+                                {s}{p != null ? ` (₩${p.toLocaleString()})` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={item.size}
+                          onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
+                          placeholder="사이즈"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                      )}
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) => handleSizeChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center"
+                      />
+                      {selectedItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSizeRow(index)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {lineTotal != null && (
+                      <p className="text-xs text-gray-500 pl-1">
+                        단가 ₩{unitPrice!.toLocaleString()} × {item.quantity} = ₩{lineTotal.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+
+            {estimatedTotal != null && (
+              <div className="mt-3 pt-2 border-t border-gray-200 flex items-center justify-between">
+                <span className="text-xs font-medium text-gray-700">예상 합계</span>
+                <span className="text-sm font-semibold text-gray-900">₩{estimatedTotal.toLocaleString()}</span>
+              </div>
+            )}
           </div>
 
           <div>

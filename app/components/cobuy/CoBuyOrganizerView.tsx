@@ -373,27 +373,42 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     }
   };
 
-  // Helper to render selected items
+  const getItemUnitPrice = (size: string): number | null => {
+    if (session?.size_prices && size && session.size_prices[size] != null) return session.size_prices[size];
+    const bp = (session as any)?.saved_design_screenshot?.price_per_item;
+    return typeof bp === 'number' ? bp : null;
+  };
+
   const renderSelectedItems = (participant: CoBuyParticipant) => {
     const items = participant.selected_items;
     if (!items || items.length === 0) {
-      // Fallback to legacy selected_size
       return participant.selected_size || '-';
     }
 
     return (
       <div className="space-y-1">
-        {items.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium">
-              {item.size}
-            </span>
-            <span className="text-gray-500">×</span>
-            <span className="font-medium">{item.quantity}</span>
-          </div>
-        ))}
-        <div className="text-xs text-gray-500 pt-1 border-t border-gray-100">
-          총 {participant.total_quantity || items.reduce((sum, i) => sum + i.quantity, 0)}벌
+        {items.map((item, idx) => {
+          const unitPrice = getItemUnitPrice(item.size);
+          return (
+            <div key={idx} className="flex items-center gap-2 flex-wrap">
+              <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium">
+                {item.size}
+              </span>
+              <span className="text-gray-500">×</span>
+              <span className="font-medium">{item.quantity}</span>
+              {unitPrice != null && (
+                <span className="text-xs text-gray-400">
+                  (₩{(unitPrice * item.quantity).toLocaleString()})
+                </span>
+              )}
+            </div>
+          );
+        })}
+        <div className="text-xs text-gray-500 pt-1 border-t border-gray-100 flex justify-between">
+          <span>총 {participant.total_quantity || items.reduce((sum, i) => sum + i.quantity, 0)}벌</span>
+          {participant.payment_amount != null && participant.payment_amount > 0 && (
+            <span className="font-medium text-gray-700">₩{participant.payment_amount.toLocaleString()}</span>
+          )}
         </div>
       </div>
     );
@@ -1164,6 +1179,8 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
           participant={editingParticipant}
           customFields={session.custom_fields}
           sizeOptions={sizeOptionsFromSession}
+          sizePrices={session.size_prices}
+          basePrice={(session as any).saved_design_screenshot?.price_per_item ?? null}
         />
       )}
     </div>
