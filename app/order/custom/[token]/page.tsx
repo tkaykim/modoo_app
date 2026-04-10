@@ -64,9 +64,10 @@ export default function CustomOrderPage() {
   const [designPreviewItem, setDesignPreviewItem] = useState<{
     productTitle: string;
     designTitle: string | null;
-    sides: Array<{ id: string; name: string; imageUrl?: string; printArea: { x: number; y: number; width: number; height: number }; layers?: Array<{ id: string; imageUrl: string; zIndex: number }>; zoomScale?: number }>;
+    sides: Array<{ id: string; name: string; imageUrl?: string; printArea: { x: number; y: number; width: number; height: number }; layers?: Array<{ id: string; imageUrl: string; zIndex: number }>; zoomScale?: number }> | null;
     canvasState: Record<string, string> | null;
     productColor?: string;
+    fallbackImageUrl?: string;
   } | null>(null);
 
   const ceFields = orderData?.customer_editable_fields;
@@ -376,38 +377,32 @@ export default function CustomOrderPage() {
                 return (
                   <div key={item.id || idx} className="p-4">
                     <div className="flex gap-4">
-                      {item.design_preview_url ? (() => {
-                        const hasSidePreview = !!(item as any).product_sides && !!(item as any).canvas_state;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (hasSidePreview) {
-                                const cs = (item as any).canvas_state;
-                                const parsed = typeof cs === 'string' ? (() => { try { return JSON.parse(cs); } catch { return null; } })() : cs;
-                                setDesignPreviewItem({
-                                  productTitle: item.product_title,
-                                  designTitle: (item as any).design_title || null,
-                                  sides: (item as any).product_sides,
-                                  canvasState: parsed,
-                                  productColor: (item as any).color_selections?.productColor,
-                                });
-                              }
-                            }}
-                            className={`relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0 ${hasSidePreview ? 'group cursor-pointer active:scale-95 transition-transform' : 'cursor-default'}`}
-                          >
-                            <img src={item.design_preview_url} alt={item.product_title} className="w-full h-full object-contain" />
-                            {hasSidePreview && (
-                              <>
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                                <div className="absolute bottom-0.5 right-0.5 p-0.5 rounded-full bg-black/40">
-                                  <Eye className="w-3 h-3 text-white" />
-                                </div>
-                              </>
-                            )}
-                          </button>
-                        );
-                      })() : (
+                      {item.design_preview_url ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cs = (item as any).canvas_state;
+                            const parsed = cs ? (typeof cs === 'string' ? (() => { try { return JSON.parse(cs); } catch { return null; } })() : cs) : null;
+                            const sides = (item as any).product_sides || null;
+                            const hasCanvasData = parsed && sides && Object.keys(parsed).length > 0;
+                            setDesignPreviewItem({
+                              productTitle: item.product_title,
+                              designTitle: (item as any).design_title || null,
+                              sides: hasCanvasData ? sides : null,
+                              canvasState: hasCanvasData ? parsed : null,
+                              productColor: (item as any).color_selections?.productColor,
+                              fallbackImageUrl: item.design_preview_url || undefined,
+                            });
+                          }}
+                          className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0 group cursor-pointer active:scale-95 transition-transform"
+                        >
+                          <img src={item.design_preview_url} alt={item.product_title} className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                          <div className="absolute bottom-0.5 right-0.5 p-0.5 rounded-full bg-black/40">
+                            <Eye className="w-3 h-3 text-white" />
+                          </div>
+                        </button>
+                      ) : (
                         <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
                           <Package className="w-6 h-6 text-gray-300" />
                         </div>
@@ -807,9 +802,10 @@ export default function CustomOrderPage() {
           onClose={() => setDesignPreviewItem(null)}
           productTitle={designPreviewItem.productTitle}
           designTitle={designPreviewItem.designTitle}
-          sides={designPreviewItem.sides}
+          sides={designPreviewItem.sides || []}
           canvasState={designPreviewItem.canvasState}
           productColor={designPreviewItem.productColor}
+          fallbackImageUrl={designPreviewItem.fallbackImageUrl}
         />
       )}
 

@@ -20,6 +20,7 @@ interface DesignPreviewModalProps {
   sides: SideInfo[];
   canvasState: Record<string, string> | null;
   productColor?: string;
+  fallbackImageUrl?: string;
 }
 
 const RENDER_SIZE = 500;
@@ -32,6 +33,7 @@ export default function DesignPreviewModal({
   sides,
   canvasState,
   productColor,
+  fallbackImageUrl,
 }: DesignPreviewModalProps) {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [isRendering, setIsRendering] = useState(false);
@@ -228,7 +230,9 @@ export default function DesignPreviewModal({
 
   if (!isOpen) return null;
 
-  const activeSide = displaySides[activeSideIndex];
+  const activeSide = displaySides[activeSideIndex] ?? null;
+  const hasRenderedPreviews = Object.keys(previews).length > 0;
+  const useFallback = !hasRenderedPreviews && !isRendering && !!fallbackImageUrl;
 
   return (
     <div
@@ -293,7 +297,6 @@ export default function DesignPreviewModal({
                 alt={activeSide.name}
                 className="w-full aspect-square object-contain"
               />
-              {/* Navigation arrows */}
               {displaySides.length > 1 && (
                 <>
                   {activeSideIndex > 0 && (
@@ -321,6 +324,14 @@ export default function DesignPreviewModal({
                 </>
               )}
             </div>
+          ) : useFallback ? (
+            <div className="p-4">
+              <img
+                src={fallbackImageUrl}
+                alt={productTitle}
+                className="w-full aspect-square object-contain rounded-lg"
+              />
+            </div>
           ) : (
             <div className="flex items-center justify-center py-20">
               <p className="text-sm text-gray-400">
@@ -331,7 +342,7 @@ export default function DesignPreviewModal({
         </div>
 
         {/* Side tabs */}
-        {displaySides.length > 1 && (
+        {hasRenderedPreviews && displaySides.length > 1 && (
           <div className="flex border-t">
             {displaySides.map((side, idx) => (
               <button
@@ -350,7 +361,7 @@ export default function DesignPreviewModal({
         )}
 
         {/* Single side name */}
-        {displaySides.length === 1 && activeSide && (
+        {hasRenderedPreviews && displaySides.length === 1 && activeSide && (
           <div className="text-center py-2.5 border-t">
             <span className="text-xs font-medium text-gray-500">
               {activeSide.name}
