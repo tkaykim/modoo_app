@@ -77,8 +77,7 @@ export default function OrderDetailPage() {
       const userId = supabaseUser?.id || user?.id;
 
       if (!userId) {
-        setError('로그인이 필요합니다.');
-        setIsLoading(false);
+        router.replace(`/order/lookup?orderId=${encodeURIComponent(orderId)}`);
         return;
       }
 
@@ -92,16 +91,8 @@ export default function OrderDetailPage() {
         .eq('user_id', userId)
         .single();
 
-      if (fetchError) {
-        console.error('Failed to fetch order:', fetchError);
-        setError('주문 정보를 불러오는데 실패했습니다.');
-        setIsLoading(false);
-        return;
-      }
-
-      if (!data) {
-        setError('주문을 찾을 수 없습니다.');
-        setIsLoading(false);
+      if (fetchError || !data) {
+        router.replace(`/order/lookup?orderId=${encodeURIComponent(orderId)}`);
         return;
       }
 
@@ -112,38 +103,19 @@ export default function OrderDetailPage() {
     if (orderId) {
       fetchOrder();
     }
-  }, [orderId, user?.id]);
+  }, [orderId, user?.id, router]);
 
   const formatPrice = (price: number) => {
     return price.toLocaleString('ko-KR');
   };
 
   if (!isAuthenticated) {
+    router.replace(`/order/lookup?orderId=${encodeURIComponent(orderId)}`);
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-full transition mr-2"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-lg font-bold">주문 상세</h1>
-            </div>
-          </div>
-        </header>
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="text-center py-20">
-            <p className="text-gray-500 mb-4">로그인이 필요합니다</p>
-            <button
-              onClick={() => router.push('/login')}
-              className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              로그인하기
-            </button>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          <p className="text-gray-500 mt-4">주문 조회 페이지로 이동 중...</p>
         </div>
       </div>
     );
@@ -180,12 +152,20 @@ export default function OrderDetailPage() {
           <div className="text-center py-20">
             <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p className="text-red-500 mb-4">{error || '주문을 찾을 수 없습니다.'}</p>
-            <button
-              onClick={() => router.push('/home/my-page/orders')}
-              className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              주문 내역으로 돌아가기
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push(`/order/lookup?orderId=${encodeURIComponent(orderId)}`)}
+                className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+              >
+                주문번호로 조회하기
+              </button>
+              <button
+                onClick={() => router.push('/home/my-page/orders')}
+                className="block mx-auto px-6 py-3 text-gray-600 text-sm hover:text-gray-800 transition-colors"
+              >
+                주문 내역으로 돌아가기
+              </button>
+            </div>
           </div>
         </div>
       </div>
