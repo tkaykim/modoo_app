@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -170,10 +171,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark coupon as used if a coupon was applied
-    if (orderData.coupon_usage_id && user?.id) {
+    if (orderData.coupon_usage_id) {
       try {
-        // Update coupon usage record
-        const { error: usageError } = await supabase
+        const adminClient = createAdminClient();
+
+        // Update coupon usage record (use adminClient to bypass RLS)
+        const { data: usage, error: usageError } = await adminClient
           .from('coupon_usages')
           .update({
             used_at: new Date().toISOString(),
@@ -181,37 +184,27 @@ export async function POST(request: NextRequest) {
             discount_applied: orderData.coupon_discount,
           })
           .eq('id', orderData.coupon_usage_id)
-          .eq('user_id', user.id);
+          .select('coupon_id')
+          .single();
 
         if (usageError) {
           console.error('Error updating coupon usage:', usageError);
-          // Don't fail the order, just log the error
-        } else {
-          // Increment coupon current_uses
-          const { data: usage } = await supabase
-            .from('coupon_usages')
-            .select('coupon_id')
-            .eq('id', orderData.coupon_usage_id)
+        } else if (usage?.coupon_id) {
+          const { data: coupon } = await adminClient
+            .from('coupons')
+            .select('current_uses')
+            .eq('id', usage.coupon_id)
             .single();
 
-          if (usage?.coupon_id) {
-            const { data: coupon } = await supabase
+          if (coupon) {
+            await adminClient
               .from('coupons')
-              .select('current_uses')
-              .eq('id', usage.coupon_id)
-              .single();
-
-            if (coupon) {
-              await supabase
-                .from('coupons')
-                .update({ current_uses: (coupon.current_uses || 0) + 1 })
-                .eq('id', usage.coupon_id);
-            }
+              .update({ current_uses: (coupon.current_uses || 0) + 1 })
+              .eq('id', usage.coupon_id);
           }
         }
       } catch (couponError) {
         console.error('Error processing coupon usage:', couponError);
-        // Don't fail the order for coupon errors
       }
     }
 

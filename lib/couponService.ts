@@ -237,7 +237,8 @@ export function validateCouponForOrder(
 }
 
 /**
- * Apply coupon to an order (mark as used)
+ * @deprecated Not used — coupon usage is handled inline in toss/confirm and bank-transfer routes
+ * using adminClient to bypass RLS. Do not call this from client-side code.
  */
 export async function applyCouponToOrder(
   couponUsageId: string,

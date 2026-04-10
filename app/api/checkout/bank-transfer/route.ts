@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -124,9 +125,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark coupon as used
-    if (orderData.coupon_usage_id && user?.id) {
+    if (orderData.coupon_usage_id) {
       try {
-        const { error: usageError } = await supabase
+        const adminClient = createAdminClient();
+
+        const { data: usage, error: usageError } = await adminClient
           .from('coupon_usages')
           .update({
             used_at: new Date().toISOString(),
@@ -134,28 +137,23 @@ export async function POST(request: NextRequest) {
             discount_applied: orderData.coupon_discount,
           })
           .eq('id', orderData.coupon_usage_id)
-          .eq('user_id', user.id);
+          .select('coupon_id')
+          .single();
 
-        if (!usageError) {
-          const { data: usage } = await supabase
-            .from('coupon_usages')
-            .select('coupon_id')
-            .eq('id', orderData.coupon_usage_id)
+        if (usageError) {
+          console.error('Error updating coupon usage:', usageError);
+        } else if (usage?.coupon_id) {
+          const { data: coupon } = await adminClient
+            .from('coupons')
+            .select('current_uses')
+            .eq('id', usage.coupon_id)
             .single();
 
-          if (usage?.coupon_id) {
-            const { data: coupon } = await supabase
+          if (coupon) {
+            await adminClient
               .from('coupons')
-              .select('current_uses')
-              .eq('id', usage.coupon_id)
-              .single();
-
-            if (coupon) {
-              await supabase
-                .from('coupons')
-                .update({ current_uses: (coupon.current_uses || 0) + 1 })
-                .eq('id', usage.coupon_id);
-            }
+              .update({ current_uses: (coupon.current_uses || 0) + 1 })
+              .eq('id', usage.coupon_id);
           }
         }
       } catch (couponError) {
