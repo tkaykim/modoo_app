@@ -390,9 +390,8 @@ export interface CustomOrderData {
 
   customer_editable_fields?: {
     quantities?: boolean;
-    customerName?: boolean;
-    customerEmail?: boolean;
-    customerPhone?: boolean;
+    customerInfo?: boolean;
+    shippingInfo?: boolean;
   } | null;
 }
 

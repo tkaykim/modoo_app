@@ -105,8 +105,8 @@ export default function CustomOrderPage() {
         setOrderData(od);
 
         const cef = od.customer_editable_fields;
-        const namePlaceholder = cef?.customerName && od.customer_name === '고객 입력 대기';
-        const emailPlaceholder = cef?.customerEmail && od.customer_email === 'pending@placeholder.com';
+        const namePlaceholder = cef?.customerInfo && od.customer_name === '고객 입력 대기';
+        const emailPlaceholder = cef?.customerInfo && od.customer_email === 'pending@placeholder.com';
 
         setCustomerName(namePlaceholder ? '' : (od.customer_name || ''));
         setCustomerEmail(emailPlaceholder ? '' : (od.customer_email || ''));

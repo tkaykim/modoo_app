@@ -335,7 +335,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: session.id,
-        ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
+        ...(isShareEntry ? { shareToken: routeShareToken } : {}),
         name: data.name,
         email: data.email,
         phone: data.phone || null,
@@ -362,7 +362,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       body: JSON.stringify({
         participantId: editingParticipant.id,
         sessionId: session.id,
-        ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
+        ...(isShareEntry ? { shareToken: routeShareToken } : {}),
         name: data.name,
         email: data.email,
         phone: data.phone || null,
@@ -396,7 +396,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         body: JSON.stringify({
           participantId: participant.id,
           sessionId: session.id,
-          ...(isTokenAccess ? { shareToken: routeShareToken } : {}),
+          ...(isShareEntry ? { shareToken: routeShareToken } : {}),
         }),
       });
       if (!response.ok) {

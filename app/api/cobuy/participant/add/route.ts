@@ -71,6 +71,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
+      if (insertError.code === '23505') {
+        return NextResponse.json({ error: '이미 해당 이메일로 참여한 참여자가 존재합니다.' }, { status: 409 });
+      }
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
