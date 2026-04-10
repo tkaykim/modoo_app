@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard, Building2, Clock } from 'lucide-react';
+import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard, Building2, Clock, Minus, Plus } from 'lucide-react';
 import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
 import { CustomOrderData } from '@/types/types';
 
@@ -17,6 +17,14 @@ interface DomesticAddress {
   state: string;
   city: string;
 }
+
+interface VariantQty {
+  sizeId: string;
+  sizeName: string;
+  quantity: number;
+}
+
+type ItemQuantities = Record<string, VariantQty[]>;
 
 export default function CustomOrderPage() {
   const params = useParams();
@@ -49,6 +57,33 @@ export default function CustomOrderPage() {
   const [bankTransferLoading, setBankTransferLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [itemQuantities, setItemQuantities] = useState<ItemQuantities>({});
+
+  const ceFields = orderData?.customer_editable_fields;
+  const isQtyEditable = !!ceFields?.quantities;
+
+  const handleVariantQty = useCallback((itemId: string, sizeId: string, delta: number) => {
+    setItemQuantities(prev => {
+      const variants = prev[itemId] || [];
+      return {
+        ...prev,
+        [itemId]: variants.map(v => v.sizeId === sizeId ? { ...v, quantity: Math.max(0, v.quantity + delta) } : v),
+      };
+    });
+  }, []);
+
+  const handleVariantQtyInput = useCallback((itemId: string, sizeId: string, value: string) => {
+    const q = parseInt(value, 10);
+    if (isNaN(q) || q < 0) return;
+    setItemQuantities(prev => {
+      const variants = prev[itemId] || [];
+      return {
+        ...prev,
+        [itemId]: variants.map(v => v.sizeId === sizeId ? { ...v, quantity: q } : v),
+      };
+    });
+  }, []);
+
   useEffect(() => {
     const fetchOrder = async () => {
       try {
@@ -64,24 +99,43 @@ export default function CustomOrderPage() {
           return;
         }
 
-        setOrderData(data.data);
-        setCustomerName(data.data.customer_name || '');
-        setCustomerEmail(data.data.customer_email || '');
-        setCustomerPhone((data.data.customer_phone || '').replace(/[^0-9]/g, ''));
+        const od: CustomOrderData = data.data;
+        setOrderData(od);
 
-        if (data.data.shipping_method) {
-          setShippingMethod(data.data.shipping_method === 'pickup' ? 'pickup' : 'domestic');
+        const cef = od.customer_editable_fields;
+        const namePlaceholder = cef?.customerName && od.customer_name === '고객 입력 대기';
+        const emailPlaceholder = cef?.customerEmail && od.customer_email === 'pending@placeholder.com';
+
+        setCustomerName(namePlaceholder ? '' : (od.customer_name || ''));
+        setCustomerEmail(emailPlaceholder ? '' : (od.customer_email || ''));
+        setCustomerPhone((od.customer_phone || '').replace(/[^0-9]/g, ''));
+
+        if (od.shipping_method) {
+          setShippingMethod(od.shipping_method === 'pickup' ? 'pickup' : 'domestic');
         }
 
-        if (data.data.address_line_1) {
+        if (od.address_line_1) {
           setDomesticAddress({
-            roadAddress: data.data.address_line_1,
+            roadAddress: od.address_line_1,
             jibunAddress: '',
-            detailAddress: data.data.address_line_2 || '',
-            postalCode: data.data.postal_code || '',
-            state: data.data.state || '',
-            city: data.data.city || '',
+            detailAddress: od.address_line_2 || '',
+            postalCode: od.postal_code || '',
+            state: od.state || '',
+            city: od.city || '',
           });
+        }
+
+        if (cef?.quantities && od.order_items) {
+          const qtyMap: ItemQuantities = {};
+          for (const item of od.order_items) {
+            const opts = (item.item_options || {}) as { variants?: Array<{ size_id?: string; size_name?: string; quantity?: number }> };
+            qtyMap[item.id] = (opts.variants || []).map(v => ({
+              sizeId: v.size_id || '',
+              sizeName: v.size_name || v.size_id || '',
+              quantity: v.quantity || 0,
+            }));
+          }
+          setItemQuantities(qtyMap);
         }
       } catch {
         setError('주문 정보를 불러올 수 없습니다.');
@@ -93,11 +147,36 @@ export default function CustomOrderPage() {
     if (token) fetchOrder();
   }, [token]);
 
-  const totalAmount = orderData?.total_amount ?? 0;
   const itemsSubtotal = useMemo(() => {
     if (!orderData?.order_items) return 0;
+    if (isQtyEditable) {
+      return orderData.order_items.reduce((sum, item) => {
+        const variants = itemQuantities[item.id] || [];
+        const qty = variants.reduce((s, v) => s + v.quantity, 0);
+        return sum + qty * item.price_per_item;
+      }, 0);
+    }
     return orderData.order_items.reduce((sum, item) => sum + item.quantity * item.price_per_item, 0);
-  }, [orderData]);
+  }, [orderData, itemQuantities, isQtyEditable]);
+
+  const totalAmount = useMemo(() => {
+    if (!orderData) return 0;
+    if (isQtyEditable) {
+      const coupon = orderData.coupon_discount || 0;
+      const discount = orderData.admin_discount || 0;
+      const surcharge = orderData.admin_surcharge || 0;
+      return Math.max(0, itemsSubtotal - coupon - discount + surcharge);
+    }
+    return orderData.total_amount ?? 0;
+  }, [orderData, itemsSubtotal, isQtyEditable]);
+
+  const totalQuantity = useMemo(() => {
+    if (!isQtyEditable) return 0;
+    return Object.values(itemQuantities).reduce(
+      (sum, variants) => sum + variants.reduce((s, v) => s + v.quantity, 0), 0
+    );
+  }, [itemQuantities, isQtyEditable]);
+
   const hasAdjustments = useMemo(() => {
     if (!orderData) return false;
     return (orderData.coupon_discount > 0 || orderData.admin_discount > 0 || orderData.admin_surcharge > 0);
@@ -134,6 +213,10 @@ export default function CustomOrderPage() {
       setFormError('올바른 이메일 형식을 입력해주세요.');
       return false;
     }
+    if (isQtyEditable && totalQuantity <= 0) {
+      setFormError('최소 하나 이상의 수량을 선택해주세요.');
+      return false;
+    }
     if (shippingMethod === 'domestic' && !domesticAddress.roadAddress) {
       setFormError('배송 주소를 입력해주세요.');
       return false;
@@ -145,24 +228,35 @@ export default function CustomOrderPage() {
   const handleProceedToPayment = async () => {
     if (!validateForm()) return;
 
-    // Save customer info to order before payment
     try {
+      const putBody: Record<string, unknown> = {
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim() || null,
+        shippingMethod,
+        ...(shippingMethod === 'domestic' && {
+          postalCode: domesticAddress.postalCode,
+          state: domesticAddress.state,
+          city: domesticAddress.city,
+          addressLine1: domesticAddress.roadAddress,
+          addressLine2: domesticAddress.detailAddress || null,
+        }),
+      };
+
+      if (isQtyEditable && orderData) {
+        putBody.items = orderData.order_items.map(item => ({
+          id: item.id,
+          variants: (itemQuantities[item.id] || []).map(v => ({
+            sizeCode: v.sizeId,
+            quantity: v.quantity,
+          })),
+        }));
+      }
+
       const res = await fetch(`/api/order/custom/${token}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim() || null,
-          shippingMethod,
-          ...(shippingMethod === 'domestic' && {
-            postalCode: domesticAddress.postalCode,
-            state: domesticAddress.state,
-            city: domesticAddress.city,
-            addressLine1: domesticAddress.roadAddress,
-            addressLine2: domesticAddress.detailAddress || null,
-          }),
-        }),
+        body: JSON.stringify(putBody),
       });
 
       if (!res.ok) {
@@ -262,30 +356,73 @@ export default function CustomOrderPage() {
               <h2 className="font-semibold text-gray-900">주문 상품</h2>
             </div>
             <div className="divide-y">
-              {orderData.order_items.map((item, idx) => (
-                <div key={item.id || idx} className="p-4">
-                  <div className="flex gap-4">
-                    {item.design_preview_url ? (
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                        <img src={item.design_preview_url} alt={item.product_title} className="w-full h-full object-contain" />
+              {orderData.order_items.map((item, idx) => {
+                const variants = itemQuantities[item.id] || [];
+                const itemQty = isQtyEditable
+                  ? variants.reduce((s, v) => s + v.quantity, 0)
+                  : item.quantity;
+                const itemSub = item.price_per_item * itemQty;
+
+                return (
+                  <div key={item.id || idx} className="p-4">
+                    <div className="flex gap-4">
+                      {item.design_preview_url ? (
+                        <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                          <img src={item.design_preview_url} alt={item.product_title} className="w-full h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                          <Package className="w-6 h-6 text-gray-300" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 text-sm">{item.product_title}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {item.price_per_item.toLocaleString()}원{isQtyEditable ? '/개' : ` × ${item.quantity}개`}
+                        </p>
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">
+                          {isQtyEditable && itemQty > 0 ? `${itemQty}개 = ` : ''}{itemSub.toLocaleString()}원
+                        </p>
                       </div>
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                        <Package className="w-6 h-6 text-gray-300" />
+                    </div>
+
+                    {isQtyEditable && variants.length > 0 && (
+                      <div className="mt-3 space-y-2 pl-1">
+                        <p className="text-xs font-medium text-gray-500 mb-1">사이즈별 수량 선택</p>
+                        {variants.map(v => (
+                          <div key={v.sizeId} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                            <span className="text-sm text-gray-700 font-medium">{v.sizeName}</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleVariantQty(item.id, v.sizeId, -1)}
+                                disabled={v.quantity <= 0}
+                                className="p-1.5 rounded bg-white border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={v.quantity}
+                                onChange={(e) => handleVariantQtyInput(item.id, v.sizeId, e.target.value)}
+                                className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleVariantQty(item.id, v.sizeId, 1)}
+                                className="p-1.5 rounded bg-white border border-gray-200 hover:bg-gray-100"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm">{item.product_title}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {item.price_per_item.toLocaleString()}원 × {item.quantity}개
-                      </p>
-                      <p className="text-sm font-medium text-gray-800 mt-0.5">
-                        {(item.price_per_item * item.quantity).toLocaleString()}원
-                      </p>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -460,9 +597,10 @@ export default function CustomOrderPage() {
               {/* Proceed to Payment Button */}
               <button
                 onClick={handleProceedToPayment}
-                className="w-full py-4 bg-black text-white rounded-xl font-medium text-lg hover:opacity-90 transition-opacity"
+                disabled={isQtyEditable && totalQuantity <= 0}
+                className="w-full py-4 bg-black text-white rounded-xl font-medium text-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                결제하기
+                {isQtyEditable && totalQuantity <= 0 ? '수량을 선택해주세요' : '결제하기'}
               </button>
 
               <div className="flex items-center justify-center gap-2 text-gray-400 text-xs pb-4">

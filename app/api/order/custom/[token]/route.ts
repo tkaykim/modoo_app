@@ -38,7 +38,8 @@ export async function GET(
         payment_status,
         payment_method,
         order_status,
-        payment_link_token
+        payment_link_token,
+        customer_editable_fields
       `)
       .eq('payment_link_token', token)
       .single();
@@ -127,6 +128,7 @@ export async function GET(
         order_name: orderName,
         product_title: firstTitle,
         design_preview_url: itemsWithPreview[0]?.design_preview_url || null,
+        customer_editable_fields: order.customer_editable_fields || null,
       },
     });
   } catch (error) {
@@ -155,7 +157,7 @@ export async function PUT(
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, payment_status, order_status')
+      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge')
       .eq('payment_link_token', token)
       .single();
 
@@ -166,6 +168,8 @@ export async function PUT(
     if (order.payment_status === 'completed') {
       return NextResponse.json({ error: '이미 결제가 완료된 주문입니다.' }, { status: 400 });
     }
+
+    const ceFields = order.customer_editable_fields as Record<string, boolean> | null;
 
     const updatePayload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -190,6 +194,59 @@ export async function PUT(
       if (payload.addressLine2 !== undefined) updatePayload.address_line_2 = payload.addressLine2 || null;
     }
 
+    // Handle customer quantity updates
+    let newTotalAmount: number | null = null;
+    if (ceFields?.quantities && Array.isArray(payload.items)) {
+      const { data: existingItems, error: itemsFetchErr } = await adminClient
+        .from('order_items')
+        .select('id, price_per_item, item_options')
+        .eq('order_id', order.id);
+
+      if (itemsFetchErr || !existingItems) {
+        return NextResponse.json({ error: '주문 항목을 불러올 수 없습니다.' }, { status: 500 });
+      }
+
+      let newOriginalAmount = 0;
+
+      for (const inputItem of payload.items as Array<{ id: string; variants: Array<{ sizeCode: string; quantity: number }> }>) {
+        const dbItem = existingItems.find(ei => ei.id === inputItem.id);
+        if (!dbItem) continue;
+
+        const totalQty = inputItem.variants.reduce((s: number, v: { quantity: number }) => s + (v.quantity || 0), 0);
+        const itemSubtotal = dbItem.price_per_item * totalQty;
+        newOriginalAmount += itemSubtotal;
+
+        const existingOptions = (dbItem.item_options || {}) as Record<string, unknown>;
+        const existingVariants = (existingOptions.variants || []) as Array<Record<string, unknown>>;
+
+        const updatedVariants = existingVariants.map((ev: Record<string, unknown>) => {
+          const match = inputItem.variants.find(iv => iv.sizeCode === ev.size_id);
+          return match ? { ...ev, quantity: match.quantity } : ev;
+        });
+
+        const updatedOptions: Record<string, unknown> = { ...existingOptions, variants: updatedVariants };
+        const nonZeroVariants = updatedVariants.filter((v: Record<string, unknown>) => (v.quantity as number) > 0);
+        if (nonZeroVariants.length === 1) {
+          const [single] = nonZeroVariants;
+          updatedOptions.size_id = single.size_id;
+          updatedOptions.size_name = single.size_name;
+        }
+
+        await adminClient
+          .from('order_items')
+          .update({ quantity: totalQty, item_options: updatedOptions })
+          .eq('id', dbItem.id);
+      }
+
+      const couponDiscount = Number(order.coupon_discount) || 0;
+      const adminDiscount = Number(order.admin_discount) || 0;
+      const adminSurcharge = Number(order.admin_surcharge) || 0;
+      newTotalAmount = Math.max(0, newOriginalAmount - couponDiscount - adminDiscount + adminSurcharge);
+
+      updatePayload.original_amount = newOriginalAmount;
+      updatePayload.total_amount = newTotalAmount;
+    }
+
     const { error: updateError } = await adminClient
       .from('orders')
       .update(updatePayload)
@@ -199,7 +256,7 @@ export async function PUT(
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data: { success: true } });
+    return NextResponse.json({ data: { success: true, ...(newTotalAmount !== null && { totalAmount: newTotalAmount }) } });
   } catch (error) {
     const message = error instanceof Error ? error.message : '주문 업데이트에 실패했습니다.';
     return NextResponse.json({ error: message }, { status: 500 });

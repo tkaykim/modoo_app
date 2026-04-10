@@ -386,6 +386,13 @@ export interface CustomOrderData {
   order_name: string;
   product_title: string;
   design_preview_url: string | null;
+
+  customer_editable_fields?: {
+    quantities?: boolean;
+    customerName?: boolean;
+    customerEmail?: boolean;
+    customerPhone?: boolean;
+  } | null;
 }
 
 // ============================================================================
