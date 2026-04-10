@@ -56,7 +56,7 @@ function buildCustomerHtml(params: OrderNotificationParams): string {
   return `
     <div style="max-width:600px;margin:0 auto;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#333;background:#ffffff;">
       <!-- Header with Logo -->
-      <div style="background:#3B55A5;padding:28px 24px;text-align:center;">
+      <div style="background:#0052cc;padding:28px 24px;text-align:center;">
         <img src="https://modoouniform.com/icons/modoo_logo.png" alt="모두의 유니폼" style="height:36px;margin-bottom:16px;" />
         <h1 style="color:#fff;margin:0;font-size:20px;font-weight:600;">주문이 완료되었습니다</h1>
       </div>
@@ -125,7 +125,7 @@ function buildCustomerHtml(params: OrderNotificationParams): string {
           </div>
           <div style="border-top:2px solid #333;margin-top:8px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-weight:600;font-size:14px;">총 결제금액</span>
-            <span style="font-weight:700;font-size:18px;color:#3B55A5;">${formatCurrency(params.totalAmount)}</span>
+            <span style="font-weight:700;font-size:18px;color:#0052cc;">${formatCurrency(params.totalAmount)}</span>
           </div>
         </div>
       </div>

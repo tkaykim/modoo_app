@@ -149,8 +149,6 @@ export default function DesignReviewPage() {
     );
   }
 
-  const shortOrderId = orderId.slice(0, 8).toUpperCase();
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -167,7 +165,7 @@ export default function DesignReviewPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">시안 확인</h1>
-                <p className="text-sm text-gray-500">주문번호 {shortOrderId}</p>
+                <p className="text-sm text-gray-500">주문번호 {orderId}</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-3 leading-relaxed">

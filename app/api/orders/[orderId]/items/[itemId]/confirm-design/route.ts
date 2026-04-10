@@ -87,18 +87,17 @@ export async function POST(
 
     const customerName = order?.customer_name || '고객';
     const itemLabel = orderItem.design_title || orderItem.product_title;
-    const shortOrderId = orderId.slice(0, 8).toUpperCase();
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminUrl = `https://admin.modoogoods.com/orders/${orderId}`;
 
     if (adminEmail) {
       sendGmailEmail({
         to: [{ email: adminEmail, name: '모두의 유니폼 관리자' }],
-        subject: `[시안 확정] ${customerName} - ${itemLabel} (${shortOrderId})`,
-        text: `${customerName}님이 ${itemLabel}의 시안을 확정했습니다.\n주문번호: ${shortOrderId}\n확인: ${adminUrl}`,
+        subject: `[시안 확정] ${customerName} - ${itemLabel} (${orderId})`,
+        text: `${customerName}님이 ${itemLabel}의 시안을 확정했습니다.\n주문번호: ${orderId}\n확인: ${adminUrl}`,
         html: `
           <div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
-            <div style="text-align:center;padding:24px 0;background:#f0fdf4;">
+            <div style="text-align:center;padding:24px 0;background:#f0f5ff;">
               <img src="https://modoouniform.com/icons/modoo_logo.png" alt="모두의 유니폼" style="height:48px;" />
             </div>
             <div style="height:3px;background:#059669;"></div>
@@ -111,7 +110,7 @@ export async function POST(
               </p>
               <div style="background:#f8f9fa;border-radius:8px;padding:14px 16px;margin:16px 0;">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                  <tr><td style="color:#888;padding:3px 0;width:80px;">주문번호</td><td style="font-weight:600;">${shortOrderId}</td></tr>
+                  <tr><td style="color:#888;padding:3px 0;width:80px;">주문번호</td><td style="font-weight:600;">${orderId}</td></tr>
                   <tr><td style="color:#888;padding:3px 0;">상품</td><td>${itemLabel}</td></tr>
                 </table>
               </div>
