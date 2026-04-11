@@ -39,6 +39,8 @@ const Footer = () => {
             <Link href="/policies" className="hover:underline">이용약관</Link>
             <span>|</span>
             <Link href="/support/privacy" className="hover:underline">개인정보처리방침</Link>
+            <span>|</span>
+            <Link href="/support/guides" className="hover:underline">제작 가이드</Link>
           </div>
           <p className="mt-3 md:mt-4 text-center text-[10px] md:text-xs text-gray-400">
             © {new Date().getFullYear()} 피스코프. All rights reserved.

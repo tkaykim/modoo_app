@@ -35,10 +35,53 @@ function FormRow({
   );
 }
 
+const TITLE_PRESETS: Record<string, string> = {
+  '디자인/견적 문의합니다.': `──────── 디자인/견적 문의 ────────
+
+●제품 종류 :
+ (예: 과잠바, 후드, 티셔츠, 유니폼 등)
+
+●원하시는 디자인 설명 :
+ (로고 위치, 텍스트 내용, 참고 이미지 등)
+
+●인쇄 방식 희망사항 :
+ (자수, DTF, 실크스크린 등 / 잘 모르시면 비워두세요)
+
+●예산 범위 :
+ (예: 개당 3만원 이내)
+
+●기타 문의사항 :
+`,
+  '인쇄방법 문의': `──────── 인쇄방법 문의 ────────
+
+인쇄 방법을 어떻게 선택해야할지 모르겠어요.
+
+●제품 종류 :
+ (예: 과잠바, 면티셔츠, 기능성 티셔츠, 또는 정확한 상품명)
+
+●원하시는 디자인 설명 :
+ (크기, 위치, 참고 이미지)
+
+●예상 제작 수량 (소폭 변동되어도 괜찮습니다) :
+
+●기타 문의사항 :
+`,
+  '주문/배송 문의합니다.': `──────── 주문/배송 문의 ────────
+
+●주문번호 (있을 경우) :
+
+●문의 내용 :
+ (주문 변경, 배송 일정, 교환/반품 등)
+
+●기타 문의사항 :
+`,
+};
+
 function InquiryForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevPresetRef = useRef('');
 
   // Auth
   const [user, setUser] = useState<any>(null);
@@ -102,6 +145,15 @@ function InquiryForm() {
     setSelectedProducts(prev => prev.filter(p => p.id !== productId));
   };
 
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    const newPreset = TITLE_PRESETS[newTitle] || '';
+    if (!content || content === prevPresetRef.current) {
+      setContent(newPreset);
+    }
+    prevPresetRef.current = newPreset;
+  };
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -149,9 +201,7 @@ function InquiryForm() {
     if (!title) { alert('제목을 선택해주세요.'); return; }
     if (!groupName.trim()) { alert('단체명을 입력해주세요.'); return; }
     if (!managerName.trim()) { alert('담당자명을 입력해주세요.'); return; }
-    if (!phone.trim()) { alert('연락처를 입력해주세요.'); return; }
-    if (!desiredDate) { alert('착용희망날짜를 선택해주세요.'); return; }
-    if (!expectedQty.trim()) { alert('예상수량을 입력해주세요.'); return; }
+    if (!phone.trim() && !kakaoId.trim()) { alert('연락처(전화번호 또는 카카오톡 아이디)를 하나 이상 입력해주세요.'); return; }
     if (!password.trim()) { alert('비밀번호를 입력해주세요.'); return; }
     if (consent !== 'agree') { alert('개인정보 수집 및 이용에 동의해주세요.'); return; }
 
@@ -251,7 +301,7 @@ function InquiryForm() {
           <h2 className="text-base font-bold mb-2">기본정보</h2>
           <div className="border border-gray-300 rounded-lg overflow-hidden mb-8">
             {/* 제품 */}
-            <FormRow label="제품" required>
+            <FormRow label="제품">
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   type="button"
@@ -283,12 +333,13 @@ function InquiryForm() {
             <FormRow label="제목" required>
               <select
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 className={selectClass + ' w-full'}
                 disabled={isSubmitting}
               >
                 <option value="">제목을 선택해주세요</option>
                 <option value="디자인/견적 문의합니다.">디자인/견적 문의합니다.</option>
+                <option value="인쇄방법 문의">인쇄방법 문의</option>
                 <option value="주문/배송 문의합니다.">주문/배송 문의합니다.</option>
                 <option value="기타 문의">기타 문의</option>
               </select>
@@ -320,10 +371,10 @@ function InquiryForm() {
             <FormRow label="연락처" required>
               <div className="flex flex-col gap-2">
                 <input
-                  type="tel"
+                  type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="전화번호 기재(숫자만 입력)"
+                  placeholder="전화번호, 카카오톡 아이디, 이메일 등"
                   className={inputClass}
                   disabled={isSubmitting}
                 />
@@ -339,7 +390,7 @@ function InquiryForm() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  ▶ 연락처를 남겨주시면 카카오톡을 통해 견적서와 시안을 받아보실 수 있습니다. 카카오톡 등록이 안되는 경우 문자로 안내드립니다.
+                  ▶ 전화번호 또는 카카오톡 아이디 중 하나 이상 입력해주세요. 카카오톡을 통해 견적서와 시안을 받아보실 수 있습니다.
                 </p>
                 <p className="text-xs text-gray-500">
                   ※ 카카오톡 전화번호 친구 추가 허용이 되어 있지 않은 경우 카카오톡 아이디를 별도 기재 부탁드립니다.
@@ -348,7 +399,7 @@ function InquiryForm() {
             </FormRow>
 
             {/* 착용희망날짜 */}
-            <FormRow label="착용희망날짜" required>
+            <FormRow label="착용희망날짜">
               <input
                 type="date"
                 value={desiredDate}
@@ -359,7 +410,7 @@ function InquiryForm() {
             </FormRow>
 
             {/* 예상수량 */}
-            <FormRow label="예상수량" required>
+            <FormRow label="예상수량">
               <input
                 type="number"
                 value={expectedQty}
@@ -376,10 +427,10 @@ function InquiryForm() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="추가 내용을 입력해주세요"
-                rows={5}
+                rows={10}
                 className={inputClass + ' resize-none'}
                 disabled={isSubmitting}
-                maxLength={1000}
+                maxLength={2000}
               />
             </FormRow>
           </div>

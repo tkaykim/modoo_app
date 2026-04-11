@@ -29,6 +29,7 @@ export default function NoticesPage() {
           .from('announcements')
           .select('id, title, created_at')
           .eq('is_published', true)
+          .or('category.eq.notice,category.is.null')
           .order('created_at', { ascending: false });
 
         if (fetchError) {

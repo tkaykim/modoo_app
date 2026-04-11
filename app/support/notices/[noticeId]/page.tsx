@@ -4,19 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination } from 'swiper/modules';
-import Image from 'next/image';
-
-import 'swiper/css';
-import 'swiper/css/pagination';
 
 interface AnnouncementDetail {
   id: string;
   title: string;
   content: string;
   created_at: string;
-  image_links?: string[];
 }
 
 export default function NoticeDetailPage() {
@@ -39,7 +32,7 @@ export default function NoticeDetailPage() {
         const supabase = createClient();
         const { data, error: fetchError } = await supabase
           .from('announcements')
-          .select('id, title, content, created_at, image_links')
+          .select('id, title, content, created_at')
           .eq('id', noticeId)
           .eq('is_published', true)
           .maybeSingle();
@@ -96,29 +89,13 @@ export default function NoticeDetailPage() {
         ) : !notice ? null : (
           <article className="bg-white shadow-sm p-5">
             <h2 className="text-xl font-bold text-gray-900 mb-2">{notice.title}</h2>
-            <div className="text-xs text-gray-400 mb-4">
+            <div className="text-xs text-gray-400 mb-6">
               {new Date(notice.created_at).toLocaleDateString('ko-KR')}
             </div>
-
-            {/* Image */}
-            {notice.image_links && notice.image_links.length > 0 && (
-              <div className="mb-6 space-y-4">
-                {notice.image_links.map((image_link, idx) => (
-                  <div key={idx} className="relative w-full">
-                    <Image
-                      src={image_link}
-                      alt={`${notice.title} - 이미지 ${idx + 1}`}
-                      width={800}
-                      height={600}
-                      unoptimized
-                      className="object-contain w-full h-auto"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="text-sm text-gray-700 whitespace-pre-line">{notice.content}</div>
+            <div
+              className="rich-content text-sm text-gray-700"
+              dangerouslySetInnerHTML={{ __html: notice.content }}
+            />
           </article>
         )}
       </div>
