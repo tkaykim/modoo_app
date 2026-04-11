@@ -8,18 +8,25 @@ interface DescriptionImageSectionProps {
   title?: string;
   imageUrls?: string[] | null;
   collapsedHeight?: number;
+  /** true면 접기/더보기 없이 이미지 전체를 항상 표시 */
+  disableCollapse?: boolean;
 }
 
 export default function DescriptionImageSection({
   title = '주문상세',
   imageUrls,
   collapsedHeight = 700,
+  disableCollapse = false,
 }: DescriptionImageSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [needsCollapse, setNeedsCollapse] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (disableCollapse) {
+      setNeedsCollapse(false);
+      return;
+    }
     if (!contentRef.current) return;
     const checkHeight = () => {
       setNeedsCollapse(contentRef.current!.scrollHeight > collapsedHeight);
@@ -31,11 +38,11 @@ export default function DescriptionImageSection({
     return () => {
       images.forEach((img) => img.removeEventListener('load', checkHeight));
     };
-  }, [collapsedHeight, imageUrls]);
+  }, [collapsedHeight, imageUrls, disableCollapse]);
 
   if (!imageUrls || imageUrls.length === 0) return null;
 
-  const isCollapsed = needsCollapse && !expanded;
+  const isCollapsed = !disableCollapse && needsCollapse && !expanded;
 
   return (
     <section className="mt-4 w-full">

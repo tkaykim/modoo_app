@@ -852,7 +852,11 @@ export default function ProductEditorUnified({
           </div>
           {product.sizing_chart_image && (
             <div className="px-4">
-              <DescriptionImageSection title="사이즈 차트" imageUrls={[product.sizing_chart_image]} />
+              <DescriptionImageSection
+                title="사이즈 차트"
+                imageUrls={[product.sizing_chart_image]}
+                disableCollapse
+              />
             </div>
           )}
         </div>
@@ -1131,7 +1135,11 @@ export default function ProductEditorUnified({
         <ReviewsSection productId={product.id} limit={10} />
         <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
         {product.sizing_chart_image && (
-          <DescriptionImageSection title="사이즈 차트" imageUrls={[product.sizing_chart_image]} />
+          <DescriptionImageSection
+            title="사이즈 차트"
+            imageUrls={[product.sizing_chart_image]}
+            disableCollapse
+          />
         )}
       </div>
 

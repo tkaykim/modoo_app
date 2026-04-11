@@ -69,7 +69,11 @@ export default function LandingStep({
         <div className="px-4 lg:px-0 lg:mt-4">
           <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
           {sizingChartImageUrl && (
-            <DescriptionImageSection title="사이즈 차트" imageUrls={[sizingChartImageUrl]} />
+            <DescriptionImageSection
+              title="사이즈 차트"
+              imageUrls={[sizingChartImageUrl]}
+              disableCollapse
+            />
           )}
         </div>
 
