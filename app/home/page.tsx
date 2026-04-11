@@ -3,7 +3,7 @@ import HeroBanner from "@/app/components/HeroBanner";
 import ProductCard from "../components/ProductCard"
 import CategoryButton from "@/app/components/CategoryButton";
 import ProductionExamples from "@/app/components/ProductionExamples";
-import GuideBannerSection from "@/app/components/GuideBannerSection";
+
 import InquiryBoardSection from "@/app/components/InquiryBoardSection";
 import CoBuySessionCard from "@/app/components/CoBuySessionCard";
 import BestReviewsSection from "@/app/components/BestReviewsSection";
@@ -163,9 +163,6 @@ export default async function HomePage() {
 
         {/* Production Examples Section */}
         <ProductionExamples />
-
-        {/* Guide Section */}
-        <GuideBannerSection />
 
         {/* CoBuy Section */}
         {cobuySessions.length > 0 && (
