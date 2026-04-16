@@ -171,16 +171,22 @@ export default function CustomOrderPage() {
     return orderData.order_items.reduce((sum, item) => sum + item.quantity * item.price_per_item, 0);
   }, [orderData, itemQuantities, isQtyEditable]);
 
+  const deliveryFee = useMemo(
+    () => shippingMethod === 'domestic' ? 3000 : 0,
+    [shippingMethod],
+  );
+
   const totalAmount = useMemo(() => {
     if (!orderData) return 0;
     if (isQtyEditable) {
       const coupon = orderData.coupon_discount || 0;
       const discount = orderData.admin_discount || 0;
       const surcharge = orderData.admin_surcharge || 0;
-      return Math.max(0, itemsSubtotal - coupon - discount + surcharge);
+      return Math.max(0, itemsSubtotal + deliveryFee - coupon - discount + surcharge);
     }
-    return orderData.total_amount ?? 0;
-  }, [orderData, itemsSubtotal, isQtyEditable]);
+    const originalDeliveryFee = orderData.delivery_fee ?? 0;
+    return Math.max(0, (orderData.total_amount ?? 0) - originalDeliveryFee + deliveryFee);
+  }, [orderData, itemsSubtotal, isQtyEditable, deliveryFee]);
 
   const totalQuantity = useMemo(() => {
     if (!isQtyEditable) return 0;
@@ -527,12 +533,10 @@ export default function CustomOrderPage() {
                 <span>상품 금액</span>
                 <span>{itemsSubtotal.toLocaleString()}원</span>
               </div>
-              {orderData.delivery_fee > 0 && (
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>배송비</span>
-                  <span>+{orderData.delivery_fee.toLocaleString()}원</span>
-                </div>
-              )}
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>배송비 ({shippingMethod === 'domestic' ? '국내 배송' : '직접 수령'})</span>
+                <span>{deliveryFee > 0 ? `+${deliveryFee.toLocaleString()}원` : '무료'}</span>
+              </div>
               {orderData.coupon_discount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>쿠폰 할인</span>
@@ -553,7 +557,7 @@ export default function CustomOrderPage() {
               )}
               {(() => {
                 const computedTotal = itemsSubtotal
-                  + (orderData.delivery_fee ?? 0)
+                  + deliveryFee
                   - (orderData.coupon_discount ?? 0)
                   - (orderData.admin_discount ?? 0)
                   + (orderData.admin_surcharge ?? 0);

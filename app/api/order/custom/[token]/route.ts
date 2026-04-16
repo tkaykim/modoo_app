@@ -188,7 +188,7 @@ export async function PUT(
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge')
+      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge, delivery_fee, total_amount')
       .eq('payment_link_token', token)
       .single();
 
@@ -223,6 +223,14 @@ export async function PUT(
       if (payload.city !== undefined) updatePayload.city = payload.city;
       if (payload.addressLine1) updatePayload.address_line_1 = payload.addressLine1;
       if (payload.addressLine2 !== undefined) updatePayload.address_line_2 = payload.addressLine2 || null;
+    }
+
+    const newDeliveryFee = payload.shippingMethod === 'domestic' ? 3000
+      : payload.shippingMethod === 'pickup' ? 0
+      : null;
+
+    if (newDeliveryFee !== null) {
+      updatePayload.delivery_fee = newDeliveryFee;
     }
 
     // Handle customer quantity updates
@@ -272,10 +280,15 @@ export async function PUT(
       const couponDiscount = Number(order.coupon_discount) || 0;
       const adminDiscount = Number(order.admin_discount) || 0;
       const adminSurcharge = Number(order.admin_surcharge) || 0;
-      newTotalAmount = Math.max(0, newOriginalAmount - couponDiscount - adminDiscount + adminSurcharge);
+      const effectiveDeliveryFee = newDeliveryFee ?? (Number(order.delivery_fee) || 0);
+      newTotalAmount = Math.max(0, newOriginalAmount + effectiveDeliveryFee - couponDiscount - adminDiscount + adminSurcharge);
 
       updatePayload.original_amount = newOriginalAmount;
       updatePayload.total_amount = newTotalAmount;
+    } else if (newDeliveryFee !== null) {
+      const oldDeliveryFee = Number(order.delivery_fee) || 0;
+      const currentTotal = Number(order.total_amount) || 0;
+      updatePayload.total_amount = Math.max(0, currentTotal - oldDeliveryFee + newDeliveryFee);
     }
 
     const { error: updateError } = await adminClient
