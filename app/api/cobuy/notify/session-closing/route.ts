@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { sendMailjetEmail } from '@/lib/mailjet';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface SessionClosingBody {
   sessionId: string;
@@ -50,13 +51,13 @@ export async function POST(request: NextRequest) {
     const textPart = [
       `공동구매 마감이 임박했습니다.`,
       `공동구매: ${session.title}`,
-      `마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}`,
+      `마감일: ${formatKstDateOnly(session.end_date)}`,
       `공유 링크: ${shareLink}`,
     ].join('\n');
     const htmlPart = `
       <h2>공동구매 마감이 임박했습니다</h2>
       <p>공동구매: ${session.title}</p>
-      <p>마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}</p>
+      <p>마감일: ${formatKstDateOnly(session.end_date)}</p>
       <p>공유 링크: <a href="${shareLink}">${shareLink}</a></p>
     `;
 

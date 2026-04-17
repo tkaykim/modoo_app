@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
+import { formatKstDateOnly } from '@/lib/kst';
 
 const CATEGORY_LABELS: Record<string, string> = {
   fabric: '원단 안내',
@@ -123,7 +124,7 @@ export default function GuideDetailPage() {
                 </span>
                 <h2 className="text-xl font-bold text-gray-900 mb-2">{guide.title}</h2>
                 <div className="text-xs text-gray-400 mb-4">
-                  {new Date(guide.created_at).toLocaleDateString('ko-KR')}
+                  {formatKstDateOnly(guide.created_at)}
                 </div>
               </div>
 

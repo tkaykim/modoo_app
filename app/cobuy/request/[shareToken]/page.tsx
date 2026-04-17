@@ -10,6 +10,7 @@ import { CoBuyRequest, CoBuyRequestComment, CoBuyRequestStatus, CoBuyRequestQuan
 import Header from '@/app/components/Header';
 import DesignEditorViewer from '@/app/components/cobuy/DesignEditorViewer';
 import { getPricingInfo } from '@/lib/cobuyPricing';
+import { formatKstShortDateTime } from '@/lib/kst';
 
 type RequestWithProduct = CoBuyRequest & {
   product?: {
@@ -39,12 +40,8 @@ const statusOrder: CoBuyRequestStatus[] = [
   'pending', 'in_progress', 'design_shared', 'confirmed', 'session_created',
 ];
 
-const formatDate = (dateString?: string | null) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('ko-KR', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-};
+const formatDate = (dateString?: string | null) =>
+  dateString ? formatKstShortDateTime(dateString) : '';
 
 export default function CoBuyRequestFeedbackPage() {
   const params = useParams();

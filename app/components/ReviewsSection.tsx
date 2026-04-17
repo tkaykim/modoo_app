@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FaStar } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface Review {
   id: string;
@@ -53,10 +54,7 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
     fetchReviews();
   }, [productId, limit]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateString: string) => formatKstDateOnly(dateString);
 
   const maskName = (name: string) => {
     if (name.length <= 2) return name;

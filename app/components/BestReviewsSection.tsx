@@ -5,6 +5,7 @@ import { FaStar } from 'react-icons/fa';
 import { IoClose, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import { MdVerified } from 'react-icons/md';
 import Link from 'next/link';
+import { formatKstDateOnly } from '@/lib/kst';
 import Image from 'next/image';
 import { ReviewWithProduct } from '@/types/types';
 
@@ -207,11 +208,7 @@ export default function BestReviewsSection({ reviews }: BestReviewsSectionProps)
 
               {/* Date */}
               <p className="text-xs text-gray-400 mb-4">
-                {new Date(selectedReview.created_at).toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {formatKstDateOnly(selectedReview.created_at)}
               </p>
 
               {/* Product Link */}

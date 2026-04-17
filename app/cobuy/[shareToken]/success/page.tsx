@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { CheckCircle, Truck, MapPin, Package, User, Mail, Phone, Store } from 'lucide-react';
 import { CoBuySelectedItem } from '@/types/types';
+import { formatKstDateLong } from '@/lib/kst';
 
 type ConfirmStatus = 'loading' | 'success' | 'error';
 
@@ -218,15 +219,7 @@ function CoBuyPaymentSuccessContent() {
     return new Intl.NumberFormat('ko-KR').format(amount) + '원';
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (dateString: string) => formatKstDateLong(dateString);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">

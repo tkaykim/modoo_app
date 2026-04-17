@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/app/components/Header';
 import { Search, Package, AlertCircle } from 'lucide-react';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface OrderItemData {
   id: string;
@@ -187,7 +188,7 @@ function OrderLookupContent() {
                 주문번호: {order.id}
               </div>
               <div className="text-xs text-gray-500">
-                주문일: {new Date(order.created_at).toLocaleDateString('ko-KR')}
+                주문일: {formatKstDateOnly(order.created_at)}
               </div>
             </div>
 

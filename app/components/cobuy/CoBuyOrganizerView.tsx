@@ -20,6 +20,7 @@ import CoBuyProgressBar from '@/app/components/cobuy/CoBuyProgressBar';
 import CoBuyOrderModal from '@/app/components/cobuy/CoBuyOrderModal';
 import DeliverySettingsEditModal from '@/app/components/cobuy/DeliverySettingsEditModal';
 import CoBuyParticipantModal, { ParticipantFormData } from '@/app/components/cobuy/CoBuyParticipantModal';
+import { formatKstDateOnly } from '@/lib/kst';
 
 const statusLabels: Record<CoBuySession['status'], { label: string; color: string }> = {
   gathering: { label: '모집중', color: 'bg-green-100 text-green-800' },
@@ -766,11 +767,11 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
               <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  시작일: {new Date(session.start_date).toLocaleDateString('ko-KR')}
+                  시작일: {formatKstDateOnly(session.start_date)}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  종료일: {new Date(session.end_date).toLocaleDateString('ko-KR')}
+                  종료일: {formatKstDateOnly(session.end_date)}
                 </span>
               </div>
             </div>
@@ -1107,7 +1108,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                             <div>
                               <p className="text-xs text-gray-500">참여일</p>
                               <p className="text-gray-700">
-                                {new Date(participant.joined_at).toLocaleDateString('ko-KR')}
+                                {formatKstDateOnly(participant.joined_at)}
                               </p>
                             </div>
                           </div>
@@ -1193,7 +1194,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                             {participant.payment_amount ? participant.payment_amount.toLocaleString('ko-KR') + '원' : '-'}
                           </td>
                           <td className="py-3 pr-4 text-gray-600">
-                            {new Date(participant.joined_at).toLocaleDateString('ko-KR')}
+                            {formatKstDateOnly(participant.joined_at)}
                           </td>
                           <td className="py-3 text-center">
                             {renderPickupStatusToggle(participant) || (

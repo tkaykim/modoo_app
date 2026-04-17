@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendMailjetEmail } from '@/lib/mailjet';
+import { formatKstDateOnly } from '@/lib/kst';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
           `공동구매: ${session.title}`,
           `사이즈: ${participantInfo.selected_size}`,
           `결제 금액: ${(participantInfo.payment_amount || amount).toLocaleString('ko-KR')}원`,
-          `마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}`,
+          `마감일: ${formatKstDateOnly(session.end_date)}`,
           `공유 링크: ${shareLink}`,
         ].join('\n');
         const htmlPart = `
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
             <li>공동구매: ${session.title}</li>
             <li>사이즈: ${participantInfo.selected_size}</li>
             <li>결제 금액: ${(participantInfo.payment_amount || amount).toLocaleString('ko-KR')}원</li>
-            <li>마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}</li>
+            <li>마감일: ${formatKstDateOnly(session.end_date)}</li>
           </ul>
           <p>공유 링크: <a href="${shareLink}">${shareLink}</a></p>
         `;

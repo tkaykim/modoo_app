@@ -6,6 +6,7 @@ import { InquiryWithDetails, InquiryStatus } from '@/types/types';
 import { createClient } from '@/lib/supabase-client';
 import { ChevronLeft, MessageSquare, Send, Lock, Paperclip, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
+import { formatKstDateLong } from '@/lib/kst';
 
 const STATUS_LABELS: Record<InquiryStatus, string> = {
   pending: '대기중',
@@ -223,16 +224,7 @@ export default function InquiryDetailPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = (dateString: string) => formatKstDateLong(dateString);
 
   const getProductImageUrl = (product: any) => {
     if (product?.configuration && product.configuration.length > 0) {

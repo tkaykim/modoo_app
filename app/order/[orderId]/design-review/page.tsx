@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, Loader2, ArrowLeft, Send, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface DesignItem {
   id: string;
@@ -293,7 +294,7 @@ export default function DesignReviewPage() {
                       <span className="text-sm font-medium">시안이 확정되었습니다</span>
                       {item.design_confirmed_at && (
                         <span className="text-xs text-green-600 ml-auto">
-                          {new Date(item.design_confirmed_at).toLocaleDateString('ko-KR')}
+                          {formatKstDateOnly(item.design_confirmed_at)}
                         </span>
                       )}
                     </div>

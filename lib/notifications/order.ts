@@ -1,4 +1,5 @@
 import { sendMailjetEmail } from '@/lib/mailjet';
+import { formatKstTodayLong } from '@/lib/kst';
 
 interface OrderItemSummary {
   product_title: string;
@@ -51,7 +52,7 @@ function buildCustomerHtml(params: OrderNotificationParams): string {
     0
   );
   const discount = params.couponDiscount || 0;
-  const orderDate = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const orderDate = formatKstTodayLong();
 
   return `
     <div style="max-width:600px;margin:0 auto;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#333;background:#ffffff;">

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { MessageSquare, Send, ChevronUp, ChevronDown, XCircle } from 'lucide-react';
 import { CoBuyRequest, CoBuyRequestComment, CoBuyRequestStatus, ProductConfig } from '@/types/types';
 import DesignEditorViewer from '@/app/components/cobuy/DesignEditorViewer';
+import { formatKstShortDateTime } from '@/lib/kst';
 
 type RequestWithProduct = CoBuyRequest & {
   product?: {
@@ -20,12 +21,8 @@ type RequestWithProduct = CoBuyRequest & {
   } | null;
 };
 
-const formatDate = (dateString?: string | null) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('ko-KR', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-};
+const formatDate = (dateString?: string | null) =>
+  dateString ? formatKstShortDateTime(dateString) : '';
 
 export default function CoBuyRequestEditorPage() {
   const params = useParams();

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
+import { formatKstDateOnly } from '@/lib/kst';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type GuideCategory = 'fabric' | 'printing' | 'order_guide';
@@ -129,7 +130,6 @@ export default function GuidesPage() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100">
             {filteredGuides.map((guide) => {
-              const created = new Date(guide.created_at);
               return (
                 <Link
                   key={guide.id}
@@ -155,7 +155,7 @@ export default function GuidesPage() {
                       dateTime={guide.created_at}
                       className="text-[11px] leading-4 text-gray-400 tabular-nums tracking-tight"
                     >
-                      {created.toLocaleDateString('ko-KR')}
+                      {formatKstDateOnly(guide.created_at)}
                     </time>
                   </div>
                   <span

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, X, MessageSquare, Loader2, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
+import { formatKstDateTimeCompact } from '@/lib/kst';
 import type { EditorChatMessage } from '@/types/types';
 
 interface DesignChatSectionProps {
@@ -113,15 +114,7 @@ export default function DesignChatSection({
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleString('ko-KR', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateStr: string) => formatKstDateTimeCompact(dateStr);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">

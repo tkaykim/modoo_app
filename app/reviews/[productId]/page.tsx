@@ -6,6 +6,7 @@ import { IoClose, IoChevronBack, IoChevronForward } from 'react-icons/io5';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/app/components/Header';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface Review {
   id: string;
@@ -67,10 +68,7 @@ export default function ReviewsPage() {
     fetchReviews();
   }, [productId]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateString: string) => formatKstDateOnly(dateString);
 
   const getPercentage = (count: number) => {
     if (reviews.length === 0) return 0;

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { X, Calendar, Users, ShoppingBag, Package, AlertCircle } from 'lucide-react';
 import { CoBuySession, CoBuyParticipant } from '@/types/types';
 import { updateCoBuySession } from '@/lib/cobuyService';
+import { formatKstDateOnly, formatKstDateInputValue } from '@/lib/kst';
 
 interface CoBuyOrderModalProps {
   isOpen: boolean;
@@ -29,9 +30,7 @@ export default function CoBuyOrderModal({
   const [view, setView] = useState<ModalView>('summary');
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isExtending, setIsExtending] = useState(false);
-  const [newEndDate, setNewEndDate] = useState(
-    new Date(session.end_date).toISOString().split('T')[0]
-  );
+  const [newEndDate, setNewEndDate] = useState(formatKstDateInputValue(session.end_date));
   const [error, setError] = useState<string | null>(null);
 
   const isSurveyMode = session.payment_mode === 'survey';
@@ -223,7 +222,7 @@ export default function CoBuyOrderModal({
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-4 h-4" />
                     <span>
-                      종료일: {new Date(session.end_date).toLocaleDateString('ko-KR')}
+                      종료일: {formatKstDateOnly(session.end_date)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
@@ -304,7 +303,7 @@ export default function CoBuyOrderModal({
                   <p className="text-sm text-gray-600 mb-3">
                     현재 종료일:{' '}
                     <span className="font-medium">
-                      {new Date(session.end_date).toLocaleDateString('ko-KR')}
+                      {formatKstDateOnly(session.end_date)}
                     </span>
                   </p>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -314,7 +313,7 @@ export default function CoBuyOrderModal({
                     type="date"
                     value={newEndDate}
                     onChange={(e) => setNewEndDate(e.target.value)}
-                    min={new Date(session.end_date).toISOString().split('T')[0]}
+                    min={formatKstDateInputValue(session.end_date)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black"
                   />
                 </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Header from '@/app/components/Header';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
+import { formatKstDateOnly } from '@/lib/kst';
 import { FaStar } from 'react-icons/fa';
 
 type MyReview = {
@@ -87,8 +88,7 @@ export default function MyReviewsPage() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    return formatKstDateOnly(dateString);
   };
 
   const handleDelete = async (reviewId: string) => {

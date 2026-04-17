@@ -8,6 +8,7 @@ import {
 import { uploadSVGToStorage, uploadDataUrlToStorage } from './supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import { FontMetadata, deleteFonts } from './fontUtils';
+import { formatKstDateTimeMedium } from './kst';
 
 export interface SaveDesignData {
   productId: string;
@@ -146,7 +147,7 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
     const designData: any = {
       user_id: user.id,
       product_id: data.productId,
-      title: data.title || `Design ${new Date().toLocaleString('ko-KR')}`,
+      title: data.title || `Design ${formatKstDateTimeMedium(new Date())}`,
       color_selections: {
         productColor: data.productColor,
       },

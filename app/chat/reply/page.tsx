@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { formatKstDateTimeCompact } from '@/lib/kst';
 
 interface ChatMessage {
   id: string;
@@ -98,15 +99,7 @@ function ChatReplyContent() {
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleString('ko-KR', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateStr: string) => formatKstDateTimeCompact(dateStr);
 
   if (loading) {
     return (

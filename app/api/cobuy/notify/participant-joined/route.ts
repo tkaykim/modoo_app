@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { sendMailjetEmail } from '@/lib/mailjet';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface ParticipantJoinedBody {
   sessionId: string;
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       `이름: ${participant.name}`,
       `이메일: ${participant.email}`,
       `사이즈: ${participant.selected_size}`,
-      `마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}`,
+      `마감일: ${formatKstDateOnly(session.end_date)}`,
       `공유 링크: ${shareLink}`,
     ].join('\n');
     const htmlPart = `
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
         <li>이름: ${participant.name}</li>
         <li>이메일: ${participant.email}</li>
         <li>사이즈: ${participant.selected_size}</li>
-        <li>마감일: ${new Date(session.end_date).toLocaleDateString('ko-KR')}</li>
+        <li>마감일: ${formatKstDateOnly(session.end_date)}</li>
       </ul>
       <p>공유 링크: <a href="${shareLink}">${shareLink}</a></p>
     `;

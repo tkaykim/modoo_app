@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Faq, InquiryWithDetails } from '@/types/types';
 import { createClient } from '@/lib/supabase-client';
-import { isToday } from '@/lib/utils';
+import { formatKstDateInputValue, isTodayKst } from '@/lib/kst';
 import { ChevronLeft, MessageSquare, Plus, Search, ChevronRight, HelpCircle, Lock, Paperclip } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
@@ -153,13 +153,7 @@ export default function InquiriesPage() {
     fetchContent();
   }, [currentPage, activeTab, searchQuery, authChecked, user, user?.id]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
+  const formatDate = (dateString: string) => formatKstDateInputValue(dateString) || '-';
 
   const handleInquiryClick = (inquiry: InquiryWithDetails) => {
     // Admins and owners skip password
@@ -381,7 +375,7 @@ export default function InquiriesPage() {
                     <span className="text-xs text-red-500 font-bold shrink-0">+{inquiry.replies.length}</span>
                   )}
                   <Lock className="w-3 h-3 text-gray-400 shrink-0" />
-                  {isToday(inquiry.created_at) && (
+                  {isTodayKst(inquiry.created_at) && (
                     <span className="text-xs text-red-500 font-bold shrink-0">NEW</span>
                   )}
                   {inquiry.file_urls && inquiry.file_urls.length > 0 && (

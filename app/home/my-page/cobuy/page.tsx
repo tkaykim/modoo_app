@@ -11,6 +11,7 @@ import {
   ArrowRight, Package,
 } from 'lucide-react';
 import Header from '@/app/components/Header';
+import { formatKstMonthDay } from '@/lib/kst';
 
 type Tab = 'requests' | 'sessions';
 
@@ -95,8 +96,7 @@ export default function CoBuyListPage() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  const formatDate = (dateString: string) => formatKstMonthDay(dateString);
 
   if (!isAuthenticated) {
     return (

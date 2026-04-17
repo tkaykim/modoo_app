@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase-client';
+import { formatKstDateOnly } from '@/lib/kst';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface AnnouncementListItem {
@@ -90,7 +91,7 @@ export default function NoticesPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-base font-semibold text-gray-900 max-w-70 md:max-w-full truncate line-clamp-2">{notice.title}</h2>
-                  <p>{new Date(notice.created_at).toLocaleDateString('ko-KR')}</p>
+                  <p>{formatKstDateOnly(notice.created_at)}</p>
                 </div>
               </Link>
             ))}

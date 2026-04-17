@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface AnnouncementDetail {
   id: string;
@@ -90,7 +91,7 @@ export default function NoticeDetailPage() {
           <article className="bg-white shadow-sm p-5">
             <h2 className="text-xl font-bold text-gray-900 mb-2">{notice.title}</h2>
             <div className="text-xs text-gray-400 mb-6">
-              {new Date(notice.created_at).toLocaleDateString('ko-KR')}
+              {formatKstDateOnly(notice.created_at)}
             </div>
             <div
               className="rich-content text-sm text-gray-700"

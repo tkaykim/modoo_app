@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Users, Calendar } from "lucide-react";
+import { formatKstMonthDayLong } from '@/lib/kst';
 
 interface CoBuySessionCardProps {
   session: {
@@ -22,10 +23,7 @@ export default function CoBuySessionCard({ session }: CoBuySessionCardProps) {
   const designTitle = session.saved_design_screenshot?.title || session.title;
 
   const endDate = new Date(session.end_date);
-  const formattedEndDate = endDate.toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-  });
+  const formattedEndDate = formatKstMonthDayLong(session.end_date);
 
   const now = new Date();
   const isExpired = now > endDate;

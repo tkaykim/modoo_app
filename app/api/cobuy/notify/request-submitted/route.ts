@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendMailjetEmail } from '@/lib/mailjet';
 import { getPricingInfo } from '@/lib/cobuyPricing';
+import { formatKstDateOnly, getKstHour } from '@/lib/kst';
 
 interface RequestSubmittedBody {
   title: string;
@@ -40,13 +41,12 @@ export async function POST(request: NextRequest) {
 
   const baseUrl = 'https://modoouniform.com';
   const requestLink = `${baseUrl}/cobuy/request/${shareToken}`;
-  const formattedDate = receiveByDate ? new Date(receiveByDate).toLocaleDateString('ko-KR') : '-';
+  const formattedDate = receiveByDate ? formatKstDateOnly(receiveByDate) : '-';
   const pricing = getPricingInfo(estimatedQuantity);
   const logoUrl = `${baseUrl}/icons/modoo_logo.png`;
 
-  // Determine call schedule based on current time
-  const now = new Date();
-  const hour = now.getHours();
+  // Determine call schedule based on current time (KST)
+  const hour = getKstHour();
   const callSchedule = hour < 15
     ? '오늘 ~ 다음날'
     : '내일 ~ 모레';

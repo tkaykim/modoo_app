@@ -1,4 +1,5 @@
 import Mailjet from 'node-mailjet';
+import { formatKstDateLong } from '@/lib/kst';
 
 interface ChatbotInquiryNotification {
   id: string;
@@ -31,13 +32,7 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
       ? '상관없음 (제작일정에 따름)'
       : (inquiry.needed_date || '미지정');
 
-    const createdAt = new Date(inquiry.created_at).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const createdAt = formatKstDateLong(inquiry.created_at);
 
     const result = await mailjet.post('send', { version: 'v3.1' }).request({
       Messages: [{

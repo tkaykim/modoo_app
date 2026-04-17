@@ -6,6 +6,7 @@ import Header from '@/app/components/Header';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Package } from 'lucide-react';
+import { formatKstDateNumeric } from '@/lib/kst';
 
 type OrderItem = {
   id: string;
@@ -132,7 +133,7 @@ export default function OrdersPage() {
               const status = statusMap[statusKey] || statusMap.payment_completed;
               const itemCount = order.order_items?.length || 0;
               const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-              const formattedDate = new Date(order.created_at).toLocaleDateString('ko-KR');
+              const formattedDate = formatKstDateNumeric(order.created_at);
               const formattedTotal = (order.total_amount || 0).toLocaleString('ko-KR');
 
               return (

@@ -16,6 +16,7 @@ import CoBuyClosedScreen from '@/app/components/cobuy/CoBuyClosedScreen';
 import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
 import { createClient } from '@/lib/supabase-client';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { formatKstDateOnly } from '@/lib/kst';
 
 type DesignWithProduct = SavedDesignScreenshot & { product?: Product };
 
@@ -30,15 +31,8 @@ type Step =
   | 'payment'
   | 'complete';
 
-const formatDate = (dateString?: string | null) => {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
+const formatDate = (dateString?: string | null) =>
+  dateString ? formatKstDateOnly(dateString) : '-';
 
 const formatPrice = (price?: number | null) => {
   if (price === null || price === undefined) return '-';

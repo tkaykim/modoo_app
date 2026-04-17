@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { XCircle, Clock, Users } from 'lucide-react';
+import { formatKstDateOnly } from '@/lib/kst';
 
 interface CoBuyClosedScreenProps {
   reason: 'expired' | 'closed' | 'full' | 'cancelled';
@@ -25,7 +26,7 @@ const CoBuyClosedScreen: React.FC<CoBuyClosedScreenProps> = ({
           icon: <Clock className="w-16 h-16 text-gray-400" />,
           title: '공동구매가 마감되었습니다',
           message: endDate
-            ? `이 공동구매는 ${new Date(endDate).toLocaleDateString('ko-KR')}에 종료되었습니다.`
+            ? `이 공동구매는 ${formatKstDateOnly(endDate)}에 종료되었습니다.`
             : '공동구매 기간이 종료되었습니다.'
         };
       case 'closed':
