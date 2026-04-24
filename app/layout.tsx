@@ -7,6 +7,7 @@ import AuthInitializer from "./components/AuthInitializer";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
 import { getSiteUrl } from "@/lib/site-url";
+import { Analytics } from "@vercel/analytics/next";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
@@ -78,6 +79,7 @@ export default function RootLayout({
         {/* Chatbot */}
         <ChatBubble />
         <ChatWindow />
+        <Analytics />
       </body>
     </html>
   );
