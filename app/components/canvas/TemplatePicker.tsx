@@ -6,6 +6,7 @@ import { TemplatePickerItem } from '@/types/types';
 import { getProductTemplates, getTemplate } from '@/lib/templateService';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import TemplateCard from './TemplateCard';
+import { trackDesignAction } from '@/lib/gtm-events';
 
 interface TemplatePickerProps {
   productId: string;
@@ -80,6 +81,8 @@ const TemplatePicker: React.FC<TemplatePickerProps> = ({ productId, isOpen, onCl
 
       // Trigger pricing recalculation
       incrementCanvasVersion();
+
+      trackDesignAction({ action_type: 'template_apply', product_id: productId });
 
       onClose();
     } catch (err) {

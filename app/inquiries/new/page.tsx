@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase-client';
 import ProductSelectionModal from '@/app/components/ProductSelectionModal';
 import { ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useRef } from 'react';
+import { trackGenerateLead, trackGenerateLeadFail } from '@/lib/gtm-events';
+import { getQuantityRange } from '@/lib/gtm';
 
 interface UploadedFile {
   url: string;
@@ -261,10 +263,18 @@ function InquiryForm() {
         }),
       }).catch(() => {}); // email failure should not affect the user
 
+      trackGenerateLead({
+        form_type: 'quote',
+        quantity_range: expectedQty ? getQuantityRange(parseInt(expectedQty, 10)) : undefined,
+        desired_date: desiredDate || undefined,
+        product_count: selectedProducts.length,
+      });
+
       alert('문의가 등록되었습니다.');
       router.replace('/inquiries');
     } catch (error) {
       console.error('Error submitting inquiry:', error);
+      trackGenerateLeadFail({ form_type: 'quote', reason: 'submit_error' });
       alert('문의 등록 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);

@@ -5,6 +5,7 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clearCart } from "@/lib/cartService";
 import { useCartStore } from "@/store/useCartStore";
+import { trackPurchase } from "@/lib/gtm-events";
 
 function WidgetSuccessPageContent() {
   const router = useRouter();
@@ -41,6 +42,40 @@ function WidgetSuccessPageContent() {
 
         if (!response.ok || !json.success) {
           throw { message: json.message || json.error || '결제 확인 실패', code: json.code };
+        }
+
+        // GTM: purchase (중복 방지: orderId 단위 sessionStorage 가드)
+        try {
+          const dedupeKey = `gtm_purchase_pushed_${json.orderId}`;
+          if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+            sessionStorage.setItem(dedupeKey, '1');
+            const totalAmount = Number(searchParams.get('amount')) || 0;
+            const items = Array.isArray(cartItems)
+              ? cartItems.map((it: {
+                  productId?: string;
+                  productTitle?: string;
+                  productColorName?: string;
+                  size?: string;
+                  pricePerItem?: number;
+                  quantity?: number;
+                  savedDesignId?: string;
+                }) => ({
+                  item_id: it.productId ?? '',
+                  item_name: it.productTitle ?? '',
+                  item_variant: it.size,
+                  price: it.pricePerItem,
+                  quantity: it.quantity,
+                  design_id: it.savedDesignId,
+                }))
+              : [];
+            trackPurchase({
+              transaction_id: String(json.orderId),
+              value: totalAmount,
+              items,
+            });
+          }
+        } catch {
+          // 트래킹 실패는 무시
         }
 
         // Clear pending order data

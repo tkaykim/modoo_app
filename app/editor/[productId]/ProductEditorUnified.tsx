@@ -9,7 +9,19 @@ import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
 import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import {
+  trackViewItem,
+  trackEditorOpen,
+  trackDesignStart,
+  trackDesignAction,
+  trackDesignComplete,
+  trackDesignResume,
+  trackDesignDiscard,
+  trackCheckoutIntent,
+  trackAddToCart,
+  trackBeginCheckout,
+} from "@/lib/gtm-events";
 import * as fabric from 'fabric';
 import { isCurvedText } from '@/lib/curvedText';
 import TextStylePanel from '@/app/components/canvas/TextStylePanel';
@@ -95,6 +107,12 @@ export default function ProductEditorUnified({
   const goToEditor = () => {
     setCurrentStep('editor');
     setEditMode(true);
+    trackDesignStart({
+      product_id: product.id,
+      product_name: product.title,
+      brand: product.manufacturer_name ?? undefined,
+      category: product.category ?? undefined,
+    });
   };
 
   const handleEditorDone = () => {
@@ -110,11 +128,62 @@ export default function ProductEditorUnified({
     }
     setCurrentStep('quantity');
     setIsQuantitySelectorOpen(true);
+    {
+      const facesUsed: ('front' | 'back' | 'left' | 'right')[] = [];
+      let textCount = 0;
+      let imageCount = 0;
+      try {
+        for (const side of product.configuration) {
+          const c = canvasMap[side.id];
+          if (!c) continue;
+          const objects = c.getObjects().filter((obj) => {
+            if (obj.excludeFromExport) return false;
+            const data = obj.get('data') as { id?: string } | undefined;
+            return data?.id !== 'background-product-image' && data?.id !== 'center-line';
+          });
+          if (objects.length > 0) {
+            const idLower = (side.id || '').toLowerCase();
+            const nameLower = (side.name || '').toLowerCase();
+            const guess: 'front' | 'back' | 'left' | 'right' | null =
+              idLower.includes('front') || nameLower.includes('앞') || nameLower.includes('front') ? 'front'
+              : idLower.includes('back') || nameLower.includes('뒤') || nameLower.includes('back') ? 'back'
+              : idLower.includes('left') || nameLower.includes('왼') || nameLower.includes('left') ? 'left'
+              : idLower.includes('right') || nameLower.includes('오른') || nameLower.includes('right') ? 'right'
+              : null;
+            if (guess) facesUsed.push(guess);
+          }
+          for (const o of objects) {
+            const t = o.type;
+            if (t === 'i-text' || t === 'text' || t === 'textbox') textCount++;
+            else if (t === 'image') imageCount++;
+          }
+        }
+      } catch {
+        // 집계 실패해도 무시(트래킹 부가 정보)
+      }
+      trackDesignComplete({
+        product_id: product.id,
+        faces_used: facesUsed,
+        text_count: textCount,
+        image_count: imageCount,
+        template_used: false,
+        retouch_requested: retouchRequested,
+        color: productColor,
+        base_price: product.base_price,
+        design_fee: pricingData.totalAdditionalPrice,
+      });
+      trackCheckoutIntent({
+        product_id: product.id,
+        total_quantity: 0,
+        value: pricePerItem,
+      });
+    }
   };
 
   // ─── Color change ────────────────────────────────────────────────
   const handleColorChange = (color: string) => {
     setProductColor(color);
+    trackDesignAction({ action_type: 'color_change', product_id: product.id, color });
   };
 
   // ─── Desktop layer manipulation ──────────────────────────────────
@@ -124,6 +193,7 @@ export default function ProductEditorUnified({
     if (canvas && activeObject) {
       canvas.bringObjectToFront(activeObject);
       canvas.renderAll();
+      trackDesignAction({ action_type: 'layer_move', product_id: product.id, side_id: activeSideId });
     }
   };
 
@@ -146,6 +216,7 @@ export default function ProductEditorUnified({
         canvas.insertAt(targetIndex, activeObject);
         canvas.setActiveObject(activeObject);
         canvas.renderAll();
+        trackDesignAction({ action_type: 'layer_move', product_id: product.id, side_id: activeSideId });
       }
     }
   };
@@ -156,6 +227,7 @@ export default function ProductEditorUnified({
     if (canvas && activeObject) {
       canvas.bringObjectForward(activeObject);
       canvas.renderAll();
+      trackDesignAction({ action_type: 'layer_move', product_id: product.id, side_id: activeSideId });
     }
   };
 
@@ -175,6 +247,7 @@ export default function ProductEditorUnified({
       if (currentIndex > maxSystemIndex + 1) {
         canvas.sendObjectBackwards(activeObject);
         canvas.renderAll();
+        trackDesignAction({ action_type: 'layer_move', product_id: product.id, side_id: activeSideId });
       }
     }
   };
@@ -188,10 +261,12 @@ export default function ProductEditorUnified({
       canvas?.discardActiveObject();
       canvas?.renderAll();
       incrementCanvasVersion();
+      trackDesignAction({ action_type: 'object_delete', product_id: product.id, side_id: activeSideId });
     } else if (selected) {
       canvas?.remove(selected);
       canvas?.renderAll();
       incrementCanvasVersion();
+      trackDesignAction({ action_type: 'object_delete', product_id: product.id, side_id: activeSideId });
     }
   };
 
@@ -266,6 +341,26 @@ export default function ProductEditorUnified({
       });
       setProductColor('#FFFFFF');
 
+      {
+        const totalQuantity = selectedItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
+        const totalValue = pricePerItem * totalQuantity;
+        const items = selectedItems.map((it) => ({
+          item_id: product.id,
+          item_name: product.title,
+          item_brand: product.manufacturer_name ?? undefined,
+          item_category: product.category ?? undefined,
+          item_variant: it.size,
+          price: pricePerItem,
+          quantity: it.quantity,
+          design_id: guestDesignId,
+          design_fee: pricingData.totalAdditionalPrice,
+        }));
+        if (purchaseType === 'direct') {
+          trackBeginCheckout({ value: totalValue, items, design_id: guestDesignId });
+        } else {
+          trackAddToCart({ value: totalValue, items, design_id: guestDesignId });
+        }
+      }
       if (purchaseType === 'direct') {
         // Filter to only the just-added items so checkout doesn't show old cart items
         const currentItems = useCartStore.getState().items;
@@ -343,6 +438,27 @@ export default function ProductEditorUnified({
       // For direct purchase, store the item IDs so checkout only shows these items
       if (purchaseType === 'direct' && newCartItemIds.length > 0) {
         sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newCartItemIds));
+      }
+
+      {
+        const totalQuantity = selectedItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
+        const totalValue = pricePerItem * totalQuantity;
+        const items = selectedItems.map((it) => ({
+          item_id: product.id,
+          item_name: product.title,
+          item_brand: product.manufacturer_name ?? undefined,
+          item_category: product.category ?? undefined,
+          item_variant: it.size,
+          price: pricePerItem,
+          quantity: it.quantity,
+          design_id: sharedDesignId,
+          design_fee: pricingData.totalAdditionalPrice,
+        }));
+        if (purchaseType === 'direct') {
+          trackBeginCheckout({ value: totalValue, items, design_id: sharedDesignId });
+        } else {
+          trackAddToCart({ value: totalValue, items, design_id: sharedDesignId });
+        }
       }
 
       removeGuestDesign(product.id);
@@ -608,6 +724,22 @@ export default function ProductEditorUnified({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // GTM: view_item + editor_open (mount once, StrictMode-safe)
+  const gtmMountedRef = useRef(false);
+  useEffect(() => {
+    if (gtmMountedRef.current) return;
+    gtmMountedRef.current = true;
+    trackViewItem({
+      product_id: product.id,
+      product_name: product.title,
+      brand: product.manufacturer_name ?? undefined,
+      category: product.category ?? undefined,
+      base_price: product.base_price,
+    });
+    trackEditorOpen({ product_id: product.id });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Mobile: scroll lock when in editor step
   useEffect(() => {
     if (isMobile && currentStep === 'editor') {
@@ -723,6 +855,7 @@ export default function ProductEditorUnified({
             await restoreAllCanvasState(guestDesign.canvasState);
             incrementCanvasVersion();
             setIsRecallGuestDesignOpen(false);
+            trackDesignResume({ product_id: product.id });
             // Go directly to editor since they had a design
             goToEditor();
           }}
@@ -730,6 +863,7 @@ export default function ProductEditorUnified({
             removeGuestDesign(product.id);
             setGuestDesign(null);
             setIsRecallGuestDesignOpen(false);
+            trackDesignDiscard({ product_id: product.id });
           }}
         />
       </div>
@@ -925,7 +1059,10 @@ export default function ProductEditorUnified({
               {product.configuration.map(side => (
                 <button
                   key={side.id}
-                  onClick={() => setActiveSide(side.id)}
+                  onClick={() => {
+                    setActiveSide(side.id);
+                    trackDesignAction({ action_type: 'face_change', product_id: product.id, side_id: side.id });
+                  }}
                   className={`rounded-lg overflow-hidden border-2 transition-all ${
                     activeSideId === side.id
                       ? 'border-black'
@@ -1185,11 +1322,13 @@ export default function ProductEditorUnified({
           await restoreAllCanvasState(guestDesign.canvasState);
           incrementCanvasVersion();
           setIsRecallGuestDesignOpen(false);
+          trackDesignResume({ product_id: product.id });
         }}
         onDiscard={() => {
           removeGuestDesign(product.id);
           setGuestDesign(null);
           setIsRecallGuestDesignOpen(false);
+          trackDesignDiscard({ product_id: product.id });
         }}
       />
 

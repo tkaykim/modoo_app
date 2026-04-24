@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 import { formatKstDateOnly } from '@/lib/kst';
+import { trackContentView } from '@/lib/gtm-events';
 
 interface AnnouncementDetail {
   id: string;
@@ -49,6 +50,11 @@ export default function NoticeDetailPage() {
         }
 
         setNotice(data as AnnouncementDetail);
+
+        trackContentView({
+          content_id: data.id,
+          content_type: 'notice',
+        });
       } catch (err) {
         console.error('Failed to fetch notice:', err);
         setError('공지사항을 불러오는데 실패했습니다.');

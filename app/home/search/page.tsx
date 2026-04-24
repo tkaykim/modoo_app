@@ -8,6 +8,7 @@ import ProductCard from "@/app/components/ProductCard";
 import { Product } from "@/types/types";
 import { createClient } from "@/lib/supabase-client";
 import Header from "@/app/components/Header";
+import { trackSearch, trackViewItemList } from "@/lib/gtm-events";
 
 type SortOption = "default" | "review_count" | "price_low" | "price_high";
 
@@ -196,6 +197,39 @@ export default function SearchPage() {
   const handleClearSearch = () => {
     setSearchQuery("");
   };
+
+  // GTM: search (debounced, 검색어가 있을 때만)
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const t = setTimeout(() => {
+      trackSearch({
+        search_term: searchQuery.trim(),
+        results_count: filteredProducts.length,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [searchQuery, filteredProducts.length]);
+
+  // GTM: view_item_list (카테고리 변경 시 1회, 결과가 있을 때)
+  const lastListTrackRef = useRef<string>("");
+  useEffect(() => {
+    if (isLoading) return;
+    if (filteredProducts.length === 0) return;
+    const key = `${selectedCategory}|${selectedManufacturer}`;
+    if (lastListTrackRef.current === key) return;
+    lastListTrackRef.current = key;
+    trackViewItemList({
+      list_id: selectedCategory,
+      list_name: selectedCategory === 'all' ? '전체' : selectedCategory,
+      items: filteredProducts.slice(0, 12).map((p) => ({
+        item_id: p.id,
+        item_name: p.title,
+        item_brand: p.manufacturer_name ?? undefined,
+        item_category: p.category ?? undefined,
+        price: p.base_price,
+      })),
+    });
+  }, [isLoading, selectedCategory, selectedManufacturer, filteredProducts]);
 
   return (
     <div className="min-h-screen bg-gray-50">

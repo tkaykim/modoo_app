@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Footer from "./components/Footer";
 import NavigationListener from "./components/NavigationListener";
+import GtmPageviewListener from "./components/GtmPageviewListener";
 import AuthInitializer from "./components/AuthInitializer";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
@@ -72,6 +73,7 @@ export default function RootLayout({
         )}
         <AuthInitializer />
         <NavigationListener />
+        <GtmPageviewListener />
         <div className="w-full lg:max-w-7xl lg:mx-auto">
           <main>{children}</main>
         </div>

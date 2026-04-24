@@ -3,7 +3,7 @@
 import Header from '@/app/components/Header';
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import DesignEditModal from '@/app/components/DesignEditModal';
 import QuantityChangeModal from '@/app/components/QuantityChangeModal';
@@ -18,6 +18,7 @@ import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { SizeOption, DiscountTier } from '@/types/types';
 import { generateOrderId } from '@/lib/orderIdUtils';
+import { trackViewCart, trackBeginCheckout } from '@/lib/gtm-events';
 
 // Group items by saved design ID
 interface GroupedCartItem {
@@ -146,6 +147,25 @@ export default function CartPage() {
     fetchCartItems();
   }, [isAuthenticated]);
 
+  // GTM: view_cart (마운트 후 1회, items가 채워졌을 때)
+  const viewCartTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!isMounted || viewCartTrackedRef.current) return;
+    if (items.length === 0) return;
+    viewCartTrackedRef.current = true;
+    const cartValue = items.reduce((sum, it) => sum + it.price_per_item * it.quantity, 0);
+    trackViewCart({
+      value: cartValue,
+      items: items.map((it) => ({
+        item_id: it.product_id,
+        item_name: it.product_title,
+        item_variant: it.product_color_name,
+        price: it.price_per_item,
+        quantity: it.quantity,
+      })),
+    });
+  }, [isMounted, items]);
+
   // Group items by saved_design_id
   const groupedItems: GroupedCartItem[] = items.reduce((acc: GroupedCartItem[], item: CartItemWithDesign) => {
     const designId = item.saved_design_id || item.id; // Fallback to item.id if no saved_design_id
@@ -175,6 +195,20 @@ export default function CartPage() {
   const finalTotal = totalPrice;
 
   const handleCheckout = () => {
+    try {
+      trackBeginCheckout({
+        value: finalTotal,
+        items: items.map((it) => ({
+          item_id: it.product_id,
+          item_name: it.product_title,
+          item_variant: it.product_color_name,
+          price: it.price_per_item,
+          quantity: it.quantity,
+        })),
+      });
+    } catch {
+      // GTM 실패는 결제 흐름을 막지 않는다
+    }
     window.location.href = '/checkout';
   };
 

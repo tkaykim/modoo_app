@@ -11,6 +11,7 @@ import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { createClient } from '@/lib/supabase-client';
 import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage } from '@/lib/cloudconvert';
 import LoadingModal from '@/app/components/LoadingModal';
+import { trackDesignAction } from '@/lib/gtm-events';
 
 interface ToolbarProps {
   sides?: ProductSide[];
@@ -155,6 +156,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
     // Trigger pricing recalculation
     incrementCanvasVersion();
+    trackDesignAction({ action_type: 'text_add', product_id: productId, side_id: activeSideId });
   };
 
   const handleAddImageClick = () => {
@@ -333,6 +335,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
           // Trigger pricing recalculation
           incrementCanvasVersion();
+          trackDesignAction({ action_type: 'image_upload', product_id: productId, side_id: activeSideId });
 
           // Hide loading modal
           setIsLoadingModalOpen(false);
@@ -368,6 +371,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const handleSideSelect = (sideId: string) => {
     setActiveSide(sideId);
     setIsModalOpen(false);
+    trackDesignAction({ action_type: 'face_change', product_id: productId, side_id: sideId });
   };
 
   const handleDeleteObject = () => {
@@ -383,12 +387,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     canvas?.renderAll();
     // Trigger pricing recalculation
     incrementCanvasVersion();
+    trackDesignAction({ action_type: 'object_delete', product_id: productId, side_id: activeSideId });
   } else if (selectedObject) {
     // Remove a single selected object
     canvas?.remove(selectedObject);
     canvas?.renderAll();
     // Trigger pricing recalculation
     incrementCanvasVersion();
+    trackDesignAction({ action_type: 'object_delete', product_id: productId, side_id: activeSideId });
     }
   }
 
@@ -409,6 +415,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
     // Trigger pricing recalculation
     incrementCanvasVersion();
+    trackDesignAction({ action_type: 'reset', product_id: productId, side_id: activeSideId });
   }
 
   // Layer manipulation functions
@@ -418,6 +425,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     if (canvas && activeObject) {
       canvas.bringObjectToFront(activeObject);
       canvas.renderAll();
+      trackDesignAction({ action_type: 'layer_move', product_id: productId, side_id: activeSideId });
     }
   };
 
@@ -447,6 +455,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         canvas.insertAt(targetIndex, activeObject);
         canvas.setActiveObject(activeObject);
         canvas.renderAll();
+        trackDesignAction({ action_type: 'layer_move', product_id: productId, side_id: activeSideId });
       }
     }
   };
@@ -457,6 +466,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     if (canvas && activeObject) {
       canvas.bringObjectForward(activeObject);
       canvas.renderAll();
+      trackDesignAction({ action_type: 'layer_move', product_id: productId, side_id: activeSideId });
     }
   };
 
@@ -481,6 +491,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       if (currentIndex > maxSystemIndex + 1) {
         canvas.sendObjectBackwards(activeObject);
         canvas.renderAll();
+        trackDesignAction({ action_type: 'layer_move', product_id: productId, side_id: activeSideId });
       }
     }
   };

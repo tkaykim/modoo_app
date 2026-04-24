@@ -17,6 +17,15 @@ import {
 } from '@/types/types';
 import { createCoBuyRequest } from '@/lib/cobuyRequestService';
 import { getPricingInfo } from '@/lib/cobuyPricing';
+import {
+  trackCobuyStepView,
+  trackCobuyStepComplete,
+  trackCobuyDesignChoice,
+  trackGenerateLead,
+  trackGenerateLeadFail,
+  trackDesignAction,
+} from '@/lib/gtm-events';
+import { getQuantityRange } from '@/lib/gtm';
 declare global { interface Window { gtag?: (...args: any[]) => void } }
 const gtagEvent = (name: string, params?: Record<string, any>) => {
   window.gtag?.('event', name, params);
@@ -473,6 +482,12 @@ export default function CreateCoBuyRequestPage() {
 
   const navigateToStep = useCallback((newStep: Step, direction: 'left' | 'right') => {
     gtagEvent('공구_단계이동', { step: newStep, direction });
+    {
+      const idx = STEPS.findIndex(s => s.id === newStep);
+      if (idx >= 0) {
+        trackCobuyStepView({ step_number: idx + 1, step_name: newStep });
+      }
+    }
     setSlideDirection(direction);
     setIsAnimating(true);
     setTimeout(() => {
@@ -515,6 +530,7 @@ export default function CreateCoBuyRequestPage() {
       if (expectedQuantity === '' || Number(expectedQuantity) < 10) { alert('최소 10벌 이상 입력해주세요.'); return; }
 
       gtagEvent('공구_기본정보_완료', { 예상수량: Number(expectedQuantity) });
+      trackCobuyStepComplete({ step_number: 1, step_name: 'basic-info' });
 
       // Show design choice modal instead of advancing directly
       setShowDesignChoice(true);
@@ -549,6 +565,7 @@ export default function CreateCoBuyRequestPage() {
     setRequestType(choice);
     setShowDesignChoice(false);
     gtagEvent('공구_진행방식_선택', { type: choice });
+    trackCobuyDesignChoice({ choice });
 
     if (choice === 'consultation') {
       // Save premade template canvas state directly
@@ -706,6 +723,12 @@ export default function CreateCoBuyRequestPage() {
       if (!result) throw new Error('Failed to create request');
 
       gtagEvent('공구_요청_제출완료', { 예상수량: Number(expectedQuantity) });
+      trackGenerateLead({
+        form_type: 'cobuy',
+        quantity_range: getQuantityRange(Number(expectedQuantity)),
+        desired_date: receiveByDate || undefined,
+        product_count: 1,
+      });
       setCreatedShareToken(result.share_token);
       navigateToStep('success' as Step, 'right');
 
@@ -731,6 +754,7 @@ export default function CreateCoBuyRequestPage() {
     } catch (error) {
       console.error('Error creating CoBuy request:', error);
       gtagEvent('공구_요청_제출실패');
+      trackGenerateLeadFail({ form_type: 'cobuy', reason: 'submit_error' });
       alert('요청 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsCreating(false);
@@ -763,6 +787,7 @@ export default function CreateCoBuyRequestPage() {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     gtagEvent('공구_디자인_텍스트추가');
+    trackDesignAction({ action_type: 'text_add', product_id: FIXED_PRODUCT_ID, side_id: activeSideId });
     const fabric = await import('fabric');
     const text = new fabric.IText('텍스트', {
       left: canvas.width / 2,
@@ -783,6 +808,7 @@ export default function CreateCoBuyRequestPage() {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     gtagEvent('공구_디자인_이미지추가');
+    trackDesignAction({ action_type: 'image_upload', product_id: FIXED_PRODUCT_ID, side_id: activeSideId });
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -825,6 +851,7 @@ export default function CreateCoBuyRequestPage() {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     gtagEvent('공구_디자인_객체삭제');
+    trackDesignAction({ action_type: 'object_delete', product_id: FIXED_PRODUCT_ID, side_id: activeSideId });
     const active = canvas.getActiveObjects();
     if (active.length > 0) {
       const supabase = createClient();
@@ -1634,6 +1661,7 @@ export default function CreateCoBuyRequestPage() {
                               setSelectedColorHex(color.hex);
                               setProductColor(color.hex);
                               gtagEvent('공구_색상_선택', { 색상: color.name });
+                              trackDesignAction({ action_type: 'color_change', product_id: FIXED_PRODUCT_ID, color: color.hex });
                             }}
                           />
                         ))}
@@ -1658,6 +1686,7 @@ export default function CreateCoBuyRequestPage() {
                         <button
                           onClick={async () => {
                             gtagEvent('공구_디자이너요청_스킵');
+                            trackCobuyDesignChoice({ choice: 'consultation_after_design' });
                             captureCanvasState();
                             const preview = await generatePreview();
                             setSavedPreviewUrl(preview);

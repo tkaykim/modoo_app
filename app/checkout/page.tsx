@@ -27,6 +27,7 @@ import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Uploa
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import LoginPromptModal from '@/app/components/LoginPromptModal';
+import { trackPurchase } from '@/lib/gtm-events';
 
 type ShippingMethod = 'domestic' | 'international' | 'pickup';
 type PaymentMethod = 'toss' | 'paypal' | 'bank_transfer';
@@ -775,6 +776,37 @@ export default function CheckoutPage() {
 
       sessionStorage.removeItem('pendingTossOrder');
 
+      try {
+        const dedupeKey = `gtm_purchase_pushed_${json.orderId}`;
+        if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+          sessionStorage.setItem(dedupeKey, '1');
+          const items = Array.isArray(cartItems)
+            ? cartItems.map((it: {
+                productId?: string;
+                productTitle?: string;
+                size?: string;
+                pricePerItem?: number;
+                quantity?: number;
+                savedDesignId?: string;
+              }) => ({
+                item_id: it.productId ?? '',
+                item_name: it.productTitle ?? '',
+                item_variant: it.size,
+                price: it.pricePerItem,
+                quantity: it.quantity,
+                design_id: it.savedDesignId,
+              }))
+            : [];
+          trackPurchase({
+            transaction_id: String(json.orderId),
+            value: finalTotal,
+            items,
+          });
+        }
+      } catch {
+        // 트래킹 실패는 무시
+      }
+
       if (isAuthenticated) {
         const { clearCart: clearCartDB } = await import('@/lib/cartService');
         clearCartDB().catch(() => {});
@@ -826,6 +858,37 @@ export default function CheckoutPage() {
       }
 
       sessionStorage.removeItem('pendingTossOrder');
+
+      try {
+        const dedupeKey = `gtm_purchase_pushed_${json.orderId}`;
+        if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+          sessionStorage.setItem(dedupeKey, '1');
+          const items = Array.isArray(cartItems)
+            ? cartItems.map((it: {
+                productId?: string;
+                productTitle?: string;
+                size?: string;
+                pricePerItem?: number;
+                quantity?: number;
+                savedDesignId?: string;
+              }) => ({
+                item_id: it.productId ?? '',
+                item_name: it.productTitle ?? '',
+                item_variant: it.size,
+                price: it.pricePerItem,
+                quantity: it.quantity,
+                design_id: it.savedDesignId,
+              }))
+            : [];
+          trackPurchase({
+            transaction_id: String(json.orderId),
+            value: 0,
+            items,
+          });
+        }
+      } catch {
+        // 트래킹 실패는 무시
+      }
 
       // Clear cart
       if (isAuthenticated) {

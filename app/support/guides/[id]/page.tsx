@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 import { formatKstDateOnly } from '@/lib/kst';
+import { trackContentView } from '@/lib/gtm-events';
 
 const CATEGORY_LABELS: Record<string, string> = {
   fabric: '원단 안내',
@@ -62,6 +63,12 @@ export default function GuideDetailPage() {
         }
 
         setGuide(data as GuideDetail);
+
+        trackContentView({
+          content_id: data.id,
+          content_type: 'guide',
+          content_category: data.category,
+        });
 
         const { data: related } = await supabase
           .from('announcements')

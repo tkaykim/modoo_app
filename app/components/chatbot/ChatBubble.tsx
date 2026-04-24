@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
+import { trackChatbotOpen } from '@/lib/gtm-events';
 
 // Cute chatbot face icon
 function ChatBotIcon() {
@@ -39,6 +40,7 @@ export default function ChatBubble() {
       closeChat();
     } else {
       openChat();
+      trackChatbotOpen({ source: 'home_bubble' });
     }
   };
 

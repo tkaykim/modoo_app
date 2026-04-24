@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase-client";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginPromptModal from "./LoginPromptModal";
+import { trackAddToWishlist, trackSelectItem } from "@/lib/gtm-events";
 
 interface ProductCardProps {
   product: Product;
@@ -110,6 +111,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         if (error) throw error;
         setIsFavorited(false);
+        trackAddToWishlist({ product_id: product.id, product_name: product.title, action: 'remove' });
       } else {
         // Add to favorites
         const { error } = await supabase
@@ -121,6 +123,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         if (error) throw error;
         setIsFavorited(true);
+        trackAddToWishlist({ product_id: product.id, product_name: product.title, action: 'add' });
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -132,7 +135,19 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <>
-      <Link href={`/editor/${product.id}`} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <Link
+        href={`/editor/${product.id}`}
+        onClick={() => {
+          trackSelectItem({
+            product_id: product.id,
+            product_name: product.title,
+            brand: product.manufacturer_name ?? undefined,
+            category: product.category ?? undefined,
+            price: product.base_price,
+          });
+        }}
+        className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      >
         {/* Product Image */}
         <div className="aspect-4/5 bg-white relative">
           {firstSideImage && (
