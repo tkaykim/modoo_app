@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 import { formatKstDateOnly } from '@/lib/kst';
 
 interface ParticipantJoinedBody {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const shareLink = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/cobuy/${session.share_token}`;
     const subject = `[공동구매] 새 참여자 등록 - ${session.title}`;
-    const textPart = [
+    const text = [
       `새로운 참여자가 등록되었습니다.`,
       `이름: ${participant.name}`,
       `이메일: ${participant.email}`,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       `마감일: ${formatKstDateOnly(session.end_date)}`,
       `공유 링크: ${shareLink}`,
     ].join('\n');
-    const htmlPart = `
+    const html = `
       <h2>새로운 참여자가 등록되었습니다</h2>
       <p><strong>공동구매:</strong> ${session.title}</p>
       <ul>
@@ -83,12 +83,11 @@ export async function POST(request: NextRequest) {
       <p>공유 링크: <a href="${shareLink}">${shareLink}</a></p>
     `;
 
-    const sent = await sendMailjetEmail({
+    const sent = await sendGmailEmail({
       to: [{ email: creatorProfile.email, name: creatorProfile.name || undefined }],
       subject,
-      textPart,
-      htmlPart,
-      customId: `cobuy-participant-joined-${participant.id}`,
+      text,
+      html,
     });
 
     if (!sent) {

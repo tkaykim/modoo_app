@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 import { getPricingInfo } from '@/lib/cobuyPricing';
 import { formatKstDateOnly, getKstHour } from '@/lib/kst';
 
@@ -191,19 +191,17 @@ export async function POST(request: NextRequest) {
 
   // Send both emails
   const [adminSent, submitterSent] = await Promise.all([
-    sendMailjetEmail({
+    sendGmailEmail({
       to: [{ email: adminEmail, name: '관리자' }],
       subject: `[공동구매 요청] ${title}`,
-      textPart: adminText,
-      htmlPart: adminHtml,
-      customId: `cobuy-request-admin-${shareToken}`,
+      text: adminText,
+      html: adminHtml,
     }),
-    sendMailjetEmail({
+    sendGmailEmail({
       to: [{ email: submitterEmail, name: submitterName }],
       subject: submitterSubject,
-      textPart: submitterText,
-      htmlPart: submitterHtml,
-      customId: `cobuy-request-submitter-${shareToken}`,
+      text: submitterText,
+      html: submitterHtml,
     }),
   ]);
 

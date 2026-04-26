@@ -1,4 +1,4 @@
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 import { formatKstTodayLong } from '@/lib/kst';
 
 interface OrderItemSummary {
@@ -291,12 +291,11 @@ export async function sendOrderNotificationEmails(
 
   // Send customer confirmation email
   try {
-    await sendMailjetEmail({
+    await sendGmailEmail({
       to: [{ email: params.customerEmail, name: params.customerName }],
       subject: `[모두의 유니폼] 주문이 완료되었습니다 (${params.orderId})`,
-      textPart: buildCustomerText(params),
-      htmlPart: buildCustomerHtml(params),
-      customId: `order-confirm-${params.orderId}`,
+      text: buildCustomerText(params),
+      html: buildCustomerHtml(params),
     });
   } catch (error) {
     console.error('Failed to send customer order confirmation email:', error);
@@ -305,12 +304,11 @@ export async function sendOrderNotificationEmails(
   // Send admin notification email
   if (adminEmail) {
     try {
-      await sendMailjetEmail({
+      await sendGmailEmail({
         to: [{ email: adminEmail }],
         subject: `[새 주문] ${params.customerName} - ${formatCurrency(params.totalAmount)} (${params.orderId})`,
-        textPart: buildAdminText(params),
-        htmlPart: buildAdminHtml(params),
-        customId: `order-admin-${params.orderId}`,
+        text: buildAdminText(params),
+        html: buildAdminHtml(params),
       });
     } catch (error) {
       console.error('Failed to send admin order notification email:', error);

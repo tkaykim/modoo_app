@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 
 export const runtime = 'nodejs';
 
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     productNames,
   } = body;
 
-  const htmlPart = `
+  const html = `
     <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2 style="color: #3B55A5; border-bottom: 2px solid #3B55A5; padding-bottom: 10px;">새로운 문의가 등록되었습니다</h2>
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
@@ -64,14 +64,13 @@ export async function POST(req: Request) {
     </div>
   `;
 
-  const textPart = `새로운 문의: ${title}\n담당자: ${managerName} (${groupName})\n연락처: ${phone}\n${content ? `내용: ${content}` : ''}`;
+  const text = `새로운 문의: ${title}\n담당자: ${managerName} (${groupName})\n연락처: ${phone}\n${content ? `내용: ${content}` : ''}`;
 
-  const success = await sendMailjetEmail({
+  const success = await sendGmailEmail({
     to: [{ email: adminEmail, name: '관리자' }],
     subject: `[모두의 유니폼] 새 문의: ${title}`,
-    textPart,
-    htmlPart,
-    customId: 'inquiry-notification',
+    text,
+    html,
   });
 
   if (!success) {

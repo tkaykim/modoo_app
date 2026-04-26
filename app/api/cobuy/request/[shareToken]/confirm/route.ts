@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 
 export const runtime = 'nodejs';
 
@@ -45,11 +45,11 @@ export async function POST(
       const logoUrl = `${baseUrl}/icons/modoo_logo.png`;
       const adminLink = `https://admin.modoogoods.com/cobuy/requests/${request.id}`;
 
-      await sendMailjetEmail({
+      await sendGmailEmail({
         to: [{ email: adminEmail, name: '모두의 유니폼 관리자' }],
         subject: `[모두의 유니폼] ${customerName}님이 디자인을 확정했습니다`,
-        textPart: `${customerName}님이 "${request.title}" 디자인을 확정했습니다.\n\n확인하기: ${adminLink}`,
-        htmlPart: `
+        text: `${customerName}님이 "${request.title}" 디자인을 확정했습니다.\n\n확인하기: ${adminLink}`,
+        html: `
           <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
             <div style="text-align: center; padding: 24px 0; background: #f8f9fc;">
               <img src="${logoUrl}" alt="모두의 유니폼" style="height: 48px;" />
@@ -68,7 +68,6 @@ export async function POST(
             </div>
           </div>
         `,
-        customId: `cobuy-confirm-${request.id}`,
       });
     }
 

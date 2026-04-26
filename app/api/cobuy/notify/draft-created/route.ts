@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 
 interface DraftCreatedBody {
   title: string;
@@ -66,12 +66,11 @@ export async function POST(request: NextRequest) {
 
   const adminText = `새로운 공동구매 문의 접수\n이름: ${contactName}\n이메일: ${contactEmail}\n연락처: ${contactPhone || '-'}\n단체명: ${title}\n제품: ${productName}\n예상 수량: ${estimatedQuantity}벌`;
 
-  const sent = await sendMailjetEmail({
+  const sent = await sendGmailEmail({
     to: [{ email: adminEmail, name: '관리자' }],
     subject: `[공동구매 문의] ${title} - ${contactName}`,
-    textPart: adminText,
-    htmlPart: adminHtml,
-    customId: `cobuy-draft-${Date.now()}`,
+    text: adminText,
+    html: adminHtml,
   });
 
   if (!sent) {

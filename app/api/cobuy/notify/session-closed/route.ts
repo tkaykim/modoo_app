@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 import { formatKstDateOnly } from '@/lib/kst';
 
 interface SessionClosedBody {
@@ -55,13 +55,13 @@ export async function POST(request: NextRequest) {
 
     const shareLink = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/cobuy/${session.share_token}`;
     const subject = `[공동구매] 모집이 마감되었습니다 - ${session.title}`;
-    const textPart = [
+    const text = [
       `공동구매가 마감되었습니다.`,
       `공동구매: ${session.title}`,
       `마감일: ${formatKstDateOnly(session.end_date)}`,
       `공유 링크: ${shareLink}`,
     ].join('\n');
-    const htmlPart = `
+    const html = `
       <h2>공동구매가 마감되었습니다</h2>
       <p>공동구매: ${session.title}</p>
       <p>마감일: ${formatKstDateOnly(session.end_date)}</p>
@@ -71,12 +71,11 @@ export async function POST(request: NextRequest) {
     for (const participant of participants || []) {
       if (!participant.email) continue;
 
-      const sent = await sendMailjetEmail({
+      const sent = await sendGmailEmail({
         to: [{ email: participant.email, name: participant.name || undefined }],
         subject,
-        textPart,
-        htmlPart,
-        customId: `cobuy-session-closed-${participant.id}`,
+        text,
+        html,
       });
 
       if (sent) {

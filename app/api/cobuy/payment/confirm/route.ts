@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 import { formatKstDateOnly } from '@/lib/kst';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       if (participantInfo?.email) {
         const shareLink = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/cobuy/${session.share_token}`;
         const subject = `[공동구매] 결제가 완료되었습니다 - ${session.title}`;
-        const textPart = [
+        const text = [
           `${participantInfo.name}님, 공동구매 결제가 완료되었습니다.`,
           `공동구매: ${session.title}`,
           `사이즈: ${participantInfo.selected_size}`,
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
           `마감일: ${formatKstDateOnly(session.end_date)}`,
           `공유 링크: ${shareLink}`,
         ].join('\n');
-        const htmlPart = `
+        const html = `
           <h2>결제가 완료되었습니다</h2>
           <p>${participantInfo.name}님, 공동구매 결제가 완료되었습니다.</p>
           <ul>
@@ -156,12 +156,11 @@ export async function POST(request: NextRequest) {
           <p>공유 링크: <a href="${shareLink}">${shareLink}</a></p>
         `;
 
-        const sent = await sendMailjetEmail({
+        const sent = await sendGmailEmail({
           to: [{ email: participantInfo.email, name: participantInfo.name || undefined }],
           subject,
-          textPart,
-          htmlPart,
-          customId: `cobuy-payment-confirmed-${participantInfo.id}`,
+          text,
+          html,
         });
 
         if (sent) {

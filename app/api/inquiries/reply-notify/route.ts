@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { sendMailjetEmail } from '@/lib/mailjet';
+import { sendGmailEmail } from '@/lib/gmail';
 
 export const runtime = 'nodejs';
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
   const writerName = (inquiry.user as any)?.name || inquiry.manager_name || '고객';
 
-  const htmlPart = `
+  const html = `
     <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2 style="color: #3B55A5; border-bottom: 2px solid #3B55A5; padding-bottom: 10px;">문의에 답변이 등록되었습니다</h2>
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
@@ -60,14 +60,13 @@ export async function POST(req: Request) {
     </div>
   `;
 
-  const textPart = `문의 "${inquiry.title}"에 답변이 등록되었습니다.\n\n답변 내용:\n${replyContent}`;
+  const text = `문의 "${inquiry.title}"에 답변이 등록되었습니다.\n\n답변 내용:\n${replyContent}`;
 
-  const success = await sendMailjetEmail({
+  const success = await sendGmailEmail({
     to: [{ email: writerEmail, name: writerName }],
     subject: `[모두의 유니폼] 문의 답변 알림: ${inquiry.title}`,
-    textPart,
-    htmlPart,
-    customId: 'inquiry-reply-notification',
+    text,
+    html,
   });
 
   if (!success) {
