@@ -42,8 +42,8 @@ const paymentLabels: Record<CoBuyParticipant['payment_status'], { label: string;
 };
 
 const pickupLabels: Record<CoBuyPickupStatus, { label: string; cls: string }> = {
-  pending: { label: '미수령', cls: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
-  picked_up: { label: '수령', cls: 'bg-green-100 text-green-700 hover:bg-green-200' },
+  pending: { label: '미수령', cls: 'bg-gray-200 text-gray-800 hover:bg-gray-300' },
+  picked_up: { label: '수령', cls: 'bg-green-100 text-green-800 hover:bg-green-200' },
 };
 
 /** 마이페이지 UUID 경로(로그인 필수) 또는 share_token 기반 `/cobuy/host/[shareToken]`(누구나 접근 가능) */
@@ -329,6 +329,25 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     return filtered;
   }, [participants, participantSearch, participantPaymentFilter, participantPickupFilter]);
 
+  // 컬럼 가시성: 실제로 데이터가 있는 컬럼만 표시
+  const showDeliveryColumn = useMemo(
+    () => participants.some(p => !!p.delivery_method),
+    [participants]
+  );
+  const showCustomFieldColumn = useMemo(() => {
+    const customFields = session?.custom_fields?.filter(f => !f.fixed) || [];
+    if (customFields.length === 0) return false;
+    return participants.some(p =>
+      customFields.some(f => p.field_responses?.[f.id])
+    );
+  }, [participants, session?.custom_fields]);
+
+  // 수기 추가된 참여자의 가짜 이메일(@cobuy.local) 숨김
+  const displayEmail = (email: string) => {
+    if (!email || email.endsWith('@cobuy.local')) return null;
+    return email;
+  };
+
   const sizeOptionsFromSession = useMemo(() => {
     const sizeField = session?.custom_fields?.find((f: { id: string; type: string; options?: string[] }) => f.id === 'size' && f.type === 'dropdown');
     return sizeField?.options ?? [];
@@ -508,7 +527,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         }}
         disabled={isUpdating}
         title={isPickedUp ? '클릭하여 미수령으로 변경' : '클릭하여 수령으로 변경'}
-        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${cls} ${
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${cls} ${
           isUpdating ? 'opacity-60 cursor-wait' : 'cursor-pointer'
         }`}
       >
@@ -1081,7 +1100,9 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                         <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50 space-y-3">
                           {/* Contact Info */}
                           <div className="text-sm">
-                            <p className="text-gray-600">{participant.email}</p>
+                            {displayEmail(participant.email) && (
+                              <p className="text-gray-600">{displayEmail(participant.email)}</p>
+                            )}
                             {participant.phone && (
                               <p className="text-gray-600">{participant.phone}</p>
                             )}
@@ -1147,54 +1168,65 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b">
-                      <th className="py-2 pr-4 font-medium">참여자 정보</th>
-                      <th className="py-2 pr-4 font-medium">주문 내역</th>
-                      <th className="py-2 pr-4 font-medium">수령 방법</th>
-                      <th className="py-2 pr-4 font-medium">추가 정보</th>
-                      <th className="py-2 pr-4 font-medium">결제 상태</th>
-                      <th className="py-2 pr-4 font-medium">결제 금액</th>
-                      <th className="py-2 pr-4 font-medium">참여일</th>
-                      <th className="py-2 font-medium text-center">배부</th>
-                      <th className="py-2 font-medium text-center">액션</th>
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap">참여자</th>
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap">주문 내역</th>
+                      {showDeliveryColumn && (
+                        <th className="py-2 pr-4 font-medium whitespace-nowrap">수령 방법</th>
+                      )}
+                      {showCustomFieldColumn && (
+                        <th className="py-2 pr-4 font-medium whitespace-nowrap">추가 정보</th>
+                      )}
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap">결제</th>
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap text-right">금액</th>
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap">참여일</th>
+                      <th className="py-2 pr-4 font-medium whitespace-nowrap text-center">배부</th>
+                      <th className="py-2 font-medium whitespace-nowrap text-center">액션</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredParticipants.map((participant) => {
                       const paymentInfo = paymentLabels[participant.payment_status];
+                      const visibleEmail = displayEmail(participant.email);
                       return (
-                        <tr key={participant.id} className="border-b last:border-b-0 align-top">
+                        <tr key={participant.id} className="border-b last:border-b-0 align-top hover:bg-gray-50/50">
                           <td className="py-3 pr-4">
                             <div className="text-gray-900 font-medium">{participant.name}</div>
-                            <div className="text-gray-500 text-xs">{participant.email}</div>
+                            {visibleEmail && (
+                              <div className="text-gray-500 text-xs truncate max-w-[200px]">{visibleEmail}</div>
+                            )}
                             {participant.phone && (
-                              <div className="text-gray-500 text-xs">{participant.phone}</div>
+                              <div className="text-gray-500 text-xs whitespace-nowrap">{participant.phone}</div>
                             )}
                           </td>
                           <td className="py-3 pr-4 text-gray-600">
                             {renderSelectedItems(participant)}
                           </td>
-                          <td className="py-3 pr-4 text-gray-600">
-                            {renderDeliveryInfo(participant, 'desktop') || (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="py-3 pr-4 text-gray-600">
-                            {renderFieldResponses(participant, 'desktop') || (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
+                          {showDeliveryColumn && (
+                            <td className="py-3 pr-4 text-gray-600">
+                              {renderDeliveryInfo(participant, 'desktop') || (
+                                <span className="text-gray-300 text-xs">—</span>
+                              )}
+                            </td>
+                          )}
+                          {showCustomFieldColumn && (
+                            <td className="py-3 pr-4 text-gray-600">
+                              {renderFieldResponses(participant, 'desktop') || (
+                                <span className="text-gray-300 text-xs">—</span>
+                              )}
+                            </td>
+                          )}
                           <td className="py-3 pr-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}>
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${paymentInfo.color}`}>
                               {paymentInfo.label}
                             </span>
                           </td>
-                          <td className="py-3 pr-4 text-gray-600">
-                            {participant.payment_amount ? participant.payment_amount.toLocaleString('ko-KR') + '원' : '-'}
+                          <td className="py-3 pr-4 text-gray-700 whitespace-nowrap text-right tabular-nums">
+                            {participant.payment_amount ? participant.payment_amount.toLocaleString('ko-KR') + '원' : '—'}
                           </td>
-                          <td className="py-3 pr-4 text-gray-600">
+                          <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">
                             {formatKstDateOnly(participant.joined_at)}
                           </td>
-                          <td className="py-3 text-center">
+                          <td className="py-3 pr-4 text-center">
                             {renderPickupStatusToggle(participant)}
                           </td>
                           <td className="py-3 text-center">
@@ -1202,17 +1234,17 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                               <button
                                 onClick={() => { setEditingParticipant(participant); setShowParticipantModal(true); }}
                                 title="수정"
-                                className="p-1.5 text-gray-400 hover:text-[#3B55A5] hover:bg-blue-50 rounded transition-colors"
+                                className="p-2 text-gray-500 hover:text-[#3B55A5] hover:bg-blue-50 rounded-md transition-colors"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-4 h-4" />
                               </button>
                               {participant.payment_status === 'pending' && (
                                 <button
                                   onClick={() => handleDeleteParticipant(participant)}
                                   title="삭제"
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
                             </div>
