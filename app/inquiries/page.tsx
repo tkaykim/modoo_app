@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Faq, InquiryWithDetails } from '@/types/types';
 import { createClient } from '@/lib/supabase-client';
+import { maybeHealOnError } from '@/lib/supabase-resilient';
 import { formatKstDateInputValue, isTodayKst } from '@/lib/kst';
 import { ChevronLeft, MessageSquare, Plus, Search, ChevronRight, HelpCircle, Lock, Paperclip } from 'lucide-react';
 
@@ -103,7 +104,8 @@ export default function InquiriesPage() {
           if (!error && data) {
             setFaqs(data as Faq[]);
             setFaqTotalCount(count || 0);
-          } else {
+          } else if (error) {
+            if (maybeHealOnError(error)) return;
             console.error('Error fetching FAQs:', error);
           }
 
@@ -142,7 +144,8 @@ export default function InquiriesPage() {
         if (!error && data) {
           setInquiries(data as InquiryWithDetails[]);
           setTotalCount(count || 0);
-        } else {
+        } else if (error) {
+          if (maybeHealOnError(error)) return;
           console.error('Error fetching inquiries:', error);
         }
       } finally {

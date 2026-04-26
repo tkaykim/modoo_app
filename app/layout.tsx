@@ -5,6 +5,7 @@ import Footer from "./components/Footer";
 import NavigationListener from "./components/NavigationListener";
 import GtmPageviewListener from "./components/GtmPageviewListener";
 import AuthInitializer from "./components/AuthInitializer";
+import SupabaseStorageHeal from "./components/SupabaseStorageHeal";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
 import { getSiteUrl } from "@/lib/site-url";
@@ -57,6 +58,7 @@ export default function RootLayout({
             />
           </noscript>
         )}
+        <SupabaseStorageHeal />
         <AuthInitializer />
         <NavigationListener />
         <GtmPageviewListener />

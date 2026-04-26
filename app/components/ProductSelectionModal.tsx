@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '@/types/types';
 import { createClient } from '@/lib/supabase-client';
+import { maybeHealOnError } from '@/lib/supabase-resilient';
 import { Search, X } from 'lucide-react';
 import Image from 'next/image';
 
@@ -37,6 +38,9 @@ export default function ProductSelectionModal({
     if (!error && data) {
       setProducts(data as Product[]);
       setFilteredProducts(data as Product[]);
+    } else if (error) {
+      if (maybeHealOnError(error)) return;
+      console.error('Error fetching products:', error);
     }
     setIsLoading(false);
   };

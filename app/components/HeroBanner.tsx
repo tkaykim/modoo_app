@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay } from 'swiper/modules';
 import { createClient } from '@/lib/supabase-client';
+import { maybeHealOnError } from '@/lib/supabase-resilient';
 import { HeroBanner as HeroBannerType } from '@/types/types';
 import Link from 'next/link';
 
@@ -31,6 +32,7 @@ export default function HeroBanner() {
 
         setBanners(data || []);
       } catch (err) {
+        if (maybeHealOnError(err)) return;
         console.error('Error fetching hero banners:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch banners');
       } finally {
@@ -89,19 +91,13 @@ export default function HeroBanner() {
             <>
               {/* Background Image - Using regular img tag for better compatibility */}
               {banner.image_link && (
-                <>
-                  <Image
-                    src={banner.image_link}
-                    alt={banner.title}
-                    fill
-                    unoptimized
-                    className="absolute inset-0 w-full h-full object-cover object-top"
-                  />
-                  {/* Debug: Show image URL */}
-                  <div className="absolute top-2 left-2 bg-black/50 text-white text-xs p-1 rounded z-30 max-w-[200px] truncate">
-                    {banner.bg_image}
-                  </div>
-                </>
+                <Image
+                  src={banner.image_link}
+                  alt={banner.title}
+                  fill
+                  unoptimized
+                  className="absolute inset-0 w-full h-full object-cover object-top"
+                />
               )}
 
               {!banner.image_link && (
