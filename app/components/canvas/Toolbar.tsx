@@ -187,7 +187,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       // Pre-flight size guard (matches Supabase Storage limit and CloudConvert practical limit)
       if (file.size > MAX_UPLOAD_BYTES) {
         const mb = (file.size / 1024 / 1024).toFixed(1);
-        alert(`파일이 너무 큽니다.\n현재 파일: ${mb}MB / 최대 허용: 50MB\n\n더 작은 파일로 다시 시도해주세요.`);
+        alert(
+          `파일이 너무 큽니다 (현재 ${mb}MB / 최대 50MB)\n\n` +
+          `아래 방법 중 하나로 진행해주세요:\n` +
+          `1) 더 작은 파일(최대 50MB)로 다시 업로드\n` +
+          `2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n` +
+          `3) modoo.contact@gmail.com 으로 원본 파일 전달`
+        );
         return;
       }
 
@@ -233,7 +239,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             const rawErr = origUploadResult.error || '';
             console.error('Failed to upload original file:', rawErr);
             const friendly = rawErr.includes('exceeded the maximum')
-              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB). 더 작은 파일로 다시 시도해주세요.'
+              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
+                '아래 방법 중 하나로 진행해주세요:\n' +
+                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
+                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
+                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
               : `원본 파일 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
             alert(friendly);
             return;
@@ -264,7 +274,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             const rawErr = pngUploadResult.error || '';
             console.error('Failed to upload PNG:', rawErr);
             const friendly = rawErr.includes('exceeded the maximum')
-              ? '변환된 PNG가 서버 한도를 초과했습니다 (최대 50MB). 더 작은 파일로 다시 시도해주세요.'
+              ? '변환된 PNG가 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
+                '아래 방법 중 하나로 진행해주세요:\n' +
+                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
+                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
+                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
               : `변환된 이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
             alert(friendly);
             return;
@@ -294,7 +308,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             const rawErr = originalFileUploadResult.error || '';
             console.error('Failed to upload image:', rawErr);
             const friendly = rawErr.includes('exceeded the maximum')
-              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB). 더 작은 파일로 다시 시도해주세요.'
+              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
+                '아래 방법 중 하나로 진행해주세요:\n' +
+                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
+                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
+                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
               : `이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
             alert(friendly);
             return;
