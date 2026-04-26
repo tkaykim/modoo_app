@@ -14,8 +14,8 @@ import {
   updateParticipantPickupStatus,
   updateDeliverySettings
 } from '@/lib/cobuyService';
-import { CoBuyParticipant, CoBuySession, CoBuyDeliverySettings } from '@/types/types';
-import { Calendar, CheckCircle, Clock, Copy, Users, PackageCheck, ShoppingBag, Info, ChevronDown, Truck, MapPin, Check, Pencil, Search, UserPlus, Trash2 } from 'lucide-react';
+import { CoBuyParticipant, CoBuySession, CoBuyDeliverySettings, CoBuyPickupStatus } from '@/types/types';
+import { Calendar, CheckCircle, Clock, Copy, Users, PackageCheck, ShoppingBag, Info, ChevronDown, Truck, MapPin, Pencil, Search, UserPlus, Trash2 } from 'lucide-react';
 import CoBuyProgressBar from '@/app/components/cobuy/CoBuyProgressBar';
 import CoBuyOrderModal from '@/app/components/cobuy/CoBuyOrderModal';
 import DeliverySettingsEditModal from '@/app/components/cobuy/DeliverySettingsEditModal';
@@ -39,6 +39,11 @@ const paymentLabels: Record<CoBuyParticipant['payment_status'], { label: string;
   failed: { label: '실패', color: 'bg-red-100 text-red-800' },
   refunded: { label: '환불', color: 'bg-gray-100 text-gray-800' },
   not_required: { label: '대표자 일괄결제', color: 'bg-blue-100 text-blue-800' },
+};
+
+const pickupLabels: Record<CoBuyPickupStatus, { label: string; cls: string }> = {
+  pending: { label: '미수령', cls: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+  picked_up: { label: '수령', cls: 'bg-green-100 text-green-700 hover:bg-green-200' },
 };
 
 /** 마이페이지 UUID 경로(로그인 필수) 또는 share_token 기반 `/cobuy/host/[shareToken]`(누구나 접근 가능) */
@@ -487,34 +492,30 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     );
   };
 
-  // Helper to render pickup status toggle button for pickup participants (checkmark icon)
+  // Helper to render inline-clickable pickup status chip (배부 상태 칩)
   const renderPickupStatusToggle = (participant: CoBuyParticipant) => {
-    // Only show for pickup participants
-    if (participant.delivery_method !== 'pickup') return null;
-
-    const pickupStatus = participant.pickup_status || 'pending';
+    const pickupStatus: CoBuyPickupStatus = participant.pickup_status || 'pending';
     const isPickedUp = pickupStatus === 'picked_up';
     const isUpdating = updatingPickupStatus.has(participant.id);
+    const { label, cls } = pickupLabels[pickupStatus];
 
     return (
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           handlePickupStatusToggle(participant);
         }}
         disabled={isUpdating}
-        title={isPickedUp ? '수령 완료 (클릭하여 미수령으로 변경)' : '미수령 (클릭하여 수령 완료로 변경)'}
-        className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-          isPickedUp
-            ? 'bg-green-500 text-white hover:bg-green-600'
-            : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
-        } ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        title={isPickedUp ? '클릭하여 미수령으로 변경' : '클릭하여 수령으로 변경'}
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${cls} ${
+          isUpdating ? 'opacity-60 cursor-wait' : 'cursor-pointer'
+        }`}
       >
-        {isUpdating ? (
-          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Check className="w-4 h-4" strokeWidth={3} />
+        {isUpdating && (
+          <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
         )}
+        {label}
       </button>
     );
   };
@@ -1039,40 +1040,37 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
 
                   return (
                     <div key={participant.id} className="flex items-stretch gap-2">
-                      {/* Pickup status toggle - outside the accordion on the left */}
-                      <div className="flex items-center shrink-0">
-                        {participant.delivery_method === 'pickup' ? (
-                          renderPickupStatusToggle(participant)
-                        ) : (
-                          <div className="w-7" /> // Spacer for non-pickup participants
-                        )}
-                      </div>
-
                       {/* Accordion item */}
                       <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden">
                         {/* Accordion Header - Always visible */}
-                        <button
-                          type="button"
-                          onClick={() => toggleParticipantExpand(participant.id)}
-                          className="w-full px-4 py-3 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="min-w-0 text-left">
-                              <p className="font-medium text-gray-900 truncate">{participant.name}</p>
-                              <p className="text-xs text-gray-500">{totalQty}벌 · {participant.payment_amount ? `₩${participant.payment_amount.toLocaleString()}` : (isSurveyMode ? '금액 미산정' : '미결제')}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center bg-white hover:bg-gray-50 transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => toggleParticipantExpand(participant.id)}
+                            className="flex-1 min-w-0 px-4 py-3 text-left"
+                          >
+                            <p className="font-medium text-gray-900 truncate">{participant.name}</p>
+                            <p className="text-xs text-gray-500">{totalQty}벌 · {participant.payment_amount ? `₩${participant.payment_amount.toLocaleString()}` : (isSurveyMode ? '금액 미산정' : '미결제')}</p>
+                          </button>
+                          <div className="flex items-center gap-2 shrink-0 pr-3 flex-wrap justify-end">
+                            {renderPickupStatusToggle(participant)}
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}>
                               {paymentInfo.label}
                             </span>
-                            <ChevronDown
-                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180' : ''
-                              }`}
-                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleParticipantExpand(participant.id)}
+                              className="p-1 -mr-1"
+                              aria-label="펼치기"
+                            >
+                              <ChevronDown
+                                className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </button>
                           </div>
-                        </button>
+                        </div>
 
                       {/* Accordion Content - Expandable */}
                       <div
@@ -1197,9 +1195,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                             {formatKstDateOnly(participant.joined_at)}
                           </td>
                           <td className="py-3 text-center">
-                            {renderPickupStatusToggle(participant) || (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
+                            {renderPickupStatusToggle(participant)}
                           </td>
                           <td className="py-3 text-center">
                             <div className="flex items-center justify-center gap-1">
