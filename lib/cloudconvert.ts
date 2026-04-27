@@ -17,7 +17,7 @@ export interface ConversionResult {
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
 const POLL_INTERVAL_MS = 1000;
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const POLL_TIMEOUT_MS = 3 * 60 * 1000;
 
 async function safeParseJson(res: Response): Promise<any> {
   const ct = res.headers.get('content-type') || '';
@@ -32,7 +32,11 @@ async function safeParseJson(res: Response): Promise<any> {
   return { error: text ? `${res.status}: ${text.slice(0, 200)}` : `HTTP ${res.status}` };
 }
 
-async function pollUntilFinished(jobId: string, timeoutMs: number): Promise<string | null> {
+async function pollUntilFinished(
+  jobId: string,
+  timeoutMs: number,
+  onProgress?: (jobStatus: string) => void
+): Promise<string | null> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
@@ -41,11 +45,15 @@ async function pollUntilFinished(jobId: string, timeoutMs: number): Promise<stri
     if (!res.ok) throw new Error(data.error || 'Status check failed');
     if (data.status === 'finished' && data.pngUrl) return data.pngUrl as string;
     if (data.status === 'error') throw new Error(data.error || 'Conversion failed');
+    if (data.jobStatus && onProgress) onProgress(data.jobStatus as string);
   }
   return null;
 }
 
-export async function convertToPNG(file: File): Promise<ConversionResult> {
+export async function convertToPNG(
+  file: File,
+  onProgress?: (jobStatus: string) => void
+): Promise<ConversionResult> {
   try {
     if (file.size > MAX_FILE_BYTES) {
       const mb = (file.size / 1024 / 1024).toFixed(1);
@@ -81,7 +89,7 @@ export async function convertToPNG(file: File): Promise<ConversionResult> {
       return { success: false, error: `Upload failed: ${upRes.status} ${upRes.statusText}` };
     }
 
-    const pngUrl = await pollUntilFinished(jobId, POLL_TIMEOUT_MS);
+    const pngUrl = await pollUntilFinished(jobId, POLL_TIMEOUT_MS, onProgress);
     if (!pngUrl) return { success: false, error: '변환 시간 초과' };
 
     const pngRes = await fetch(pngUrl);

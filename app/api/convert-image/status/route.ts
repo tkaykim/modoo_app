@@ -78,6 +78,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // CloudConvert sometimes leaves individual tasks in 'error'/'cancelled'
+    // while the job stays in 'waiting'/'processing'. Surface that as an error
+    // immediately instead of polling until the 3-minute client timeout.
+    const failedTask = job.tasks?.find((t) =>
+      ['error', 'cancelled'].includes(t.status as string)
+    );
+    if (failedTask) {
+      return NextResponse.json(
+        {
+          success: false,
+          status: 'error',
+          error: failedTask.message || `Task ${failedTask.name} failed`,
+          code: failedTask.code || null,
+        },
+        { headers: cors }
+      );
+    }
+
     return NextResponse.json(
       { success: true, status: 'processing', jobStatus: job.status },
       { headers: cors }
