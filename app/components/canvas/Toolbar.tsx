@@ -9,7 +9,7 @@ import { isCurvedText } from '@/lib/curvedText';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { createClient } from '@/lib/supabase-client';
-import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage, MAX_UPLOAD_BYTES } from '@/lib/cloudconvert';
+import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage, MAX_UPLOAD_BYTES } from '@/lib/imageConvert';
 import LoadingModal from '@/app/components/LoadingModal';
 import { trackDesignAction } from '@/lib/gtm-events';
 
@@ -217,15 +217,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           // CloudConvert typically dominates wall time; uploading the original
           // PSD/AI to Supabase concurrently piggybacks onto that wait.
           const [conversionResult, origUploadResult] = await Promise.all([
-            convertToPNG(file, (jobStatus) => {
-              if (jobStatus === 'waiting') {
-                setLoadingSubmessage('대기열에서 차례를 기다리고 있어요…');
-              } else if (jobStatus === 'processing') {
-                setLoadingSubmessage('파일을 변환하고 있어요…');
-              } else {
-                setLoadingSubmessage('거의 다 됐어요…');
-              }
-            }),
+            convertToPNG(file, (msg) => setLoadingSubmessage(msg)),
             uploadFileToStorage(
               supabase,
               file,
