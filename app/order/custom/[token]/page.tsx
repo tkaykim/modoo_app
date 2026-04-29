@@ -563,9 +563,10 @@ export default function CustomOrderPage() {
                   + (orderData.admin_surcharge ?? 0);
                 const diff = totalAmount - computedTotal;
                 if (diff === 0) return null;
+                if (computedTotal < 0 && totalAmount === 0) return null;
                 return (
                   <div className={`flex justify-between text-sm ${diff > 0 ? 'text-indigo-600' : 'text-green-600'}`}>
-                    <span>작업비용</span>
+                    <span>기타 조정</span>
                     <span>{diff > 0 ? '+' : ''}{diff.toLocaleString()}원</span>
                   </div>
                 );
