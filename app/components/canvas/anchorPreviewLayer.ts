@@ -64,9 +64,9 @@ export function drawAnchorPreviews(
     canvas.add(rect);
     canvas.bringObjectToFront(rect);
 
-    // Center marker — same convention as test calibration page so users
-    // can see WHERE the anchor center is (not just where the box edges are).
-    // Without this, users mistake the box top-left corner for the anchor.
+    // Center marker — at the actual anchor coordinate (box center).
+    // Test calibration page uses this same convention so users can clearly
+    // see WHERE the anchor center is, distinct from where the box edges fall.
     const dotRadius = 5;
     const centerDot = new fabric.Circle({
       left: centerX - dotRadius,
@@ -84,11 +84,11 @@ export function drawAnchorPreviews(
     canvas.add(centerDot);
     canvas.bringObjectToFront(centerDot);
 
-    // Label sits next to the center dot (not the box corner) so it points
-    // at the actual anchor position.
+    // Label sits at the TOP of the box (separate from the dot) so the dot
+    // alone indicates the anchor center. Matches test calibration page layout.
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
-      left: centerX + dotRadius + 4,
-      top: centerY - 8,
+      left: centerX - widthPx / 2 + 4,
+      top: centerY - heightPx / 2 + 2,
       fontSize: 12,
       fontWeight: 'bold',
       fill: '#1e3a8a',
