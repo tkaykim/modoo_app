@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createAnonClient } from "@/lib/supabase";
 import { stripHtmlForMeta } from "@/lib/seo-text";
+import { DEFAULT_OG_IMAGE } from "@/lib/og-meta";
 
 const GUIDE_CATEGORIES = ["fabric", "printing", "order_guide"] as const;
 
@@ -41,11 +42,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: rawDesc,
       url: `/support/guides/${id}`,
       type: "article",
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description: rawDesc,
+      images: [DEFAULT_OG_IMAGE.url],
     },
     alternates: { canonical: `/support/guides/${id}` },
   };

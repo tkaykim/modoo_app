@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createAnonClient } from "@/lib/supabase";
 import { stripHtmlForMeta } from "@/lib/seo-text";
+import { DEFAULT_OG_IMAGE } from "@/lib/og-meta";
 
 type Props = {
   children: React.ReactNode;
@@ -33,11 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: rawDesc,
       url: `/support/notices/${noticeId}`,
       type: "article",
+      images: [DEFAULT_OG_IMAGE],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description: rawDesc,
+      images: [DEFAULT_OG_IMAGE.url],
     },
     alternates: { canonical: `/support/notices/${noticeId}` },
   };

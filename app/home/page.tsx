@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DEFAULT_OG_IMAGE } from "@/lib/og-meta";
 import Header from "@/app/components/Header";
 import HeroBanner from "@/app/components/HeroBanner";
 import ProductCard from "../components/ProductCard"
@@ -28,11 +29,13 @@ export const metadata: Metadata = {
     description: HOME_DESC,
     url: "/home",
     type: "website",
+    images: [DEFAULT_OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "모두의 유니폼 | 단체 유니폼 · 단체복 주문",
     description: HOME_DESC,
+    images: [DEFAULT_OG_IMAGE.url],
   },
   alternates: { canonical: "/home" },
 };
