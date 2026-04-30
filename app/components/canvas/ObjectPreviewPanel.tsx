@@ -34,7 +34,17 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
       const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
       // @ts-expect-error - Custom property
       const scaledImageWidth = canvas.scaledImageWidth;
-      const pixelToMmRatio = scaledImageWidth ? realWorldProductWidth / scaledImageWidth : 0.25;
+      // @ts-expect-error - Custom property
+      const calibrationNative = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+      // @ts-expect-error - Custom property
+      const originalImageWidth = canvas.originalImageWidth as number | undefined;
+      const calibratedRatio =
+        calibrationNative > 0 && originalImageWidth && scaledImageWidth
+          ? calibrationNative / (scaledImageWidth / originalImageWidth)
+          : 0;
+      const pixelToMmRatio = calibratedRatio > 0
+        ? calibratedRatio
+        : (scaledImageWidth ? realWorldProductWidth / scaledImageWidth : 0.25);
 
       const userObjects = canvas.getObjects().filter(obj => {
         if (obj.excludeFromExport) return false;
