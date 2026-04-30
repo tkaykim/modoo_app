@@ -45,6 +45,7 @@ export function drawAnchorPreviews(
     const centerY = a.yMm / canvasMmPerPx + mockupCanvasTop;
     if (!Number.isFinite(widthPx) || !Number.isFinite(heightPx)) return;
 
+    // Recommended-size box (dashed outline)
     const rect = new fabric.Rect({
       left: centerX - widthPx / 2,
       top: centerY - heightPx / 2,
@@ -63,9 +64,31 @@ export function drawAnchorPreviews(
     canvas.add(rect);
     canvas.bringObjectToFront(rect);
 
+    // Center marker — same convention as test calibration page so users
+    // can see WHERE the anchor center is (not just where the box edges are).
+    // Without this, users mistake the box top-left corner for the anchor.
+    const dotRadius = 5;
+    const centerDot = new fabric.Circle({
+      left: centerX - dotRadius,
+      top: centerY - dotRadius,
+      radius: dotRadius,
+      fill: '#1d4ed8',
+      stroke: '#ffffff',
+      strokeWidth: 1.5,
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      hoverCursor: 'default',
+    }) as AnchorPreviewObject;
+    centerDot.data = { id: PREVIEW_TAG };
+    canvas.add(centerDot);
+    canvas.bringObjectToFront(centerDot);
+
+    // Label sits next to the center dot (not the box corner) so it points
+    // at the actual anchor position.
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
-      left: centerX - widthPx / 2 + 4,
-      top: centerY - heightPx / 2 + 2,
+      left: centerX + dotRadius + 4,
+      top: centerY - 8,
       fontSize: 12,
       fontWeight: 'bold',
       fill: '#1e3a8a',
