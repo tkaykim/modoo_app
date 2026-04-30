@@ -24,9 +24,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
     siteName: "모두의 유니폼",
+    title: "모두의 유니폼 | 단체복 의류 주문 제작",
+    description:
+      "의류 주문 제작, 무료 견적, 대량 주문, 단체 유니폼·단체복 제작. 모두의 유니폼에서 간편하게 신청하세요.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1448,
+        height: 1086,
+        alt: "모두의 유니폼 - 단체복 제작 맛집",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    title: "모두의 유니폼 | 단체복 의류 주문 제작",
+    description:
+      "의류 주문 제작, 무료 견적, 대량 주문, 단체 유니폼·단체복 제작. 모두의 유니폼에서 간편하게 신청하세요.",
+    images: ["/og-image.png"],
   },
 };
 
