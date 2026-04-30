@@ -51,52 +51,78 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   // Anchor preset panel state.
   const [isAnchorPanelOpen, setIsAnchorPanelOpen] = useState(false);
   const [sideAnchors, setSideAnchors] = useState<AnchorPreset[]>([]);
+  // Fetched native (original-mockup-px) mm-per-px for the active side. Used directly
+  // (instead of reading canvas property) so panel/snap/preview don't race with
+  // SingleSideCanvas calibration effect.
+  const [nativeMmPerPxForSide, setNativeMmPerPxForSide] = useState<number>(0);
 
-  // Fetch registered anchors for the active side whenever product/side changes.
   useEffect(() => {
     let cancelled = false;
     if (!productId || !activeSideId) {
       setSideAnchors([]);
+      setNativeMmPerPxForSide(0);
       return;
     }
     fetchProductCalibrations(productId).then((map) => {
       if (cancelled) return;
       const cal = map.get(activeSideId);
       setSideAnchors(cal?.anchors ?? []);
+      setNativeMmPerPxForSide(cal?.nativeMmPerPx ?? 0);
     }).catch(() => {
-      if (!cancelled) setSideAnchors([]);
+      if (!cancelled) {
+        setSideAnchors([]);
+        setNativeMmPerPxForSide(0);
+      }
     });
     return () => { cancelled = true; };
   }, [productId, activeSideId]);
 
-  // Resolve canvas-pixel mmPerPx using the same priority as canvasUtils
-  // (calibration > legacy productWidthMm). Returns null when no usable input.
-  const resolveCanvasMmPerPx = (): number | null => {
+  // Resolve canvas-pixel mmPerPx using the directly-fetched calibration when
+  // available (preferred — avoids race with SingleSideCanvas effect), then
+  // legacy productWidthMm fallback.
+  const resolveCanvasGeometry = (): {
+    mmPerPx: number;
+    mockupLeft: number;
+    mockupTop: number;
+  } | null => {
     const canvas = getActiveCanvas();
     if (!canvas) return null;
-    // @ts-expect-error - Custom property
-    const native = canvas.calibrationNativeMmPerPx as number | undefined;
     // @ts-expect-error - Custom property
     const sw = canvas.scaledImageWidth as number | undefined;
     // @ts-expect-error - Custom property
     const ow = canvas.originalImageWidth as number | undefined;
-    if (native && native > 0 && sw && ow) {
-      return calibrationToCanvasMmPerPx({ nativeMmPerPx: native, scaledImageWidth: sw, originalImageWidth: ow });
+    // @ts-expect-error - Custom property
+    const mockupLeft = (canvas.mockupCanvasLeft as number | undefined) ?? 0;
+    // @ts-expect-error - Custom property
+    const mockupTop = (canvas.mockupCanvasTop as number | undefined) ?? 0;
+    if (nativeMmPerPxForSide > 0 && sw && ow) {
+      const r = calibrationToCanvasMmPerPx({
+        nativeMmPerPx: nativeMmPerPxForSide,
+        scaledImageWidth: sw,
+        originalImageWidth: ow,
+      });
+      if (r) return { mmPerPx: r, mockupLeft, mockupTop };
     }
-    // Legacy fallback: derive from realWorldProductWidth.
     // @ts-expect-error - Custom property
     const realW = (canvas.realWorldProductWidth as number | undefined) ?? 500;
-    if (sw && sw > 0 && realW > 0) return realW / sw;
+    if (sw && sw > 0 && realW > 0) {
+      return { mmPerPx: realW / sw, mockupLeft, mockupTop };
+    }
     return null;
   };
 
-  // Show / hide ghost preview rectangles when the panel toggles.
   useEffect(() => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     if (isAnchorPanelOpen && sideAnchors.length > 0) {
-      const ratio = resolveCanvasMmPerPx();
-      if (ratio) drawAnchorPreviews(canvas, sideAnchors, { canvasMmPerPx: ratio });
+      const geo = resolveCanvasGeometry();
+      if (geo) {
+        drawAnchorPreviews(canvas, sideAnchors, {
+          canvasMmPerPx: geo.mmPerPx,
+          mockupCanvasLeft: geo.mockupLeft,
+          mockupCanvasTop: geo.mockupTop,
+        });
+      }
     } else {
       clearAnchorPreviews(canvas);
     }
@@ -104,16 +130,22 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       clearAnchorPreviews(canvas);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAnchorPanelOpen, sideAnchors, activeSideId]);
+  }, [isAnchorPanelOpen, sideAnchors, activeSideId, nativeMmPerPxForSide]);
 
   const handlePickAnchor = (anchor: AnchorPreset) => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
     const target = canvas.getActiveObject();
     if (!target) return;
-    const ratio = resolveCanvasMmPerPx();
-    if (!ratio) return;
-    const ok = snapArtworkToAnchor({ obj: target, anchor, canvasMmPerPx: ratio });
+    const geo = resolveCanvasGeometry();
+    if (!geo) return;
+    const ok = snapArtworkToAnchor({
+      obj: target,
+      anchor,
+      canvasMmPerPx: geo.mmPerPx,
+      mockupCanvasLeft: geo.mockupLeft,
+      mockupCanvasTop: geo.mockupTop,
+    });
     if (ok) {
       canvas.requestRenderAll();
       incrementCanvasVersion();

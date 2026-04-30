@@ -743,6 +743,18 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         canvas.scaledImageHeight = imgHeight * scale;
         // @ts-expect-error - Custom property
         canvas.realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
+        // Mockup top-left in canvas pixels. Mockup is centered (originX/Y: 'center',
+        // left/top: width|height/2), so its actual top-left differs from canvas (0,0).
+        // Anchor preset snap/preview use this offset so positions match the mockup visual.
+        // @ts-expect-error - Custom property
+        canvas.mockupCanvasLeft = imageLeft;
+        // @ts-expect-error - Custom property
+        canvas.mockupCanvasTop = imageTop;
+        // Also push cached calibration if it arrived before canvas init.
+        if (calibrationNativeMmPerPxRef.current > 0) {
+          // @ts-expect-error - Custom property
+          canvas.calibrationNativeMmPerPx = calibrationNativeMmPerPxRef.current;
+        }
 
         // For multi-layer mode, store canvas center as the snap center
         // @ts-expect-error - Custom property
@@ -952,6 +964,18 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         canvas.scaledImageHeight = imgHeight * scale;
         // @ts-expect-error - Custom property
         canvas.realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
+        // Mockup top-left in canvas pixels. Mockup is centered (originX/Y: 'center',
+        // left/top: width|height/2), so its actual top-left differs from canvas (0,0).
+        // Anchor preset snap/preview use this offset so positions match the mockup visual.
+        // @ts-expect-error - Custom property
+        canvas.mockupCanvasLeft = imageLeft;
+        // @ts-expect-error - Custom property
+        canvas.mockupCanvasTop = imageTop;
+        // Also push cached calibration if it arrived before canvas init.
+        if (calibrationNativeMmPerPxRef.current > 0) {
+          // @ts-expect-error - Custom property
+          canvas.calibrationNativeMmPerPx = calibrationNativeMmPerPxRef.current;
+        }
 
         // Force a render to ensure all objects are processed by Fabric.js
         canvas.requestRenderAll();

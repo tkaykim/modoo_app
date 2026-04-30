@@ -50,10 +50,10 @@ export function drawAnchorPreviews(
       top: centerY - heightPx / 2,
       width: widthPx,
       height: heightPx,
-      fill: 'transparent',
-      stroke: '#2563eb',
-      strokeWidth: 1.5,
-      strokeDashArray: [6, 4],
+      fill: 'rgba(37, 99, 235, 0.08)',
+      stroke: '#1d4ed8',
+      strokeWidth: 2,
+      strokeDashArray: [8, 5],
       selectable: false,
       evented: false,
       excludeFromExport: true,
@@ -61,13 +61,16 @@ export function drawAnchorPreviews(
     }) as AnchorPreviewObject;
     rect.data = { id: PREVIEW_TAG };
     canvas.add(rect);
+    canvas.bringObjectToFront(rect);
 
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
       left: centerX - widthPx / 2 + 4,
       top: centerY - heightPx / 2 + 2,
-      fontSize: 11,
-      fill: '#1d4ed8',
-      backgroundColor: 'rgba(255,255,255,0.85)',
+      fontSize: 12,
+      fontWeight: 'bold',
+      fill: '#1e3a8a',
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      padding: 2,
       selectable: false,
       evented: false,
       excludeFromExport: true,
@@ -75,6 +78,7 @@ export function drawAnchorPreviews(
     }) as AnchorPreviewObject;
     text.data = { id: PREVIEW_TAG };
     canvas.add(text);
+    canvas.bringObjectToFront(text);
   });
 
   canvas.requestRenderAll();
