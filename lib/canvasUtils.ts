@@ -15,8 +15,12 @@ import * as fabric from 'fabric';
 export function pixelsToMm(
   pixelValue: number,
   canvasPrintAreaWidth: number,
-  realWorldWidth: number
+  realWorldWidth: number,
+  mmPerPxOverride?: number | null
 ): number {
+  if (mmPerPxOverride && Number.isFinite(mmPerPxOverride) && mmPerPxOverride > 0) {
+    return pixelValue * mmPerPxOverride;
+  }
   const mmPerPixel = realWorldWidth / canvasPrintAreaWidth;
   return pixelValue * mmPerPixel;
 }
@@ -32,8 +36,12 @@ export function pixelsToMm(
 export function mmToPixels(
   mmValue: number,
   canvasPrintAreaWidth: number,
-  realWorldWidth: number
+  realWorldWidth: number,
+  mmPerPxOverride?: number | null
 ): number {
+  if (mmPerPxOverride && Number.isFinite(mmPerPxOverride) && mmPerPxOverride > 0) {
+    return mmValue / mmPerPxOverride;
+  }
   const pixelsPerMm = canvasPrintAreaWidth / realWorldWidth;
   return mmValue * pixelsPerMm;
 }
@@ -73,16 +81,23 @@ export interface CanvasDimensionParams {
   scaledPrintLeft?: number;
   scaledPrintTop?: number;
   realWorldProductWidth?: number;
+  /** When set, overrides legacy ratio. Already in canvas-px scale (mm per scaled px). */
+  mmPerPxOverride?: number | null;
 }
 
 /**
- * Calculate pixel-to-mm ratio based on product dimensions
- * This ensures consistent measurements across the application
+ * Calculate pixel-to-mm ratio based on product dimensions.
+ * If `mmPerPxOverride` is provided (calibration-derived), it is used directly.
+ * Otherwise falls back to `realWorldProductWidth / scaledImageWidth` (legacy).
  */
 export function calculatePixelToMmRatio(
   scaledImageWidth: number,
-  realWorldProductWidth: number = 500 // Default to 500mm for t-shirts
+  realWorldProductWidth: number = 500, // Default to 500mm for t-shirts
+  mmPerPxOverride?: number | null
 ): number {
+  if (mmPerPxOverride && Number.isFinite(mmPerPxOverride) && mmPerPxOverride > 0) {
+    return mmPerPxOverride;
+  }
   return realWorldProductWidth / scaledImageWidth;
 }
 
@@ -101,11 +116,12 @@ export function calculateObjectDimensionsMm(
     scaledImageWidth,
     scaledPrintLeft = 0,
     scaledPrintTop = 0,
-    realWorldProductWidth = 500
+    realWorldProductWidth = 500,
+    mmPerPxOverride = null,
   } = params;
 
-  // Calculate pixel-to-mm ratio based on the product dimensions
-  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth);
+  // Calculate pixel-to-mm ratio. Calibration override wins; legacy fallback otherwise.
+  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth, mmPerPxOverride);
 
   // Get object's bounding box dimensions (includes scale and rotation)
   const boundingRect = obj.getBoundingRect();
@@ -135,9 +151,10 @@ export function calculateObjectDimensionsMm(
 export function updateObjectDimensionsData(
   obj: fabric.FabricObject,
   scaledImageWidth: number,
-  realWorldProductWidth: number = 500
+  realWorldProductWidth: number = 500,
+  mmPerPxOverride?: number | null
 ): void {
-  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth);
+  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth, mmPerPxOverride);
   const boundingRect = obj.getBoundingRect();
 
   // Calculate dimensions in mm
@@ -169,9 +186,10 @@ export function updateObjectDimensionsData(
 export function calculateTotalBoundingBoxMm(
   canvas: fabric.Canvas,
   scaledImageWidth: number,
-  realWorldProductWidth: number = 500
+  realWorldProductWidth: number = 500,
+  mmPerPxOverride?: number | null
 ): { widthMm: number; heightMm: number } | null {
-  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth);
+  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth, mmPerPxOverride);
 
   // Filter user-added objects only
   const userObjects = canvas.getObjects().filter(obj => {
@@ -224,7 +242,8 @@ export function calculateTotalBoundingBoxMm(
 export function calculateAllObjectDimensionsMm(
   canvasState: Record<string, unknown>,
   scaledImageWidth: number,
-  realWorldProductWidth: number = 500
+  realWorldProductWidth: number = 500,
+  mmPerPxOverride?: number | null
 ): Array<{
   objectId: string;
   type: string;
@@ -236,7 +255,7 @@ export function calculateAllObjectDimensionsMm(
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const objects = (canvasState.objects as any[]) || [];
-  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth);
+  const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth, mmPerPxOverride);
 
   // Filter user-added objects only
   const userObjects = objects.filter(obj => {

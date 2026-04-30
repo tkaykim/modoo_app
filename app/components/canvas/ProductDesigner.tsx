@@ -165,6 +165,7 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
                 >
                   <SingleSideCanvas
                     side={side}
+                    productId={config.productId}
                     width={400}
                     height={500}
                     isEdit={isEditMode}

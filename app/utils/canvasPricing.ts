@@ -187,7 +187,18 @@ export async function calculateSidePricing(
   // @ts-expect-error - Custom property
   const scaledImageWidth = canvas.scaledImageWidth || imageWidthPixels || 500;
   const realWorldProductWidth = productWidthMm || 500;
-  const pixelToMmRatio = realWorldProductWidth / scaledImageWidth;
+  // Prefer per-side calibration when SingleSideCanvas attached it.
+  // calibrationNativeMmPerPx is mm per ORIGINAL mockup px; convert to canvas-px
+  // scale via displayScale = scaledImageWidth / originalImageWidth.
+  // @ts-expect-error - Custom property
+  const calibrationNativeMmPerPx = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+  // @ts-expect-error - Custom property
+  const originalImageWidth = canvas.originalImageWidth as number | undefined;
+  const calibratedRatio =
+    calibrationNativeMmPerPx > 0 && originalImageWidth && scaledImageWidth
+      ? calibrationNativeMmPerPx / (scaledImageWidth / originalImageWidth)
+      : 0;
+  const pixelToMmRatio = calibratedRatio > 0 ? calibratedRatio : realWorldProductWidth / scaledImageWidth;
 
   // All objects use DTF — calculate combined bounding box for the entire side
   const combinedDimensions = calculateCombinedBoundingBox(userObjects, pixelToMmRatio);

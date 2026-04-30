@@ -6,12 +6,15 @@ import { ProductSide, ProductLayer } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import ScaleBox from './ScaleBox';
 import { formatMm, calculateObjectDimensionsMm, updateObjectDimensionsData } from '@/lib/canvasUtils';
+import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
 // Import CurvedText to register the class with fabric.js for deserialization
 import '@/lib/curvedText';
 
 
 interface SingleSideCanvasProps {
   side: ProductSide;
+  /** Operational product id. When given, calibration mmPerPx is fetched and used for px↔mm. */
+  productId?: string;
   width?: number; // these are optional because there will be a default value
   height?: number; // ''
   isEdit?: boolean; // whether canvas is in edit mode
@@ -22,6 +25,7 @@ interface SingleSideCanvasProps {
 
 const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   side,
+  productId,
   width = 500,
   height = 500,
   isEdit = false,
@@ -35,6 +39,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   const productImageRef = useRef<fabric.FabricImage | null>(null);
   const layerImagesRef = useRef<Map<string, fabric.FabricImage>>(new Map());
   const loadSessionRef = useRef(0);
+  /** Native mmPerPx (mm per ORIGINAL mockup pixel) from product_calibrations. 0 = no calibration → legacy fallback. */
+  const calibrationNativeMmPerPxRef = useRef<number>(0);
 
   const { registerCanvas, unregisterCanvas, productColor: productColorFromStore, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor, layerColors, resetZoom, zoomLevels, setZoom } = useCanvasStore();
   const productColor = productColorProp ?? productColorFromStore;
@@ -74,6 +80,31 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   useEffect(() => {
     isEditRef.current = isEdit;
   }, [isEdit]);
+
+  // Fetch product calibration once per (productId, side.id). Stored as native
+  // mmPerPx; canvas-px override is computed at use sites where displayScale is known.
+  useEffect(() => {
+    let cancelled = false;
+    if (!productId) {
+      calibrationNativeMmPerPxRef.current = 0;
+      return;
+    }
+    fetchProductCalibrations(productId).then((map) => {
+      if (cancelled) return;
+      const cal = map.get(side.id);
+      calibrationNativeMmPerPxRef.current = cal?.nativeMmPerPx ?? 0;
+      // Re-render so any in-flight scale-box / measurement reflects the new ratio.
+      const canvas = canvasRef.current;
+      if (canvas) {
+        // @ts-expect-error - Custom property
+        canvas.calibrationNativeMmPerPx = calibrationNativeMmPerPxRef.current;
+        canvas.requestRenderAll();
+      }
+    }).catch(() => {
+      if (!cancelled) calibrationNativeMmPerPxRef.current = 0;
+    });
+    return () => { cancelled = true; };
+  }, [productId, side.id]);
 
   // Reset layersReady when side changes
   useEffect(() => {
@@ -947,6 +978,22 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       });
     }
 
+    // Helper: compute canvas-pixel mmPerPx from calibration when available.
+    // Returns null when no calibration → caller falls back to legacy (productWidthMm/scaledImageWidth).
+    const getCanvasMmPerPxOverride = (): number | null => {
+      // @ts-expect-error - Custom property
+      const sw = canvas.scaledImageWidth as number | undefined;
+      // @ts-expect-error - Custom property
+      const ow = canvas.originalImageWidth as number | undefined;
+      const native = calibrationNativeMmPerPxRef.current;
+      if (!native || !sw || !ow) return null;
+      return calibrationToCanvasMmPerPx({
+        nativeMmPerPx: native,
+        scaledImageWidth: sw,
+        originalImageWidth: ow,
+      });
+    };
+
     // Helper function to update scale box with object dimensions
     const updateScaleBox = (obj: fabric.FabricObject | fabric.ActiveSelection) => {
         // Get the scaled product image width on the canvas
@@ -959,6 +1006,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
 
         // Get real-world product width from product data
         const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
+        const mmPerPxOverride = getCanvasMmPerPxOverride();
 
         // Calculate dimensions using the reusable utility function
         const dimensions = calculateObjectDimensionsMm(obj, {
@@ -966,6 +1014,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           scaledPrintLeft,
           scaledPrintTop,
           realWorldProductWidth,
+          mmPerPxOverride,
         });
 
         // Get bounding rect for positioning the scale box
@@ -1082,7 +1131,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         const scaledImageWidth = canvas.scaledImageWidth;
         const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
         if (scaledImageWidth) {
-          updateObjectDimensionsData(obj, scaledImageWidth, realWorldProductWidth);
+          updateObjectDimensionsData(obj, scaledImageWidth, realWorldProductWidth, getCanvasMmPerPxOverride());
         }
 
         // Make objects selectable based on current edit mode
@@ -1109,7 +1158,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           const scaledImageWidth = canvas.scaledImageWidth;
           const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
           if (scaledImageWidth) {
-            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth);
+            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth, getCanvasMmPerPxOverride());
           }
         }
     });
@@ -1122,7 +1171,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           const scaledImageWidth = canvas.scaledImageWidth;
           const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
           if (scaledImageWidth) {
-            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth);
+            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth, getCanvasMmPerPxOverride());
           }
         }
     });
@@ -1135,7 +1184,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           const scaledImageWidth = canvas.scaledImageWidth;
           const realWorldProductWidth = side.realLifeDimensions?.productWidthMm || 500;
           if (scaledImageWidth) {
-            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth);
+            updateObjectDimensionsData(e.target, scaledImageWidth, realWorldProductWidth, getCanvasMmPerPxOverride());
           }
         }
         // Increment canvas version when object is modified (color, size, etc.)

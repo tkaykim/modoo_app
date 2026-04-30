@@ -287,8 +287,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const scaledImageWidth = canvas.scaledImageWidth;
       // @ts-expect-error - Custom property
       const realWorldProductWidth = canvas.realWorldProductWidth || 500;
+      // @ts-expect-error - Custom property — set by SingleSideCanvas calibration effect (native = mm per ORIGINAL mockup px)
+      const calibrationNativeMmPerPx = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+      // @ts-expect-error - Custom property
+      const originalImageWidth = canvas.originalImageWidth as number | undefined;
+      const calibrationCanvasMmPerPx =
+        calibrationNativeMmPerPx > 0 && scaledImageWidth && originalImageWidth
+          ? calibrationNativeMmPerPx / (scaledImageWidth / originalImageWidth)
+          : null;
       const totalBoundingBox = scaledImageWidth
-        ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth)
+        ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth, calibrationCanvasMmPerPx)
         : null;
 
       // Create a minimal JSON with only user objects and layer colors
@@ -307,7 +315,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         // Save layer colors for this side
         layerColors: layerColors[id] || {},
         // Save total bounding box dimensions in mm
-        totalBoundingBoxMm: totalBoundingBox
+        totalBoundingBoxMm: totalBoundingBox,
+        // Native mm per ORIGINAL mockup pixel from product_calibrations at save time.
+        // Restored canvases use this to render mm labels accurately even if calibration
+        // is later updated. Absent → legacy productWidthMm fallback.
+        __mmPerPxCalibrationNative: calibrationNativeMmPerPx > 0 ? calibrationNativeMmPerPx : null,
       };
 
       savedState[id] = JSON.stringify(canvasData);
@@ -341,6 +353,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
         // Then load the saved user objects and layer colors
         const canvasData = typeof json === 'string' ? JSON.parse(json) : json;
+
+        // Restore calibration mmPerPx (additive — absent in legacy designs).
+        // SingleSideCanvas may also fetch fresh from product_calibrations on mount;
+        // the saved snapshot wins for historical accuracy unless a fresh fetch
+        // overwrites it. Either path leaves px coords visually identical.
+        if (canvasData.__mmPerPxCalibrationNative && canvasData.__mmPerPxCalibrationNative > 0) {
+          // @ts-expect-error - Custom property
+          canvas.calibrationNativeMmPerPx = canvasData.__mmPerPxCalibrationNative;
+        }
 
         // Restore layer colors if present
         if (canvasData.layerColors) {
@@ -419,8 +440,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const scaledImageWidth = canvas.scaledImageWidth;
     // @ts-expect-error - Custom property
     const realWorldProductWidth = canvas.realWorldProductWidth || 500;
+    // @ts-expect-error - Custom property — set by SingleSideCanvas calibration effect
+    const calibrationNativeMmPerPx = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+    // @ts-expect-error - Custom property
+    const originalImageWidth = canvas.originalImageWidth as number | undefined;
+    const calibrationCanvasMmPerPx =
+      calibrationNativeMmPerPx > 0 && scaledImageWidth && originalImageWidth
+        ? calibrationNativeMmPerPx / (scaledImageWidth / originalImageWidth)
+        : null;
     const totalBoundingBox = scaledImageWidth
-      ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth)
+      ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth, calibrationCanvasMmPerPx)
       : null;
 
     // Create a minimal JSON with only user objects and layer colors
@@ -439,7 +468,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       // Save layer colors for this side
       layerColors: layerColors[id] || {},
       // Save total bounding box dimensions in mm
-      totalBoundingBoxMm: totalBoundingBox
+      totalBoundingBoxMm: totalBoundingBox,
+      __mmPerPxCalibrationNative: calibrationNativeMmPerPx > 0 ? calibrationNativeMmPerPx : null,
     };
 
     return JSON.stringify(canvasData);
@@ -469,6 +499,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       // Then load the saved user objects and layer colors
       const canvasData = JSON.parse(json);
+
+      // Restore calibration mmPerPx if embedded (additive, absent in legacy designs).
+      if (canvasData.__mmPerPxCalibrationNative && canvasData.__mmPerPxCalibrationNative > 0) {
+        // @ts-expect-error - Custom property
+        canvas.calibrationNativeMmPerPx = canvasData.__mmPerPxCalibrationNative;
+      }
 
       // Restore layer colors if present
       if (canvasData.layerColors) {
@@ -539,8 +575,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const scaledImageWidth = canvas.scaledImageWidth;
       // @ts-expect-error - Custom property
       const realWorldProductWidth = canvas.realWorldProductWidth || 500;
+      // @ts-expect-error - Custom property — set by SingleSideCanvas calibration effect (native = mm per ORIGINAL mockup px)
+      const calibrationNativeMmPerPx = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+      // @ts-expect-error - Custom property
+      const originalImageWidth = canvas.originalImageWidth as number | undefined;
+      const calibrationCanvasMmPerPx =
+        calibrationNativeMmPerPx > 0 && scaledImageWidth && originalImageWidth
+          ? calibrationNativeMmPerPx / (scaledImageWidth / originalImageWidth)
+          : null;
       const totalBoundingBox = scaledImageWidth
-        ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth)
+        ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth, calibrationCanvasMmPerPx)
         : null;
 
       // Convert objects
@@ -558,7 +602,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         version: canvas.toJSON().version,
         objects: serializedObjects,
         layerColors: layerColors[id] || {},
-        totalBoundingBoxMm: totalBoundingBox
+        totalBoundingBoxMm: totalBoundingBox,
+        // Native mm per ORIGINAL mockup pixel from product_calibrations at save time.
+        // Restored canvases use this to render mm labels accurately even if calibration
+        // is later updated. Absent → legacy productWidthMm fallback.
+        __mmPerPxCalibrationNative: calibrationNativeMmPerPx > 0 ? calibrationNativeMmPerPx : null,
       };
 
       savedState[id] = JSON.stringify(canvasData);
@@ -587,8 +635,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const scaledImageWidth = canvas.scaledImageWidth;
     // @ts-expect-error - Custom property
     const realWorldProductWidth = canvas.realWorldProductWidth || 500;
+    // @ts-expect-error - Custom property — set by SingleSideCanvas calibration effect
+    const calibrationNativeMmPerPx = (canvas.calibrationNativeMmPerPx as number | undefined) ?? 0;
+    // @ts-expect-error - Custom property
+    const originalImageWidth = canvas.originalImageWidth as number | undefined;
+    const calibrationCanvasMmPerPx =
+      calibrationNativeMmPerPx > 0 && scaledImageWidth && originalImageWidth
+        ? calibrationNativeMmPerPx / (scaledImageWidth / originalImageWidth)
+        : null;
     const totalBoundingBox = scaledImageWidth
-      ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth)
+      ? calculateTotalBoundingBoxMm(canvas, scaledImageWidth, realWorldProductWidth, calibrationCanvasMmPerPx)
       : null;
 
     // Convert objects (CurvedText handles its own SVG in toSVG)
@@ -605,7 +661,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       version: canvas.toJSON().version,
       objects: serializedObjects,
       layerColors: layerColors[id] || {},
-      totalBoundingBoxMm: totalBoundingBox
+      totalBoundingBoxMm: totalBoundingBox,
+      __mmPerPxCalibrationNative: calibrationNativeMmPerPx > 0 ? calibrationNativeMmPerPx : null,
     };
 
     return JSON.stringify(canvasData);
