@@ -11,6 +11,11 @@ import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { createClient } from '@/lib/supabase-client';
 import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage, MAX_UPLOAD_BYTES } from '@/lib/imageConvert';
 import { trimFileToAlphaBounds } from '@/lib/imageAlphaTrim';
+import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
+import type { AnchorPreset } from '@/lib/anchorPresets';
+import { snapArtworkToAnchor } from '@/lib/anchorSnap';
+import { drawAnchorPreviews, clearAnchorPreviews } from './anchorPreviewLayer';
+import AnchorPresetPanel from './AnchorPresetPanel';
 import LoadingModal from '@/app/components/LoadingModal';
 import { trackDesignAction } from '@/lib/gtm-events';
 
@@ -42,6 +47,82 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageUploadAgreed, setImageUploadAgreed] = useState(false);
   // const canvas = getActiveCanvas();
+
+  // Anchor preset panel state.
+  const [isAnchorPanelOpen, setIsAnchorPanelOpen] = useState(false);
+  const [sideAnchors, setSideAnchors] = useState<AnchorPreset[]>([]);
+
+  // Fetch registered anchors for the active side whenever product/side changes.
+  useEffect(() => {
+    let cancelled = false;
+    if (!productId || !activeSideId) {
+      setSideAnchors([]);
+      return;
+    }
+    fetchProductCalibrations(productId).then((map) => {
+      if (cancelled) return;
+      const cal = map.get(activeSideId);
+      setSideAnchors(cal?.anchors ?? []);
+    }).catch(() => {
+      if (!cancelled) setSideAnchors([]);
+    });
+    return () => { cancelled = true; };
+  }, [productId, activeSideId]);
+
+  // Resolve canvas-pixel mmPerPx using the same priority as canvasUtils
+  // (calibration > legacy productWidthMm). Returns null when no usable input.
+  const resolveCanvasMmPerPx = (): number | null => {
+    const canvas = getActiveCanvas();
+    if (!canvas) return null;
+    // @ts-expect-error - Custom property
+    const native = canvas.calibrationNativeMmPerPx as number | undefined;
+    // @ts-expect-error - Custom property
+    const sw = canvas.scaledImageWidth as number | undefined;
+    // @ts-expect-error - Custom property
+    const ow = canvas.originalImageWidth as number | undefined;
+    if (native && native > 0 && sw && ow) {
+      return calibrationToCanvasMmPerPx({ nativeMmPerPx: native, scaledImageWidth: sw, originalImageWidth: ow });
+    }
+    // Legacy fallback: derive from realWorldProductWidth.
+    // @ts-expect-error - Custom property
+    const realW = (canvas.realWorldProductWidth as number | undefined) ?? 500;
+    if (sw && sw > 0 && realW > 0) return realW / sw;
+    return null;
+  };
+
+  // Show / hide ghost preview rectangles when the panel toggles.
+  useEffect(() => {
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+    if (isAnchorPanelOpen && sideAnchors.length > 0) {
+      const ratio = resolveCanvasMmPerPx();
+      if (ratio) drawAnchorPreviews(canvas, sideAnchors, { canvasMmPerPx: ratio });
+    } else {
+      clearAnchorPreviews(canvas);
+    }
+    return () => {
+      clearAnchorPreviews(canvas);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnchorPanelOpen, sideAnchors, activeSideId]);
+
+  const handlePickAnchor = (anchor: AnchorPreset) => {
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+    const target = canvas.getActiveObject();
+    if (!target) return;
+    const ratio = resolveCanvasMmPerPx();
+    if (!ratio) return;
+    const ok = snapArtworkToAnchor({ obj: target, anchor, canvasMmPerPx: ratio });
+    if (ok) {
+      canvas.requestRenderAll();
+      incrementCanvasVersion();
+      setIsAnchorPanelOpen(false);
+    }
+  };
+
+  const hasAnchors = sideAnchors.length > 0;
+  const hasSelectedArtwork = !!selectedObject;
 
   const handleObjectSelection = (object : fabric.FabricObject | null) => {
     // console.log('handleObjectSelection called with:', object?.type);
@@ -629,8 +710,29 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
                 <span className="text-xs text-gray-600 font-medium">템플릿</span>
               </button>
             )}
+            {hasAnchors && (
+              <button
+                onClick={() => setIsAnchorPanelOpen(true)}
+                className="flex flex-col items-center gap-1.5 group"
+                title="자주 쓰는 위치"
+              >
+                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition shadow-sm text-lg">
+                  📍
+                </div>
+                <span className="text-xs text-gray-600 font-medium">자주쓰는위치</span>
+              </button>
+            )}
           </div>
         </div>
+
+        <AnchorPresetPanel
+          open={isAnchorPanelOpen}
+          onClose={() => setIsAnchorPanelOpen(false)}
+          anchors={sideAnchors}
+          hasSelectedArtwork={hasSelectedArtwork}
+          onPick={handlePickAnchor}
+          variant="desktop"
+        />
 
         {/* Loading Modal for file conversion */}
         <LoadingModal
@@ -906,6 +1008,31 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         <TextStylePanel
           selectedObject={selectedObject as fabric.IText}
           onClose={() => setSelectedObject(null)}
+        />
+      )}
+
+      {/* Mobile floating button — Anchor presets (자주 쓰는 위치) */}
+      {!isDesktop && hasAnchors && selectedObject && (
+        <button
+          type="button"
+          onClick={() => setIsAnchorPanelOpen(true)}
+          className="fixed bottom-36 left-6 z-50 bg-white shadow-xl rounded-full px-4 py-3 flex items-center gap-2 hover:bg-gray-50 transition border border-gray-200"
+          title="자주 쓰는 위치"
+        >
+          <span className="text-lg">📍</span>
+          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">자주 쓰는 위치</span>
+        </button>
+      )}
+
+      {/* Anchor preset panel (mobile bottom sheet) */}
+      {!isDesktop && (
+        <AnchorPresetPanel
+          open={isAnchorPanelOpen}
+          onClose={() => setIsAnchorPanelOpen(false)}
+          anchors={sideAnchors}
+          hasSelectedArtwork={hasSelectedArtwork}
+          onPick={handlePickAnchor}
+          variant="mobile"
         />
       )}
 

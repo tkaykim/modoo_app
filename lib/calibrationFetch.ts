@@ -9,6 +9,7 @@
  * calibrations". Caches per productId for the page session.
  */
 import { createClient } from '@/lib/supabase-client';
+import type { AnchorPreset } from './anchorPresets';
 
 export interface SideCalibrationLine {
   id: string;
@@ -42,6 +43,8 @@ export interface SideCalibration {
   nativeMmPerPx: number;
   /** Label of the line used (for tooltips / audit). */
   activeLineLabel?: string;
+  /** Registered anchor presets with snapshot labels (label may be missing on older rows). */
+  anchors: AnchorPreset[];
   payload: SideCalibrationPayload;
   updatedAt: string;
 }
@@ -89,11 +92,23 @@ export async function fetchProductCalibrations(
         const activeLine = pickActiveLine(payload);
         const nativeMmPerPx = activeLine ? lineNativeMmPerPx(activeLine) : 0;
         if (!Number.isFinite(nativeMmPerPx) || nativeMmPerPx <= 0) continue;
+        const anchors: AnchorPreset[] = (payload.registeredAnchors ?? [])
+          .filter((a) => a && typeof a === 'object' && a.id)
+          .map((a) => ({
+            id: a.id,
+            xMm: Number(a.xMm) || 0,
+            yMm: Number(a.yMm) || 0,
+            recommendedWidthMm: Number(a.recommendedWidthMm) || 0,
+            recommendedHeightMm: Number(a.recommendedHeightMm) || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            label: typeof (a as any).label === 'string' ? (a as any).label : undefined,
+          }));
         map.set(row.side_id, {
           productId: row.product_id,
           sideId: row.side_id,
           nativeMmPerPx,
           activeLineLabel: activeLine?.label,
+          anchors,
           payload,
           updatedAt: row.updated_at,
         });
