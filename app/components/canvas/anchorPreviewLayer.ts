@@ -45,13 +45,17 @@ export function drawAnchorPreviews(
     const centerY = a.yMm / canvasMmPerPx + mockupCanvasTop;
     if (!Number.isFinite(widthPx) || !Number.isFinite(heightPx)) return;
 
-    // Recommended-size box (dashed outline)
+    // Recommended-size box (dashed outline). Explicit originX/Y ensures
+    // left/top mean top-left corner regardless of Fabric version defaults.
+    // No fill — keeps the outline crisp and matches test calibration page.
     const rect = new fabric.Rect({
       left: centerX - widthPx / 2,
       top: centerY - heightPx / 2,
+      originX: 'left',
+      originY: 'top',
       width: widthPx,
       height: heightPx,
-      fill: 'rgba(37, 99, 235, 0.08)',
+      fill: 'transparent',
       stroke: '#1d4ed8',
       strokeWidth: 2,
       strokeDashArray: [8, 5],
@@ -64,13 +68,13 @@ export function drawAnchorPreviews(
     canvas.add(rect);
     canvas.bringObjectToFront(rect);
 
-    // Center marker — at the actual anchor coordinate (box center).
-    // Test calibration page uses this same convention so users can clearly
-    // see WHERE the anchor center is, distinct from where the box edges fall.
+    // Center marker — at the exact anchor coordinate.
     const dotRadius = 5;
     const centerDot = new fabric.Circle({
       left: centerX - dotRadius,
       top: centerY - dotRadius,
+      originX: 'left',
+      originY: 'top',
       radius: dotRadius,
       fill: '#1d4ed8',
       stroke: '#ffffff',
@@ -84,12 +88,12 @@ export function drawAnchorPreviews(
     canvas.add(centerDot);
     canvas.bringObjectToFront(centerDot);
 
-    // Label sits NEXT TO the center dot (not at box corners). Matches test
-    // calibration page (AnchorCanvas) so labels always appear near their own
-    // anchor center, never colliding with neighbouring boxes.
+    // Label sits NEXT TO the center dot.
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
       left: centerX + 8,
       top: centerY - 18,
+      originX: 'left',
+      originY: 'top',
       fontSize: 12,
       fontWeight: 'bold',
       fill: '#1e3a8a',

@@ -61,6 +61,10 @@ export function snapArtworkToAnchor({
     scaleX,
     scaleY,
     angle: 0,
+    // Subsequent user resize handles work from center (not corner) so
+    // the artwork stays anchored at the snap target as the user adjusts size.
+    centeredScaling: true,
+    centeredRotation: true,
   });
   obj.setCoords();
   return true;
