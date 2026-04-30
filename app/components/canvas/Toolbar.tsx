@@ -10,6 +10,7 @@ import { uploadFileToStorage } from '@/lib/supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { createClient } from '@/lib/supabase-client';
 import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage, MAX_UPLOAD_BYTES } from '@/lib/imageConvert';
+import { trimFileToAlphaBounds } from '@/lib/imageAlphaTrim';
 import LoadingModal from '@/app/components/LoadingModal';
 import { trackDesignAction } from '@/lib/gtm-events';
 
@@ -261,10 +262,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             type: 'image/png',
           });
 
+          // Alpha-trim the converted PNG before uploading the display copy.
+          // The original AI/PSD file was already uploaded in parallel above,
+          // so this only affects the display/measurement asset.
+          const pngTrimResult = await trimFileToAlphaBounds(pngFile);
+          if (pngTrimResult.trimmed) {
+            console.log(
+              `[ALPHA-TRIM] AI/PSD PNG ${pngTrimResult.originalWidth}x${pngTrimResult.originalHeight} -> ${pngTrimResult.width}x${pngTrimResult.height}`
+            );
+          }
+
           // Upload the converted PNG for display
           const pngUploadResult = await uploadFileToStorage(
             supabase,
-            pngFile,
+            pngTrimResult.file,
             STORAGE_BUCKETS.USER_DESIGNS,
             STORAGE_FOLDERS.IMAGES
           );
@@ -296,9 +307,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           setLoadingSubmessage('이미지를 저장하고 있습니다. 잠시만 기다려주세요.');
           setIsLoadingModalOpen(true);
 
+          // Alpha-trim transparent margins before upload so the stored asset's
+          // raster bounds equal the visible artwork. Downstream Fabric size
+          // measurements (px → mm conversion, A3 cap, pricing) automatically
+          // reflect the actual print area. JPEG passes through untouched.
+          const trimResult = await trimFileToAlphaBounds(file);
+          if (trimResult.trimmed) {
+            console.log(
+              `[ALPHA-TRIM] ${trimResult.originalWidth}x${trimResult.originalHeight} -> ${trimResult.width}x${trimResult.height}`
+            );
+          }
+          const fileToUpload = trimResult.file;
+
           originalFileUploadResult = await uploadFileToStorage(
             supabase,
-            file,
+            fileToUpload,
             STORAGE_BUCKETS.USER_DESIGNS,
             STORAGE_FOLDERS.IMAGES
           );
