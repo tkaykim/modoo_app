@@ -84,11 +84,12 @@ export function drawAnchorPreviews(
     canvas.add(centerDot);
     canvas.bringObjectToFront(centerDot);
 
-    // Label sits at the TOP of the box (separate from the dot) so the dot
-    // alone indicates the anchor center. Matches test calibration page layout.
+    // Label sits NEXT TO the center dot (not at box corners). Matches test
+    // calibration page (AnchorCanvas) so labels always appear near their own
+    // anchor center, never colliding with neighbouring boxes.
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
-      left: centerX - widthPx / 2 + 4,
-      top: centerY - heightPx / 2 + 2,
+      left: centerX + 8,
+      top: centerY - 18,
       fontSize: 12,
       fontWeight: 'bold',
       fill: '#1e3a8a',
