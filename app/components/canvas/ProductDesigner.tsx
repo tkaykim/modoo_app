@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { ProductConfig } from "@/types/types";
 import Toolbar from "./Toolbar";
 import { useCanvasStore } from '@/store/useCanvasStore';
+import { preloadBackgroundRemoval } from '@/app/components/background-removal/BackgroundRemovalFlow';
 
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
@@ -46,6 +47,31 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
     updateWidth();
     window.addEventListener('resize', updateWidth);
     return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
+  // Prefetch the background-removal model in the background as soon as the
+  // designer surface mounts. By the time the user clicks "이미지 추가" the
+  // model is usually already cached so the modal can run inference immediately.
+  // Skip on data-saver / very-slow networks to be courteous.
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    const conn = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    if (conn?.saveData) return;
+    if (conn?.effectiveType && /^(2g|slow-2g)$/.test(conn.effectiveType)) return;
+    const start = () => {
+      void preloadBackgroundRemoval();
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(start, { timeout: 3000 });
+    } else {
+      const t = setTimeout(start, 1500);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {

@@ -375,7 +375,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         }
 
         if (canvasData.objects && canvasData.objects.length > 0) {
-          fabric.util.enlivenObjects(canvasData.objects).then((objects) => {
+          fabric.util.enlivenObjects(canvasData.objects).then(async (objects) => {
             objects.forEach((obj) => {
               if (obj && typeof obj === 'object' && 'type' in obj) {
                 const fabricObj = obj as fabric.FabricObject;
@@ -399,6 +399,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
                 }
               }
             });
+            // Re-attach amber "!" badges for any designer-pending objects.
+            // Lazy import keeps fabric overlay code out of non-editor bundles.
+            try {
+              const { restoreDesignerPendingBadges } = await import(
+                '@/app/components/canvas/designerPendingBadge'
+              );
+              restoreDesignerPendingBadges(canvas);
+            } catch (err) {
+              console.error('[useCanvasStore] Failed to restore designer-pending badges:', err);
+            }
             canvas.requestRenderAll();
             resolve();
           }).catch((error) => {
@@ -518,7 +528,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }
 
       if (canvasData.objects && canvasData.objects.length > 0) {
-        fabric.util.enlivenObjects(canvasData.objects).then((objects) => {
+        fabric.util.enlivenObjects(canvasData.objects).then(async (objects) => {
           objects.forEach((obj) => {
             if (obj && typeof obj === 'object' && 'type' in obj) {
               const fabricObj = obj as fabric.FabricObject;
@@ -541,6 +551,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
               }
             }
           });
+          try {
+            const { restoreDesignerPendingBadges } = await import(
+              '@/app/components/canvas/designerPendingBadge'
+            );
+            restoreDesignerPendingBadges(canvas);
+          } catch (err) {
+            console.error('[useCanvasStore] Failed to restore designer-pending badges:', err);
+          }
           canvas.requestRenderAll();
           resolve();
         }).catch((error) => {

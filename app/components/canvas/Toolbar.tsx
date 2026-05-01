@@ -18,6 +18,14 @@ import { drawAnchorPreviews, clearAnchorPreviews } from './anchorPreviewLayer';
 import AnchorPresetPanel from './AnchorPresetPanel';
 import LoadingModal from '@/app/components/LoadingModal';
 import { trackDesignAction } from '@/lib/gtm-events';
+import {
+  BackgroundRemovalFlow,
+  preloadBackgroundRemoval,
+  type DesignerRequestPayload,
+  type FlowResult,
+} from '@/app/components/background-removal/BackgroundRemovalFlow';
+import { addDesignerPendingBadge } from './designerPendingBadge';
+import { submitDesignerRequest } from '@/lib/designerRequest';
 
 interface ToolbarProps {
   sides?: ProductSide[];
@@ -46,6 +54,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   // Image upload modal state
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [imageUploadAgreed, setImageUploadAgreed] = useState(false);
+
+  // Background-removal modal state. Opens after agreement → file picker → (AI/PSD
+  // conversion). The pending file pair is the PNG-ready blob (for bg-removal)
+  // plus the user's original (for designer-request source upload).
+  type BgPending = {
+    pngFile: File;
+    sourceFile: File;
+    sourceUrl: string | null;
+    sourcePath: string | null;
+  };
+  const [bgPending, setBgPending] = useState<BgPending | null>(null);
+  const [bgModalOpen, setBgModalOpen] = useState(false);
+  const [designerPayload, setDesignerPayload] = useState<DesignerRequestPayload | null>(null);
   // const canvas = getActiveCanvas();
 
   // Anchor preset panel state.
@@ -281,265 +302,267 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const handleImageModalConfirm = () => {
     if (!imageUploadAgreed) return;
     setIsImageModalOpen(false);
-    addImage();
+    pickFileForBgRemoval();
   };
 
-  const addImage = async () => {
-    const canvas = getActiveCanvas();
-    if (!canvas) return; // for error handling
+  const SIZE_OVERFLOW_MSG = (mb: string) =>
+    `파일이 너무 큽니다 (현재 ${mb}MB / 최대 50MB)\n\n` +
+    `아래 방법 중 하나로 진행해주세요:\n` +
+    `1) 더 작은 파일(최대 50MB)로 다시 업로드\n` +
+    `2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n` +
+    `3) modoo.contact@gmail.com 으로 원본 파일 전달`;
 
-    // Create a hidden file input element
+  // Phase 1: file picker → (AI/PSD conversion + original upload in parallel) →
+  // store pending state → open BackgroundRemovalFlow modal.
+  const pickFileForBgRemoval = async () => {
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*,.ai,.psd'; // Accept images, AI, and PSD files
+    input.accept = 'image/*,.ai,.psd';
 
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
       if (!file) return;
 
-      // Pre-flight size guard (matches Supabase Storage limit and CloudConvert practical limit)
       if (file.size > MAX_UPLOAD_BYTES) {
-        const mb = (file.size / 1024 / 1024).toFixed(1);
-        alert(
-          `파일이 너무 큽니다 (현재 ${mb}MB / 최대 50MB)\n\n` +
-          `아래 방법 중 하나로 진행해주세요:\n` +
-          `1) 더 작은 파일(최대 50MB)로 다시 업로드\n` +
-          `2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n` +
-          `3) modoo.contact@gmail.com 으로 원본 파일 전달`
-        );
+        alert(SIZE_OVERFLOW_MSG((file.size / 1024 / 1024).toFixed(1)));
         return;
       }
 
       try {
-        // Create Supabase client for browser
         const supabase = createClient();
 
-        let displayUrl: string;
-        let originalFileUploadResult;
-
-        // Check if file is AI or PSD and needs conversion
         if (isAiOrPsdFile(file)) {
           console.log('AI/PSD file detected, converting to PNG...');
-
-          // Show loading modal for conversion
           setLoadingMessage('파일 변환 중...');
           setLoadingSubmessage('AI/PSD 파일을 PNG로 변환하고 있습니다. (최대 수 분 소요)');
           setIsLoadingModalOpen(true);
 
-          // Run conversion and original-file upload IN PARALLEL to save time.
-          // CloudConvert typically dominates wall time; uploading the original
-          // PSD/AI to Supabase concurrently piggybacks onto that wait.
           const [conversionResult, origUploadResult] = await Promise.all([
             convertToPNG(file, (msg) => setLoadingSubmessage(msg)),
             uploadFileToStorage(
               supabase,
               file,
               STORAGE_BUCKETS.USER_DESIGNS,
-              STORAGE_FOLDERS.IMAGES
+              STORAGE_FOLDERS.IMAGES,
             ),
           ]);
 
+          setIsLoadingModalOpen(false);
+
           if (!conversionResult.success || !conversionResult.pngBlob) {
-            setIsLoadingModalOpen(false);
-            const errorMessage = getConversionErrorMessage(conversionResult.error);
             console.error('Conversion failed:', conversionResult.error);
-            alert(errorMessage);
+            alert(getConversionErrorMessage(conversionResult.error));
             return;
           }
-
           if (!origUploadResult.success || !origUploadResult.url) {
-            setIsLoadingModalOpen(false);
             const rawErr = origUploadResult.error || '';
             console.error('Failed to upload original file:', rawErr);
             const friendly = rawErr.includes('exceeded the maximum')
-              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
-                '아래 방법 중 하나로 진행해주세요:\n' +
-                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
-                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
-                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
+              ? SIZE_OVERFLOW_MSG((file.size / 1024 / 1024).toFixed(1))
               : `원본 파일 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
             alert(friendly);
             return;
           }
 
-          originalFileUploadResult = origUploadResult;
-          console.log('Conversion + original upload complete:', originalFileUploadResult.url);
-
-          // Update loading message for PNG upload phase
-          setLoadingMessage('파일 업로드 중...');
-          setLoadingSubmessage('변환된 PNG를 저장하고 있습니다.');
-
-          // Create a PNG file from the blob for canvas display
-          const pngFile = new File([conversionResult.pngBlob], `${file.name.split('.')[0]}.png`, {
-            type: 'image/png',
-          });
-
-          // Alpha-trim the converted PNG before uploading the display copy.
-          // The original AI/PSD file was already uploaded in parallel above,
-          // so this only affects the display/measurement asset.
-          const pngTrimResult = await trimFileToAlphaBounds(pngFile);
-          if (pngTrimResult.trimmed) {
-            console.log(
-              `[ALPHA-TRIM] AI/PSD PNG ${pngTrimResult.originalWidth}x${pngTrimResult.originalHeight} -> ${pngTrimResult.width}x${pngTrimResult.height}`
-            );
-          }
-
-          // Upload the converted PNG for display
-          const pngUploadResult = await uploadFileToStorage(
-            supabase,
-            pngTrimResult.file,
-            STORAGE_BUCKETS.USER_DESIGNS,
-            STORAGE_FOLDERS.IMAGES
+          const pngFile = new File(
+            [conversionResult.pngBlob],
+            `${file.name.split('.')[0]}.png`,
+            { type: 'image/png' },
           );
 
-          if (!pngUploadResult.success || !pngUploadResult.url) {
-            setIsLoadingModalOpen(false);
-            const rawErr = pngUploadResult.error || '';
-            console.error('Failed to upload PNG:', rawErr);
-            const friendly = rawErr.includes('exceeded the maximum')
-              ? '변환된 PNG가 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
-                '아래 방법 중 하나로 진행해주세요:\n' +
-                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
-                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
-                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
-              : `변환된 이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
-            alert(friendly);
-            return;
-          }
-
-          // Use the PNG URL for display
-          displayUrl = pngUploadResult.url;
-          console.log('PNG uploaded for display:', displayUrl);
+          setBgPending({
+            pngFile,
+            sourceFile: file,
+            sourceUrl: origUploadResult.url,
+            sourcePath: origUploadResult.path ?? null,
+          });
+          setDesignerPayload(null);
+          setBgModalOpen(true);
         } else {
-          // Regular image file - upload as usual
-          console.log('Uploading image to Supabase...');
-
-          // Show loading modal for upload
-          setLoadingMessage('이미지 업로드 중...');
-          setLoadingSubmessage('이미지를 저장하고 있습니다. 잠시만 기다려주세요.');
-          setIsLoadingModalOpen(true);
-
-          // Alpha-trim transparent margins before upload so the stored asset's
-          // raster bounds equal the visible artwork. Downstream Fabric size
-          // measurements (px → mm conversion, A3 cap, pricing) automatically
-          // reflect the actual print area. JPEG passes through untouched.
-          const trimResult = await trimFileToAlphaBounds(file);
-          if (trimResult.trimmed) {
-            console.log(
-              `[ALPHA-TRIM] ${trimResult.originalWidth}x${trimResult.originalHeight} -> ${trimResult.width}x${trimResult.height}`
-            );
-          }
-          const fileToUpload = trimResult.file;
-
-          originalFileUploadResult = await uploadFileToStorage(
-            supabase,
-            fileToUpload,
-            STORAGE_BUCKETS.USER_DESIGNS,
-            STORAGE_FOLDERS.IMAGES
-          );
-
-          if (!originalFileUploadResult.success || !originalFileUploadResult.url) {
-            setIsLoadingModalOpen(false);
-            const rawErr = originalFileUploadResult.error || '';
-            console.error('Failed to upload image:', rawErr);
-            const friendly = rawErr.includes('exceeded the maximum')
-              ? '파일 용량이 서버 한도를 초과했습니다 (최대 50MB).\n\n' +
-                '아래 방법 중 하나로 진행해주세요:\n' +
-                '1) 더 작은 파일(최대 50MB)로 다시 업로드\n' +
-                '2) 디자인을 완료한 뒤 [주문 요청사항] 탭에서 첨부파일로 추가\n' +
-                '3) modoo.contact@gmail.com 으로 원본 파일 전달'
-              : `이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
-            alert(friendly);
-            return;
-          }
-
-          // Use the original image URL for display
-          displayUrl = originalFileUploadResult.url;
-          console.log('Image uploaded successfully:', displayUrl);
-
-          // Update loading message for image loading phase
-          setLoadingMessage('이미지 불러오는 중...');
-          setLoadingSubmessage('캔버스에 이미지를 추가하고 있습니다.');
-        }
-
-        // Load image from display URL
-        fabric.FabricImage.fromURL(displayUrl, {
-          crossOrigin: 'anonymous',
-        }).then((img) => {
-          // Scale image to fit canvas if it's too large
-          const maxWidth = canvas.width * 0.5;
-          const maxHeight = canvas.height * 0.5;
-
-          if (img.width > maxWidth || img.height > maxHeight) {
-            const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
-            img.scale(scale);
-          }
-
-          // Center the image on canvas
-          img.set({
-            left: canvas.width / 2,
-            top: canvas.height / 2,
-            originX: 'center',
-            originY: 'center',
+          // Regular image — feed directly into bg-removal modal.
+          setBgPending({
+            pngFile: file,
+            sourceFile: file,
+            sourceUrl: null,
+            sourcePath: null,
           });
-
-          // Generate unique ID for the object
-          const objectId = `image-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-
-          // Store Supabase metadata in the image object
-          // @ts-expect-error - Adding custom data property to FabricImage
-          img.data = {
-            // @ts-expect-error - Reading data property
-            ...(img.data || {}),
-            objectId: objectId, // Unique object ID for tracking
-            supabaseUrl: displayUrl, // URL of the display image (PNG for AI/PSD)
-            supabasePath: originalFileUploadResult.path, // Path to original file
-            originalFileUrl: originalFileUploadResult.url, // URL of original file (AI/PSD or image)
-            originalFileName: file.name,
-            fileType: file.type || 'unknown',
-            isConverted: isAiOrPsdFile(file), // Flag to indicate if file was converted
-            uploadedAt: new Date().toISOString(),
-            printMethod: 'dtf',
-          };
-
-          canvas.add(img);
-          canvas.setActiveObject(img);
-          canvas.renderAll();
-
-          // Trigger pricing recalculation
-          incrementCanvasVersion();
-          trackDesignAction({ action_type: 'image_upload', product_id: productId, side_id: activeSideId });
-
-          // Hide loading modal
-          setIsLoadingModalOpen(false);
-
-          // Show success message for converted files
-          if (isAiOrPsdFile(file)) {
-            // Show brief success message
-            setLoadingMessage('완료!');
-            setLoadingSubmessage('파일이 성공적으로 추가되었습니다.');
-            setIsLoadingModalOpen(true);
-
-            // Auto-hide after 1.5 seconds
-            setTimeout(() => {
-              setIsLoadingModalOpen(false);
-            }, 1500);
-          }
-        }).catch((error) => {
-          setIsLoadingModalOpen(false);
-          console.error('Failed to load image:', error);
-          alert('이미지를 불러오는데 실패했습니다.');
-        });
+          setDesignerPayload(null);
+          setBgModalOpen(true);
+        }
       } catch (error) {
         setIsLoadingModalOpen(false);
-        console.error('Error adding image:', error);
+        console.error('Error preparing image for bg-removal:', error);
         alert('이미지 추가 중 오류가 발생했습니다.');
       }
     };
 
-    // Trigger file input click
     input.click();
+  };
+
+  const handleBgCancel = () => {
+    setBgModalOpen(false);
+    setBgPending(null);
+    setDesignerPayload(null);
+  };
+
+  // Phase 2: BackgroundRemovalFlow finished → upload result → place on canvas.
+  // designerPending=true 시 designer_requests row insert + amber "!" 뱃지 추가.
+  const handleBgComplete = async (result: FlowResult) => {
+    if (!bgPending) return;
+    const canvas = getActiveCanvas();
+    if (!canvas) return;
+
+    const pending = bgPending;
+    setBgModalOpen(false);
+
+    setLoadingMessage('이미지 업로드 중...');
+    setLoadingSubmessage('이미지를 저장하고 있습니다. 잠시만 기다려주세요.');
+    setIsLoadingModalOpen(true);
+
+    try {
+      const supabase = createClient();
+
+      // The bg-removal output (or original kept by user) becomes the display
+      // image. Alpha-trim AFTER bg-removal so transparent margins introduced
+      // by removal get cropped out.
+      const finalFile = new File(
+        [result.blob],
+        `image-${Date.now()}.png`,
+        { type: result.blob.type || 'image/png' },
+      );
+      const trimResult = await trimFileToAlphaBounds(finalFile);
+      if (trimResult.trimmed) {
+        console.log(
+          `[ALPHA-TRIM] post-bg-removal ${trimResult.originalWidth}x${trimResult.originalHeight} -> ${trimResult.width}x${trimResult.height}`,
+        );
+      }
+
+      const displayUploadResult = await uploadFileToStorage(
+        supabase,
+        trimResult.file,
+        STORAGE_BUCKETS.USER_DESIGNS,
+        STORAGE_FOLDERS.IMAGES,
+      );
+
+      if (!displayUploadResult.success || !displayUploadResult.url) {
+        setIsLoadingModalOpen(false);
+        const rawErr = displayUploadResult.error || '';
+        console.error('Failed to upload image:', rawErr);
+        const friendly = rawErr.includes('exceeded the maximum')
+          ? SIZE_OVERFLOW_MSG((trimResult.file.size / 1024 / 1024).toFixed(1))
+          : `이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
+        alert(friendly);
+        setBgPending(null);
+        setDesignerPayload(null);
+        return;
+      }
+
+      // Designer request: only when user explicitly delegated.
+      let designerJobId: string | null = null;
+      if (result.designerPending) {
+        designerJobId =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const payload = designerPayload;
+        // submitDesignerRequest reuses already-uploaded sourceUrl when available
+        // (AI/PSD flow); otherwise uploads the source file.
+        const baseInput = {
+          jobId: designerJobId,
+          designId: productId ?? null,
+          requesterName: payload?.name ?? '',
+          requesterContact: payload?.contact ?? '',
+          requestNote: payload?.note,
+        };
+        const submission = await submitDesignerRequest(
+          supabase,
+          pending.sourceUrl
+            ? { ...baseInput, sourceUrl: pending.sourceUrl }
+            : { ...baseInput, sourceFile: pending.sourceFile },
+        );
+        if (!submission.success) {
+          // Non-fatal: still place the image so user keeps layout, but warn.
+          console.error('Designer request submit failed:', submission.error);
+        }
+      }
+
+      const displayUrl = displayUploadResult.url;
+      setLoadingMessage('이미지 불러오는 중...');
+      setLoadingSubmessage('캔버스에 이미지를 추가하고 있습니다.');
+
+      const img = await fabric.FabricImage.fromURL(displayUrl, {
+        crossOrigin: 'anonymous',
+      });
+
+      const maxWidth = canvas.width * 0.5;
+      const maxHeight = canvas.height * 0.5;
+      if (img.width > maxWidth || img.height > maxHeight) {
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+        img.scale(scale);
+      }
+      img.set({
+        left: canvas.width / 2,
+        top: canvas.height / 2,
+        originX: 'center',
+        originY: 'center',
+      });
+
+      const objectId = `image-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+
+      // @ts-expect-error - Adding custom data property to FabricImage
+      img.data = {
+        // @ts-expect-error - Reading data property
+        ...(img.data || {}),
+        objectId,
+        supabaseUrl: displayUrl,
+        supabasePath: displayUploadResult.path,
+        originalFileUrl: pending.sourceUrl ?? displayUrl,
+        originalFileName: pending.sourceFile.name,
+        fileType: pending.sourceFile.type || 'unknown',
+        isConverted: isAiOrPsdFile(pending.sourceFile),
+        uploadedAt: new Date().toISOString(),
+        printMethod: 'dtf',
+        ...(designerJobId
+          ? { designerJobId, designerPending: true }
+          : { bgRemoved: result.usedRemoval }),
+      };
+
+      canvas.add(img);
+      canvas.setActiveObject(img);
+
+      if (designerJobId) {
+        addDesignerPendingBadge(canvas, img);
+      }
+
+      canvas.renderAll();
+
+      incrementCanvasVersion();
+      trackDesignAction({
+        action_type: 'image_upload',
+        product_id: productId,
+        side_id: activeSideId,
+      });
+
+      setIsLoadingModalOpen(false);
+
+      if (isAiOrPsdFile(pending.sourceFile)) {
+        setLoadingMessage('완료!');
+        setLoadingSubmessage('파일이 성공적으로 추가되었습니다.');
+        setIsLoadingModalOpen(true);
+        setTimeout(() => setIsLoadingModalOpen(false), 1500);
+      }
+    } catch (error) {
+      setIsLoadingModalOpen(false);
+      console.error('Error placing image on canvas:', error);
+      alert('이미지를 캔버스에 추가하는 데 실패했습니다.');
+    } finally {
+      setBgPending(null);
+      setDesignerPayload(null);
+    }
   };
 
   const handleSideSelect = (sideId: string) => {
@@ -694,6 +717,45 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
   const currentSide = sides.find(side => side.id === activeSideId);
 
+  // Shared modal element rendered once at the end of either variant return.
+  const bgRemovalModal =
+    bgModalOpen && bgPending ? (
+      <div
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-200 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleBgCancel();
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="이미지 추가하기"
+      >
+        <div
+          className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={handleBgCancel}
+            aria-label="닫기"
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+          <h2 className="text-lg font-bold mb-4 pr-8">이미지 추가하기</h2>
+          <BackgroundRemovalFlow
+            initialFile={bgPending.pngFile}
+            onComplete={handleBgComplete}
+            onCancel={handleBgCancel}
+            onDesignerRequest={async (payload) => {
+              setDesignerPayload(payload);
+            }}
+          />
+        </div>
+      </div>
+    ) : null;
+
   if (isDesktop) {
     return (
       <>
@@ -830,6 +892,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             onClose={() => setIsTemplatePickerOpen(false)}
           />
         )}
+
+        {bgRemovalModal}
       </>
     );
   }
@@ -1133,6 +1197,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         />
       )}
 
+      {bgRemovalModal}
     </>
   );
 }

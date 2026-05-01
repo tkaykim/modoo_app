@@ -125,7 +125,7 @@ Product images use Fabric.js color filters to apply product color changes. When 
 - **Storage**: Product mockup images hosted on Supabase Storage
 - **Authentication**: Uses `@supabase/ssr` and `@supabase/supabase-js`
 - **Environment**: Credentials in `.env.local`
-- **MCP Server**: Configured in `.mcp.json` with project ref: `xwuvbztgpwhbwohontuh`
+- **Project Ref**: `obxekwyolrmipwmffhwq` (shared with modoo_admin — both apps point to the same Supabase project; verified in `.env.local`'s `NEXT_PUBLIC_SUPABASE_URL`). MCP server config lives in `modoo_admin/.mcp.json`; this app does not have its own `.mcp.json`.
 
 
 ## Important Notes
