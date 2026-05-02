@@ -1,5 +1,9 @@
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { createClient } from "@/lib/supabase";
+import { Product, PrintMethodRecord } from "@/types/types";
+import ProductEditorUnified from "@/app/editor/[productId]/ProductEditorUnified";
 import {
-  Editor,
   PrintMethod,
   EditorEmpty,
   EditorTemplates,
@@ -12,7 +16,6 @@ import {
   EditorPreview,
   EditorSaving,
 } from "../../_components/screens/editor";
-import { getV2ProductDetail } from "../../_lib/queries";
 
 interface Params {
   params: Promise<{ productId: string }>;
@@ -22,8 +25,8 @@ interface Params {
 export default async function V2EditorPage({ params, searchParams }: Params) {
   const { productId } = await params;
   const { scenario } = await searchParams;
-  const product = await getV2ProductDetail(productId);
 
+  // Design-reference scenarios (for showcase QA) — stay as v2 mock screens.
   switch (scenario) {
     case "print-method":
       return <PrintMethod />;
@@ -47,7 +50,81 @@ export default async function V2EditorPage({ params, searchParams }: Params) {
       return <EditorPreview />;
     case "saving":
       return <EditorSaving />;
-    default:
-      return <Editor product={product} />;
   }
+
+  // Default: full functional editor — reuse the existing prod canvas verbatim.
+  // Mirrors app/editor/[productId]/page.tsx data loading.
+  const supabase = await createClient();
+  const userAgent = (await headers()).get("user-agent") || "";
+  const isMobile =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      userAgent
+    );
+
+  const { data: productData, error } = await supabase
+    .from("products")
+    .select(
+      `
+      *,
+      manufacturers (
+        name
+      )
+    `
+    )
+    .eq("id", productId)
+    .eq("is_active", true)
+    .single();
+
+  const product = productData
+    ? {
+        ...productData,
+        manufacturer_name: productData.manufacturers?.name ?? null,
+      }
+    : null;
+
+  if (error || !product) {
+    notFound();
+  }
+
+  const [{ data: allPrintMethodsData }, { data: productPrintMethodsData }] =
+    await Promise.all([
+      supabase
+        .from("print_methods")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("product_print_methods")
+        .select("print_method_id")
+        .eq("product_id", productId),
+    ]);
+
+  const allPrintMethods: PrintMethodRecord[] =
+    (allPrintMethodsData || []) as PrintMethodRecord[];
+  const enabledPrintMethodIds = new Set(
+    (productPrintMethodsData || []).map(
+      (r: { print_method_id: string }) => r.print_method_id
+    )
+  );
+
+  // Escape v2 layout's max-width:480 wrapper so the existing editor renders
+  // at full viewport width (matches /editor/[productId] behavior exactly).
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "#fff",
+        overflow: "auto",
+      }}
+    >
+      <ProductEditorUnified
+        product={product as Product}
+        allPrintMethods={allPrintMethods}
+        enabledPrintMethodIds={enabledPrintMethodIds}
+        isMobile={isMobile}
+      />
+    </div>
+  );
 }
