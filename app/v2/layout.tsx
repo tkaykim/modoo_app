@@ -15,14 +15,12 @@ export default function V2Layout({
       <div
         className="modoo modoo-root"
         style={{
-          height: "100dvh",
+          minHeight: "100dvh",
           background: "#f0eee9",
           maxWidth: 480,
           margin: "0 auto",
           position: "relative",
-          overflowY: "auto",
           overflowX: "hidden",
-          transform: "translateZ(0)",
         }}
       >
         {children}
