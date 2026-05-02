@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  allowedDevOrigins: ['*.loca.lt', '*.trycloudflare.com', 'khaki-pots-grow.loca.lt', 'purple-towns-dance.loca.lt'],
 };
 
 export default nextConfig;
