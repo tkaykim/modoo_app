@@ -182,6 +182,24 @@ export default function ProductCard({ product }: ProductCardProps) {
           <p className="text-[10px] sm:text-xs lg:text-sm text-gray-900 line-clamp-2 mb-0.5 sm:mb-1 lg:mb-1.5">{product.title}</p>
           {/* Pricing */}
           <p className="text-xs sm:text-sm lg:text-base font-bold text-gray-900 mb-0.5">{formattedPrice}원</p>
+          {/* Keywords */}
+          {product.keywords && product.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1">
+              {product.keywords.slice(0, 3).map((kw) => (
+                <span
+                  key={kw}
+                  className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700"
+                >
+                  #{kw}
+                </span>
+              ))}
+              {product.keywords.length > 3 && (
+                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                  +{product.keywords.length - 3}
+                </span>
+              )}
+            </div>
+          )}
           {/* Reviews */}
           {reviewStats.totalReviews > 0 ? (
             <div className="flex items-center gap-0.5 sm:gap-1">

@@ -94,6 +94,7 @@ export interface Product {
   sizing_chart_image?: string | null;
   manufacturer_name?: string | null;
   product_code?: string | null;
+  keywords?: string[] | null;
 }
 
 export interface ProductionExample {

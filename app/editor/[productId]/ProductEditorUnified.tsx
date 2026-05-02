@@ -1185,6 +1185,18 @@ export default function ProductEditorUnified({
                     <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{product.manufacturer_name}</p>
                   )}
                   <h2 className="text-sm font-bold text-gray-900 leading-snug mt-1">{product.title}</h2>
+                  {product.keywords && product.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {product.keywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700"
+                        >
+                          #{kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Color Swatches */}
