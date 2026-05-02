@@ -15,8 +15,20 @@ import { PartnerMallPublic, PartnerMallProductPublic, SizeOption } from '@/types
 import { addToCartDB } from '@/lib/cartService';
 import { createClient } from '@/lib/supabase-client';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
+import { setMallAutoCoupon, clearMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
 import Header from '@/app/components/Header';
 import AddProductModal from './AddProductModal';
+
+// API에서 내려오는 자동 적용 할인코드 형태 (영업사원 mall 전용)
+interface SalesmanCouponPayload {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed_amount';
+  discount_value: number;
+  min_order_amount: number;
+  max_discount_amount: number | null;
+  salesman_profile_id: string;
+}
 
 const formatPrice = (price: number) => `${price.toLocaleString('ko-KR')}원`;
 
@@ -31,6 +43,7 @@ export default function PartnerMallPage() {
   const [mall, setMall] = useState<PartnerMallPublic | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [salesmanCoupon, setSalesmanCoupon] = useState<SalesmanCouponPayload | null>(null);
 
   // Product detail sheet state
   const [selectedProduct, setSelectedProduct] = useState<PartnerMallProductPublic | null>(null);
@@ -64,6 +77,26 @@ export default function PartnerMallPage() {
       }
       const result = await res.json();
       setMall(result.data);
+
+      // 영업사원 owner mall이면 그 영업사원의 활성 할인코드를 sessionStorage에 저장 → checkout에서 자동 적용
+      const auto = result.data?.salesman_coupon as SalesmanCouponPayload | null | undefined;
+      if (auto) {
+        setSalesmanCoupon(auto);
+        const payload: MallAutoCoupon = {
+          code: auto.code,
+          discount_type: auto.discount_type,
+          discount_value: auto.discount_value,
+          min_order_amount: auto.min_order_amount,
+          max_discount_amount: auto.max_discount_amount,
+          source_mall_id: result.data.id,
+          source_mall_name: result.data.name,
+          applied_at: new Date().toISOString(),
+        };
+        setMallAutoCoupon(payload);
+      } else {
+        setSalesmanCoupon(null);
+        clearMallAutoCoupon();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
     } finally {
@@ -111,6 +144,13 @@ export default function PartnerMallPage() {
     const base = mp.product?.base_price ?? 0;
     if (!mp.product?.configuration || !mp.logo_placements) return base;
     return base + calculateLogoAdditionalPrice(mp.product.configuration, mp.logo_placements);
+  };
+
+  // 영업사원 할인코드 적용 후 가격 (percentage 만 per-item 표시 가능)
+  const applySalesmanDiscount = (price: number): number | null => {
+    if (!salesmanCoupon || salesmanCoupon.discount_type !== 'percentage') return null;
+    const discounted = Math.floor(price * (1 - salesmanCoupon.discount_value / 100));
+    return Math.max(0, discounted);
   };
 
   const openProductSheet = (product: PartnerMallProductPublic) => {
@@ -229,6 +269,27 @@ export default function PartnerMallPage() {
         </div>
       </div>
 
+      {/* 영업사원 할인코드 자동 적용 배너 */}
+      {salesmanCoupon && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+          <div className="max-w-3xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base">🎟️</span>
+              <div className="min-w-0">
+                <div className="text-[12px] sm:text-sm font-bold text-blue-900 truncate">
+                  {salesmanCoupon.discount_type === 'percentage'
+                    ? `${salesmanCoupon.discount_value}% 할인 자동 적용`
+                    : `${salesmanCoupon.discount_value.toLocaleString()}원 할인 자동 적용`}
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-blue-700">
+                  결제 시 코드 <span className="font-mono font-bold">{salesmanCoupon.code}</span>가 자동 입력됩니다
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Products grid */}
       <div className="max-w-3xl mx-auto px-4 py-4 sm:py-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -267,11 +328,21 @@ export default function PartnerMallPage() {
                 <p className="text-sm font-medium text-gray-800 line-clamp-2">
                   {mp.display_name || mp.product?.title || '제품'}
                 </p>
-                {mp.product && (
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    {formatPrice(getProductPrice(mp))}
-                  </p>
-                )}
+                {mp.product && (() => {
+                  const original = getProductPrice(mp);
+                  const discounted = applySalesmanDiscount(original);
+                  if (discounted !== null && discounted < original) {
+                    return (
+                      <div className="mt-1">
+                        <p className="text-[11px] text-gray-400 line-through">{formatPrice(original)}</p>
+                        <p className="text-sm font-bold text-blue-700">{formatPrice(discounted)}</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <p className="text-sm font-semibold text-gray-900 mt-1">{formatPrice(original)}</p>
+                  );
+                })()}
               </div>
             </button>
           ))}
@@ -350,9 +421,23 @@ export default function PartnerMallPage() {
 
               {/* Price breakdown */}
               <div className="mt-2">
-                <p className="text-lg font-bold text-gray-900">
-                  {formatPrice(pricePerItem)}
-                </p>
+                {(() => {
+                  const discounted = applySalesmanDiscount(pricePerItem);
+                  if (discounted !== null && discounted < pricePerItem) {
+                    return (
+                      <>
+                        <p className="text-xs text-gray-400 line-through">{formatPrice(pricePerItem)}</p>
+                        <p className="text-lg font-bold text-blue-700">
+                          {formatPrice(discounted)}
+                          <span className="ml-1.5 text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded align-middle">
+                            {salesmanCoupon?.discount_value}% OFF
+                          </span>
+                        </p>
+                      </>
+                    );
+                  }
+                  return <p className="text-lg font-bold text-gray-900">{formatPrice(pricePerItem)}</p>;
+                })()}
                 {/* Only show breakdown if using calculated price (not set price) */}
                 {!selectedProduct.price && additionalPrice > 0 && (
                   <p className="text-xs text-gray-500">
@@ -420,9 +505,19 @@ export default function PartnerMallPage() {
               {/* Total price */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                 <span className="text-sm text-gray-600">총 금액</span>
-                <span className="text-lg font-bold text-gray-900">
-                  {formatPrice(pricePerItem * quantity)}
-                </span>
+                {(() => {
+                  const total = pricePerItem * quantity;
+                  const discounted = applySalesmanDiscount(pricePerItem);
+                  if (discounted !== null && discounted < pricePerItem) {
+                    return (
+                      <span className="text-right">
+                        <span className="block text-xs text-gray-400 line-through">{formatPrice(total)}</span>
+                        <span className="block text-lg font-bold text-blue-700">{formatPrice(discounted * quantity)}</span>
+                      </span>
+                    );
+                  }
+                  return <span className="text-lg font-bold text-gray-900">{formatPrice(total)}</span>;
+                })()}
               </div>
 
               {cartError && (

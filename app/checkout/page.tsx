@@ -18,6 +18,7 @@ import {
   calculateCouponDiscount,
   getCouponDisplayInfo,
 } from '@/lib/couponService';
+import { getMallAutoCoupon, clearMallAutoCoupon } from '@/lib/mallSalesmanCoupon';
 import TossPaymentWidget from '../components/toss/TossPaymentWidget';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
@@ -471,6 +472,45 @@ export default function CheckoutPage() {
       fetchCoupons();
     }
   }, [isAuthenticated, fetchCoupons]);
+
+  // 영업사원 mall에서 set한 자동 쿠폰 → 본인 계정에 등록 + 자동 선택 (1회)
+  const autoCouponAppliedRef = useRef(false);
+  useEffect(() => {
+    if (autoCouponAppliedRef.current) return;
+    if (!isAuthenticated) return;
+    if (selectedCoupon) return; // 이미 다른 쿠폰 선택됨 → 덮어쓰지 않음
+
+    const auto = getMallAutoCoupon();
+    if (!auto) return;
+
+    // 이미 본인 쿠폰 목록에 있으면 그것을 선택
+    const existing = availableCoupons.find((cu) => cu.coupon?.code?.toUpperCase() === auto.code.toUpperCase());
+    if (existing) {
+      autoCouponAppliedRef.current = true;
+      setSelectedCoupon(existing);
+      setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 자동 할인코드(${auto.code})가 적용되었습니다.` });
+      // 적용 후 sessionStorage는 유지 (재진입 시에도 작동) — 결제 완료 후 토스/뱅크 라우트가 처리하면 그 때 정리
+      return;
+    }
+
+    // 등록되지 않았으면 자동 등록 후 선택
+    autoCouponAppliedRef.current = true;
+    (async () => {
+      try {
+        const result = await registerCoupon(auto.code);
+        if (result.valid && result.couponUsage) {
+          await fetchCoupons();
+          setSelectedCoupon(result.couponUsage);
+          setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 자동 할인코드(${auto.code})가 적용되었습니다.` });
+        } else {
+          // 이미 등록되어 있어 실패한 경우 → fetchCoupons 후 다시 검색
+          await fetchCoupons();
+        }
+      } catch (e) {
+        console.warn('[checkout] auto-coupon apply failed', e);
+      }
+    })();
+  }, [isAuthenticated, availableCoupons, selectedCoupon, fetchCoupons]);
 
   // Auto-fill customer info from user profile when authenticated
   useEffect(() => {

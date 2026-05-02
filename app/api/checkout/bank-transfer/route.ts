@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         } else if (usage?.coupon_id) {
           const { data: coupon } = await adminClient
             .from('coupons')
-            .select('current_uses')
+            .select('current_uses, salesman_profile_id')
             .eq('id', usage.coupon_id)
             .single();
 
@@ -154,6 +154,20 @@ export async function POST(request: NextRequest) {
               .from('coupons')
               .update({ current_uses: (coupon.current_uses || 0) + 1 })
               .eq('id', usage.coupon_id);
+
+            // 영업사원 쿠폰이면 attribution 자동 처리
+            if (coupon.salesman_profile_id) {
+              const { error: attrErr } = await adminClient
+                .from('orders')
+                .update({
+                  attributed_salesman_id: coupon.salesman_profile_id,
+                  applied_coupon_id: usage.coupon_id,
+                })
+                .eq('id', order.id);
+              if (attrErr) {
+                console.error('[bank-transfer] attributed_salesman_id update failed:', attrErr);
+              }
+            }
           }
         }
       } catch (couponError) {
