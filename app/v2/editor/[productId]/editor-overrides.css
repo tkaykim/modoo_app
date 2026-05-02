@@ -1,0 +1,228 @@
+/*
+ * v2 visual polish — applied only inside `.v2-editor-shell`.
+ * Goal: keep ALL functionality of the existing canvas editor (no logic
+ * touched), just make it feel like the v2 mobile design (warm bg,
+ * Pretendard, brand-blue accents, rounder corners, softer shadows).
+ *
+ * Selectors target Tailwind utility class names already used by the
+ * existing editor components. Outside .v2-editor-shell nothing changes,
+ * so /editor/[id] is untouched.
+ */
+
+.v2-editor-shell {
+  --v2-brand: #0052cc;
+  --v2-brand-deep: #003d99;
+  --v2-brand-soft: #e6eefb;
+  --v2-yolk: #ffd25c;
+  --v2-pink: #ff5c8a;
+  --v2-ink: #0e1116;
+  --v2-body: #1f242c;
+  --v2-muted: #5c6573;
+  --v2-faint: #8a93a2;
+  --v2-hairline: #e6e8ec;
+  --v2-hairline-soft: #eef0f4;
+  --v2-surface: #ffffff;
+  --v2-surface-warm: #fafaf7;
+  --v2-canvas-bg: #f0eee9;
+
+  font-family:
+    "Pretendard",
+    "Pretendard Variable",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Noto Sans KR",
+    system-ui,
+    sans-serif !important;
+  letter-spacing: -0.01em;
+  color: var(--v2-ink);
+  background: var(--v2-surface-warm);
+  -webkit-font-smoothing: antialiased;
+}
+
+.v2-editor-shell * {
+  font-family: inherit !important;
+}
+
+/* Warm up the canvas backdrop the editor sets to #EBEBEB */
+.v2-editor-shell .bg-\[\#EBEBEB\] {
+  background-color: var(--v2-canvas-bg) !important;
+}
+
+/* Slightly rounder default radii — closer to v2 design (lg→xl, xl→2xl). */
+.v2-editor-shell .rounded-md {
+  border-radius: 12px !important;
+}
+.v2-editor-shell .rounded-lg {
+  border-radius: 14px !important;
+}
+.v2-editor-shell .rounded-xl {
+  border-radius: 18px !important;
+}
+.v2-editor-shell .rounded-2xl {
+  border-radius: 22px !important;
+}
+
+/* Hairline borders feel more refined */
+.v2-editor-shell .border-gray-100 {
+  border-color: var(--v2-hairline-soft) !important;
+}
+.v2-editor-shell .border-gray-200 {
+  border-color: var(--v2-hairline) !important;
+}
+.v2-editor-shell .border-gray-300 {
+  border-color: #d4d8de !important;
+}
+
+/* Soften muted greys */
+.v2-editor-shell .text-gray-400 {
+  color: var(--v2-faint) !important;
+}
+.v2-editor-shell .text-gray-500 {
+  color: var(--v2-muted) !important;
+}
+.v2-editor-shell .text-gray-600,
+.v2-editor-shell .text-gray-700 {
+  color: var(--v2-body) !important;
+}
+.v2-editor-shell .text-gray-900 {
+  color: var(--v2-ink) !important;
+}
+
+/* Backgrounds */
+.v2-editor-shell .bg-white {
+  background-color: var(--v2-surface) !important;
+}
+.v2-editor-shell .bg-gray-50 {
+  background-color: var(--v2-surface-warm) !important;
+}
+.v2-editor-shell .bg-gray-100 {
+  background-color: var(--v2-hairline-soft) !important;
+}
+
+/*
+ * Re-tint primary action buttons to brand blue.
+ * Existing editor uses .bg-black for dominant CTAs (e.g. tab pills,
+ * confirm buttons). Map .bg-black → brand. Keep .text-white untouched.
+ */
+.v2-editor-shell .bg-black {
+  background-color: var(--v2-brand) !important;
+  color: #fff !important;
+}
+.v2-editor-shell .border-black {
+  border-color: var(--v2-brand) !important;
+}
+.v2-editor-shell .hover\:bg-black:hover {
+  background-color: var(--v2-brand-deep) !important;
+}
+.v2-editor-shell .text-black {
+  color: var(--v2-ink) !important;
+}
+
+/* Blue accent classes that the editor already uses → keep unified hue */
+.v2-editor-shell .bg-blue-500,
+.v2-editor-shell .bg-blue-600,
+.v2-editor-shell .bg-blue-700 {
+  background-color: var(--v2-brand) !important;
+}
+.v2-editor-shell .hover\:bg-blue-700:hover,
+.v2-editor-shell .hover\:bg-blue-600:hover {
+  background-color: var(--v2-brand-deep) !important;
+}
+.v2-editor-shell .text-blue-500,
+.v2-editor-shell .text-blue-600,
+.v2-editor-shell .text-blue-700 {
+  color: var(--v2-brand) !important;
+}
+.v2-editor-shell .border-blue-500,
+.v2-editor-shell .border-blue-600 {
+  border-color: var(--v2-brand) !important;
+}
+.v2-editor-shell .ring-blue-500,
+.v2-editor-shell .ring-blue-600 {
+  --tw-ring-color: var(--v2-brand) !important;
+}
+
+/*
+ * Polish primary CTA buttons (full-width or wide, brand-coloured).
+ * We pick anything that has both a brand background and rounded corners
+ * and at least medium padding — this is the typical "주문/결제/저장" CTA.
+ */
+.v2-editor-shell button[class*="bg-blue"]:not(.p-1):not(.p-1\.5):not(.p-2),
+.v2-editor-shell button[class*="bg-black"]:not(.p-1):not(.p-1\.5):not(.p-2) {
+  border-radius: 14px !important;
+  box-shadow: 0 6px 16px rgba(0, 82, 204, 0.22) !important;
+  font-weight: 700 !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+.v2-editor-shell button[class*="bg-blue"]:not(.p-1):not(.p-1\.5):not(.p-2):active,
+.v2-editor-shell button[class*="bg-black"]:not(.p-1):not(.p-1\.5):not(.p-2):active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 10px rgba(0, 82, 204, 0.2) !important;
+}
+
+/* Cards / panels: add a soft shadow on white surfaces with borders */
+.v2-editor-shell .border-gray-100.bg-white,
+.v2-editor-shell .border-gray-200.bg-white,
+.v2-editor-shell .bg-white.rounded-lg.border,
+.v2-editor-shell .bg-white.rounded-xl.border,
+.v2-editor-shell .bg-white.rounded-2xl.border {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Modal / sheet — make corners more pillowy and shadow softer */
+.v2-editor-shell [role="dialog"],
+.v2-editor-shell .fixed > .bg-white {
+  border-radius: 22px !important;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* Inputs */
+.v2-editor-shell input[type="text"],
+.v2-editor-shell input[type="number"],
+.v2-editor-shell input[type="email"],
+.v2-editor-shell input[type="tel"],
+.v2-editor-shell input:not([type]),
+.v2-editor-shell textarea,
+.v2-editor-shell select {
+  border-radius: 12px !important;
+  border-color: var(--v2-hairline) !important;
+  font-family: inherit !important;
+  letter-spacing: inherit;
+}
+.v2-editor-shell input:focus,
+.v2-editor-shell textarea:focus,
+.v2-editor-shell select:focus {
+  outline: 2px solid var(--v2-brand) !important;
+  outline-offset: 2px;
+}
+
+/* Color swatches: make the selected-ring use brand */
+.v2-editor-shell .ring-2 {
+  --tw-ring-offset-width: 2px;
+}
+
+/* Tab pills (앞/뒤/좌/우 + 색상) — already round. Nudge contrast. */
+.v2-editor-shell .border-black.bg-black {
+  background-color: var(--v2-ink) !important;
+  border-color: var(--v2-ink) !important;
+}
+
+/* Make the toolbar sticky-bar bottom-edge look a bit lifted */
+.v2-editor-shell .sticky.bottom-0,
+.v2-editor-shell .fixed.bottom-0 {
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* Slightly punchier brand chip backgrounds */
+.v2-editor-shell .bg-blue-50,
+.v2-editor-shell .bg-blue-100 {
+  background-color: var(--v2-brand-soft) !important;
+}
+
+/* Don't lose the dashed print-area outline on canvas */
+.v2-editor-shell canvas {
+  font-family: inherit;
+}

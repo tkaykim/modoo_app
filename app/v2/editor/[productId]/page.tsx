@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase";
 import { Product, PrintMethodRecord } from "@/types/types";
 import ProductEditorUnified from "@/app/editor/[productId]/ProductEditorUnified";
+import "./editor-overrides.css";
 import {
   PrintMethod,
   EditorEmpty,
@@ -111,11 +112,12 @@ export default async function V2EditorPage({ params, searchParams }: Params) {
   // at full viewport width (matches /editor/[productId] behavior exactly).
   return (
     <div
+      className="v2-editor-shell"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 100,
-        background: "#fff",
+        background: "#fafaf7",
         overflow: "auto",
       }}
     >
