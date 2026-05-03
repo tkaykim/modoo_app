@@ -523,6 +523,50 @@ export default function CheckoutPage() {
     if (salesmanOne) setSalesmanCoupon(salesmanOne);
   }, [availableCoupons, salesmanCoupon]);
 
+  // 로그인한 사용자가 영업사원이면 본인 코드를 자동으로 등록·적용 (mall 미경유 진입에서도 동작)
+  const salesmanSelfAppliedRef = useRef(false);
+  useEffect(() => {
+    if (salesmanSelfAppliedRef.current) return;
+    if (!isAuthenticated || !user?.id) return;
+    if (salesmanCoupon) return;
+    salesmanSelfAppliedRef.current = true;
+    (async () => {
+      try {
+        const supabase = createBrowserClient();
+        const { data: sp } = await supabase
+          .from('salesman_profiles')
+          .select('id, salesman_code, status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+        if (!sp) return;
+        const { data: coupon } = await supabase
+          .from('coupons')
+          .select('id, code, is_active')
+          .eq('salesman_profile_id', sp.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!coupon?.code) return;
+        // availableCoupons 에 이미 있으면 그걸 사용
+        const existing = availableCoupons.find((cu) => cu.coupon?.code?.toUpperCase() === coupon.code.toUpperCase());
+        if (existing) {
+          setSalesmanCoupon(existing);
+          return;
+        }
+        // 없으면 등록
+        const result = await registerCoupon(coupon.code);
+        if (result.valid && result.couponUsage) {
+          await fetchCoupons();
+          setSalesmanCoupon(result.couponUsage);
+        }
+      } catch (e) {
+        console.warn('[checkout] salesman self auto-coupon failed', e);
+      }
+    })();
+  }, [isAuthenticated, user?.id, salesmanCoupon, availableCoupons, fetchCoupons]);
+
   // Auto-fill customer info from user profile when authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
