@@ -28,7 +28,7 @@ import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Uploa
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import LoginPromptModal from '@/app/components/LoginPromptModal';
-import { trackPurchase } from '@/lib/gtm-events';
+import { trackPurchase, trackBeginCheckout } from '@/lib/gtm-events';
 
 type ShippingMethod = 'domestic' | 'international' | 'pickup';
 type PaymentMethod = 'toss' | 'paypal' | 'bank_transfer';
@@ -586,6 +586,33 @@ export default function CheckoutPage() {
   const priceForGeneralCoupon = Math.max(0, totalPrice - salesmanDiscount);
   const couponDiscount = selectedCoupon ? calculateCouponDiscount(selectedCoupon, priceForGeneralCoupon) : 0;
   const finalTotal = Math.max(0, totalPrice + deliveryFee - salesmanDiscount - couponDiscount);
+
+  // GTM: begin_checkout — /checkout 페이지 도달 시 1회 발화. cart 경유가 아닌 진입 경로(직접 결제, 뒤로가기, 로그인
+  // 후 복귀 등)에서도 안정적으로 측정하기 위함. orderId 단위 dedupe로 중복 방지.
+  const beginCheckoutTrackedRef = useRef(false);
+  useEffect(() => {
+    if (beginCheckoutTrackedRef.current) return;
+    if (items.length === 0) return;
+    beginCheckoutTrackedRef.current = true;
+    try {
+      const dedupeKey = `gtm_begin_checkout_pushed_${orderId}`;
+      if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+        sessionStorage.setItem(dedupeKey, '1');
+        trackBeginCheckout({
+          value: finalTotal,
+          items: items.map((it) => ({
+            item_id: it.product_id,
+            item_name: it.product_title,
+            item_variant: it.product_color_name,
+            price: it.price_per_item,
+            quantity: it.quantity,
+          })),
+        });
+      }
+    } catch {
+      // 트래킹 실패는 무시
+    }
+  }, [items, finalTotal, orderId]);
 
   // Open Daum Address API
   const handleAddressSearch = () => {

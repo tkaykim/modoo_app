@@ -5,13 +5,27 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clearCart } from "@/lib/cartService";
 import { useCartStore } from "@/store/useCartStore";
-import { trackPurchase } from "@/lib/gtm-events";
+import { trackPurchase, trackPurchaseAttempt } from "@/lib/gtm-events";
 
 function WidgetSuccessPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // 결제 시도(intent) 추적 — confirm API 호출 전에 1회 발화. orderId 단위 dedupe로 중복 방지.
+    // 이걸 통해 /toss/success 페이지 도달자(=실제 결제 시도자) 수를 GA에서 안정적으로 측정.
+    try {
+      const orderId = searchParams.get('orderId');
+      const amount = Number(searchParams.get('amount')) || 0;
+      const dedupeKey = `gtm_purchase_attempt_pushed_${orderId ?? ''}`;
+      if (orderId && typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+        sessionStorage.setItem(dedupeKey, '1');
+        trackPurchaseAttempt({ transaction_id: orderId, value: amount });
+      }
+    } catch {
+      // 트래킹 실패는 무시
+    }
+
     async function confirm() {
       try {
         // Get pending order data from sessionStorage

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { SizeOption, CartItem } from '@/types/types';
+import { trackQuantityModalDismiss } from '@/lib/gtm-events';
 
 interface QuantitySelectorModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface QuantitySelectorModalProps {
   isSaving?: boolean;
   defaultDesignName?: string;
   sizingChartImage?: string | null;
+  productId?: string;
 }
 
 export default function QuantitySelectorModal({
@@ -25,6 +27,7 @@ export default function QuantitySelectorModal({
   isSaving = false,
   defaultDesignName = '',
   sizingChartImage,
+  productId,
 }: QuantitySelectorModalProps) {
   const router = useRouter();
   const [designName, setDesignName] = useState(defaultDesignName);
@@ -155,6 +158,17 @@ export default function QuantitySelectorModal({
   };
 
   const handleClose = () => {
+    // 확정(direct/cart 선택) 없이 닫는 경우만 dismiss로 추적. 이미 confirm된 후의 success 화면 닫기는 정상 흐름.
+    if (!purchaseType) {
+      try {
+        trackQuantityModalDismiss({
+          product_id: productId,
+          total_quantity: getTotalQuantity(),
+        });
+      } catch {
+        // 트래킹 실패는 무시
+      }
+    }
     resetState();
     onClose();
   };

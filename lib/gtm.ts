@@ -56,7 +56,10 @@ export type GtmEventName =
   | 'content_view'
   | 'click_to_call'
   | 'kakao_chat_click'
-  | 'chatbot_open';
+  | 'chatbot_open'
+  | 'purchase_attempt'
+  | 'purchase_fail'
+  | 'quantity_modal_dismiss';
 
 export type GtmEvent = {
   event: GtmEventName;

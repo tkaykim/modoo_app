@@ -325,6 +325,44 @@ export const trackPurchase = (p: {
   });
 };
 
+// 결제 페이지 진입(intent) — 실제 결제 성공 여부와 무관하게 발화. trackPurchase 누락(예: confirm API 실패, 페이지
+// 빠른 이탈) 시 실제 결제 시도자 수를 GA에서 잃지 않게 함.
+export const trackPurchaseAttempt = (p: {
+  transaction_id: string;
+  value: number;
+}): void => {
+  pushDataLayer({
+    event: 'purchase_attempt',
+    transaction_id: p.transaction_id,
+    value: p.value,
+    currency: 'KRW',
+  });
+};
+
+// 결제 실패(취소/거절/오류) — /toss/fail 진입 시 발화.
+export const trackPurchaseFail = (p: {
+  reason_code?: string;
+  reason_message?: string;
+}): void => {
+  pushDataLayer({
+    event: 'purchase_fail',
+    reason_code: p.reason_code,
+    reason_message: p.reason_message,
+  });
+};
+
+// 수량 선택 모달 닫힘(확정하지 않고 이탈) — design_complete 이후 가장 큰 이탈 지점 측정용.
+export const trackQuantityModalDismiss = (p?: {
+  product_id?: string;
+  total_quantity?: number;
+}): void => {
+  pushDataLayer({
+    event: 'quantity_modal_dismiss',
+    product_id: p?.product_id,
+    total_quantity: p?.total_quantity,
+  });
+};
+
 // ─── 리드 ─────────────────────────────────────────────────────────────────
 
 export const trackGenerateLead = (p: {

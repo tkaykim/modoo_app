@@ -1003,6 +1003,7 @@ export default function ProductEditorUnified({
           pricePerItem={pricePerItem}
           isSaving={isSaving}
           sizingChartImage={product.sizing_chart_image}
+          productId={product.id}
         />
 
         <LoginPromptModal
@@ -1300,6 +1301,7 @@ export default function ProductEditorUnified({
         pricePerItem={pricePerItem}
         isSaving={isSaving}
         sizingChartImage={product.sizing_chart_image}
+        productId={product.id}
       />
 
       <LoginPromptModal

@@ -2,10 +2,25 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { trackPurchaseFail } from "@/lib/gtm-events";
 
 function FailPageContent() {
   const searchParams = useSearchParams();
+  const reasonCode = searchParams.get("code") ?? undefined;
+  const reasonMessage = searchParams.get("message") ?? undefined;
+
+  // 결제 실패 추적 — 마운트 시 1회. searchParams가 바뀌어도 dedupe.
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+    try {
+      trackPurchaseFail({ reason_code: reasonCode, reason_message: reasonMessage });
+    } catch {
+      // 트래킹 실패는 무시
+    }
+  }, [reasonCode, reasonMessage]);
 
   return (
     <div className="max-w-2xl mx-auto p-6">
