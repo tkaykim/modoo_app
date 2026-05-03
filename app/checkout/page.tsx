@@ -103,6 +103,8 @@ export default function CheckoutPage() {
   // Coupon state
   const [availableCoupons, setAvailableCoupons] = useState<CouponUsage[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<CouponUsage | null>(null);
+  // 영업사원 자동 적용 쿠폰 — 일반 쿠폰과 별도로 stacking
+  const [salesmanCoupon, setSalesmanCoupon] = useState<CouponUsage | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -473,44 +475,53 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, fetchCoupons]);
 
-  // 영업사원 mall에서 set한 자동 쿠폰 → 본인 계정에 등록 + 자동 선택 (1회)
+  // 영업사원 mall에서 set한 자동 쿠폰 → 본인 계정에 등록 + salesmanCoupon 슬롯에 적용 (1회)
+  // 일반 쿠폰(selectedCoupon)과 별도로 stacking — 둘 다 동시에 할인 적용됨
   const autoCouponAppliedRef = useRef(false);
   useEffect(() => {
     if (autoCouponAppliedRef.current) return;
     if (!isAuthenticated) return;
-    if (selectedCoupon) return; // 이미 다른 쿠폰 선택됨 → 덮어쓰지 않음
+    if (salesmanCoupon) return; // 이미 영업사원 쿠폰 적용됨
 
     const auto = getMallAutoCoupon();
     if (!auto) return;
 
-    // 이미 본인 쿠폰 목록에 있으면 그것을 선택
+    // 이미 본인 쿠폰 목록에 있으면 그것을 영업사원 슬롯에 세팅
     const existing = availableCoupons.find((cu) => cu.coupon?.code?.toUpperCase() === auto.code.toUpperCase());
     if (existing) {
       autoCouponAppliedRef.current = true;
-      setSelectedCoupon(existing);
-      setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 자동 할인코드(${auto.code})가 적용되었습니다.` });
-      // 적용 후 sessionStorage는 유지 (재진입 시에도 작동) — 결제 완료 후 토스/뱅크 라우트가 처리하면 그 때 정리
+      setSalesmanCoupon(existing);
+      setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 영업 할인(${auto.code})이 자동 적용되었습니다.` });
       return;
     }
 
-    // 등록되지 않았으면 자동 등록 후 선택
+    // 등록되지 않았으면 자동 등록 후 salesman 슬롯에 세팅
     autoCouponAppliedRef.current = true;
     (async () => {
       try {
         const result = await registerCoupon(auto.code);
         if (result.valid && result.couponUsage) {
           await fetchCoupons();
-          setSelectedCoupon(result.couponUsage);
-          setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 자동 할인코드(${auto.code})가 적용되었습니다.` });
+          setSalesmanCoupon(result.couponUsage);
+          setCouponMessage({ type: 'success', text: `${auto.source_mall_name}의 영업 할인(${auto.code})이 자동 적용되었습니다.` });
         } else {
-          // 이미 등록되어 있어 실패한 경우 → fetchCoupons 후 다시 검색
           await fetchCoupons();
         }
       } catch (e) {
         console.warn('[checkout] auto-coupon apply failed', e);
       }
     })();
-  }, [isAuthenticated, availableCoupons, selectedCoupon, fetchCoupons]);
+  }, [isAuthenticated, availableCoupons, salesmanCoupon, fetchCoupons]);
+
+  // availableCoupons 가 로드되면 salesmanCoupon 매칭하여 자동 세팅 (재방문 등)
+  useEffect(() => {
+    if (salesmanCoupon) return;
+    if (!availableCoupons.length) return;
+    const salesmanOne = availableCoupons.find(
+      (cu) => cu.coupon?.code && /^SR[A-Z0-9]+$/i.test(cu.coupon.code) && !cu.used_at
+    );
+    if (salesmanOne) setSalesmanCoupon(salesmanOne);
+  }, [availableCoupons, salesmanCoupon]);
 
   // Auto-fill customer info from user profile when authenticated
   useEffect(() => {
@@ -523,11 +534,14 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, user]);
 
-  // Calculate totals
+  // Calculate totals — 영업사원 쿠폰은 일반 쿠폰과 별도로 stacking
   const totalPrice = items.reduce((total, item) => total + item.price_per_item * item.quantity, 0);
   const deliveryFee = shippingMethod === 'pickup' ? 0 : shippingMethod === 'domestic' ? 3000 : 5000;
-  const couponDiscount = selectedCoupon ? calculateCouponDiscount(selectedCoupon, totalPrice) : 0;
-  const finalTotal = totalPrice + deliveryFee - couponDiscount;
+  const salesmanDiscount = salesmanCoupon ? calculateCouponDiscount(salesmanCoupon, totalPrice) : 0;
+  // 일반 쿠폰은 영업사원 할인 적용 후 금액에 적용 (또는 원금 기준 — 정책 결정 필요. 여기선 영업사원 할인 후 금액 기준)
+  const priceForGeneralCoupon = Math.max(0, totalPrice - salesmanDiscount);
+  const couponDiscount = selectedCoupon ? calculateCouponDiscount(selectedCoupon, priceForGeneralCoupon) : 0;
+  const finalTotal = Math.max(0, totalPrice + deliveryFee - salesmanDiscount - couponDiscount);
 
   // Open Daum Address API
   const handleAddressSearch = () => {
@@ -735,9 +749,13 @@ export default function CheckoutPage() {
       shipping_method: shippingMethod,
       delivery_fee: deliveryFee,
       total_amount: finalTotal,
-      // Coupon data
+      // 일반 쿠폰
       coupon_usage_id: selectedCoupon?.id || null,
       coupon_discount: couponDiscount,
+      // 영업사원 쿠폰 (별도 컬럼에 stacking)
+      salesman_coupon_usage_id: salesmanCoupon?.id || null,
+      salesman_coupon_id: salesmanCoupon?.coupon?.id || null,
+      salesman_discount_amount: salesmanDiscount,
       // Customer note & attachments
       customer_note: customerNote || null,
       attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
@@ -1397,8 +1415,10 @@ export default function CheckoutPage() {
               </div>
             </button>
 
-            {/* Available Coupons */}
-            {availableCoupons.map((couponUsage) => {
+            {/* Available Coupons — 영업사원 쿠폰은 별도 슬롯에 자동 적용되므로 일반 리스트에서 제외 */}
+            {availableCoupons
+              .filter((cu) => !(cu.coupon?.code && /^SR[A-Z0-9]+$/i.test(cu.coupon.code)))
+              .map((couponUsage) => {
               const coupon = couponUsage.coupon;
               if (!coupon) return null;
               const displayInfo = getCouponDisplayInfo(coupon);
@@ -1548,10 +1568,18 @@ export default function CheckoutPage() {
             <span className="text-gray-600">배송비</span>
             <span className="text-black">{deliveryFee.toLocaleString('ko-KR')}원</span>
           </div>
+          {salesmanDiscount > 0 && (
+            <div className="flex justify-between text-sm p-2 -mx-2 bg-indigo-50 rounded-lg">
+              <span className="text-indigo-700 font-medium flex items-center gap-1">
+                🎟️ 영업 할인 ({salesmanCoupon?.coupon?.code})
+              </span>
+              <span className="text-indigo-700 font-bold">-{salesmanDiscount.toLocaleString('ko-KR')}원</span>
+            </div>
+          )}
           {couponDiscount > 0 && (
             <div className="flex justify-between text-sm p-2 -mx-2 bg-blue-50 rounded-lg">
               <span className="text-blue-600 font-medium flex items-center gap-1">
-                쿠폰 할인
+                쿠폰 할인 ({selectedCoupon?.coupon?.code})
               </span>
               <span className="text-blue-600 font-bold">-{couponDiscount.toLocaleString('ko-KR')}원</span>
             </div>
@@ -1560,12 +1588,12 @@ export default function CheckoutPage() {
           <div className="flex justify-between items-center">
             <span className="font-medium text-black">총 결제금액</span>
             <div className="text-right">
-              {couponDiscount > 0 && (
+              {(salesmanDiscount + couponDiscount) > 0 && (
                 <span className="text-sm text-gray-400 line-through mr-2">
                   {(totalPrice + deliveryFee).toLocaleString('ko-KR')}원
                 </span>
               )}
-              <span className={`text-xl font-bold ${couponDiscount > 0 ? 'text-[#3B55A5]' : 'text-black'}`}>
+              <span className={`text-xl font-bold ${(salesmanDiscount + couponDiscount) > 0 ? 'text-[#3B55A5]' : 'text-black'}`}>
                 {finalTotal.toLocaleString('ko-KR')}원
               </span>
             </div>

@@ -24,6 +24,9 @@ interface OrderData {
   delivery_fee: number;
   total_amount: number;
   coupon_usage_id: string | null;
+  salesman_coupon_id?: string | null;
+  salesman_coupon_usage_id?: string | null;
+  salesman_discount_amount?: number | null;
   coupon_discount: number;
   customer_note: string | null;
   attachment_urls: string[] | null;
@@ -110,6 +113,8 @@ export async function POST(request: NextRequest) {
         order_status: 'payment_pending',
         coupon_usage_id: orderData.coupon_usage_id || null,
         coupon_discount: orderData.coupon_discount || 0,
+        salesman_coupon_id: orderData.salesman_coupon_id || null,
+        salesman_discount_amount: orderData.salesman_discount_amount || 0,
         customer_note: customerNoteWithBankInfo,
         attachment_urls: orderData.attachment_urls || [],
       })
@@ -124,12 +129,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark coupon as used
+    // 일반 + 영업사원 쿠폰 사용 처리 (각각 독립적)
+    const adminClient = createAdminClient();
+
     if (orderData.coupon_usage_id) {
       try {
-        const adminClient = createAdminClient();
-
-        const { data: usage, error: usageError } = await adminClient
+        const { data: usage } = await adminClient
           .from('coupon_usages')
           .update({
             used_at: new Date().toISOString(),
@@ -139,39 +144,61 @@ export async function POST(request: NextRequest) {
           .eq('id', orderData.coupon_usage_id)
           .select('coupon_id')
           .single();
-
-        if (usageError) {
-          console.error('Error updating coupon usage:', usageError);
-        } else if (usage?.coupon_id) {
+        if (usage?.coupon_id) {
           const { data: coupon } = await adminClient
-            .from('coupons')
-            .select('current_uses, salesman_profile_id')
-            .eq('id', usage.coupon_id)
-            .single();
-
+            .from('coupons').select('current_uses').eq('id', usage.coupon_id).single();
           if (coupon) {
             await adminClient
               .from('coupons')
               .update({ current_uses: (coupon.current_uses || 0) + 1 })
               .eq('id', usage.coupon_id);
+          }
+          await adminClient
+            .from('orders')
+            .update({ applied_coupon_id: usage.coupon_id })
+            .eq('id', order.id);
+        }
+      } catch (e) {
+        console.error('[bank-transfer] general coupon processing failed:', e);
+      }
+    }
 
-            // 영업사원 쿠폰이면 attribution 자동 처리
+    if (orderData.salesman_coupon_usage_id) {
+      try {
+        const { data: usage } = await adminClient
+          .from('coupon_usages')
+          .update({
+            used_at: new Date().toISOString(),
+            order_id: order.id,
+            discount_applied: orderData.salesman_discount_amount || 0,
+          })
+          .eq('id', orderData.salesman_coupon_usage_id)
+          .select('coupon_id')
+          .single();
+        if (usage?.coupon_id) {
+          const { data: coupon } = await adminClient
+            .from('coupons')
+            .select('current_uses, salesman_profile_id')
+            .eq('id', usage.coupon_id)
+            .single();
+          if (coupon) {
+            await adminClient
+              .from('coupons')
+              .update({ current_uses: (coupon.current_uses || 0) + 1 })
+              .eq('id', usage.coupon_id);
             if (coupon.salesman_profile_id) {
-              const { error: attrErr } = await adminClient
+              await adminClient
                 .from('orders')
                 .update({
                   attributed_salesman_id: coupon.salesman_profile_id,
-                  applied_coupon_id: usage.coupon_id,
+                  salesman_coupon_id: usage.coupon_id,
                 })
                 .eq('id', order.id);
-              if (attrErr) {
-                console.error('[bank-transfer] attributed_salesman_id update failed:', attrErr);
-              }
             }
           }
         }
-      } catch (couponError) {
-        console.error('Error processing coupon usage:', couponError);
+      } catch (e) {
+        console.error('[bank-transfer] salesman coupon processing failed:', e);
       }
     }
 
