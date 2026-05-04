@@ -580,6 +580,28 @@ export default function ProductEditorUnified({
     try {
       const canvasState = saveAllCanvasState();
       const previewUrl = generateProductThumbnail(canvasMap, 'front', 400, 400);
+      const customFonts = useFontStore.getState().customFonts;
+
+      // Also persist as a saved_designs row so the design appears in admin's
+      // 디자인 목록 with its actual preview, not the bare product mockup fallback.
+      // Best-effort: failure here doesn't block partner-mall save.
+      if (isAuthenticated) {
+        try {
+          await saveDesign({
+            productId: product.id,
+            title: partnerMallAddData.displayName || product.title,
+            productColor,
+            canvasState,
+            previewImage: previewUrl,
+            pricePerItem,
+            canvasMap,
+            customFonts,
+          });
+        } catch (err) {
+          console.warn('saveDesign for partner-mall failed (non-fatal):', err);
+        }
+      }
+
       const isUpdate = !!partnerMallAddData.existingId;
       const response = await fetch(`/api/partner-mall/${partnerMallAddData.shareToken}/products`, {
         method: isUpdate ? 'PATCH' : 'POST',

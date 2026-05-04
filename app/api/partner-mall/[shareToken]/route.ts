@@ -14,7 +14,7 @@ export async function GET(
   const supabase = createAnonClient();
 
   const selectQuery = `
-      id, name, logo_url, is_active, slug, owner_salesman_id,
+      id, name, logo_url, is_active, slug, salesman_id,
       partner_mall_products (
         id, partner_mall_id, product_id,
         display_name, color_hex, color_name, color_code,
@@ -68,7 +68,7 @@ export async function GET(
     salesman_profile_id: string;
   } | null = null;
 
-  const ownerSalesmanId = (mall as { owner_salesman_id?: string | null }).owner_salesman_id;
+  const ownerSalesmanId = (mall as { salesman_id?: string | null }).salesman_id;
   if (ownerSalesmanId) {
     const { data: coupon } = await supabase
       .from('coupons')

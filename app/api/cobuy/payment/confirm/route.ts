@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendGmailEmail } from '@/lib/gmail';
 import { formatKstDateOnly } from '@/lib/kst';
+import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -183,6 +184,36 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('id', participantId)
       .single();
+
+    // 서버사이드 purchase (cobuy 참여자 결제 완료 = 매출 1건)
+    try {
+      const attribution = extractAttributionFromRequest(request);
+      const nameParts = (updatedParticipant?.name || '').trim().split(/\s+/);
+      void trackServerPurchase({
+        transactionId: orderId,
+        value: amount,
+        currency: 'KRW',
+        items: [
+          {
+            item_id: updatedParticipant?.cobuy_session_id || sessionId,
+            item_name: 'cobuy_participation',
+            item_category: 'cobuy',
+            item_variant: updatedParticipant?.selected_size || undefined,
+            price: amount,
+            quantity: updatedParticipant?.total_quantity || 1,
+          },
+        ],
+        ...attribution,
+        customer: {
+          email: updatedParticipant?.email || undefined,
+          phone: updatedParticipant?.phone || undefined,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' ') || undefined,
+        },
+      });
+    } catch (analyticsErr) {
+      console.error('[cobuy/payment/confirm] analytics dispatch failed:', analyticsErr);
+    }
 
     return NextResponse.json({ success: true, participantId, sessionId, participant: updatedParticipant });
   } catch (error) {

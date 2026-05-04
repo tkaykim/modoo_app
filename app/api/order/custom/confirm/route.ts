@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -117,6 +118,39 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error('Failed to update order after payment:', updateError);
       return NextResponse.json({ error: '결제는 완료되었으나 주문 정보 업데이트에 실패했습니다.' }, { status: 500 });
+    }
+
+    // 서버사이드 purchase 이벤트 (custom order는 order_items를 별도 조회)
+    try {
+      const { data: items } = await adminClient
+        .from('order_items')
+        .select('product_id, product_title, price_per_item, quantity')
+        .eq('order_id', order.id);
+      const attribution = extractAttributionFromRequest(request);
+      const nameParts = (payload.customerName || '').trim().split(/\s+/);
+      void trackServerPurchase({
+        transactionId: order.id,
+        value: amount,
+        currency: 'KRW',
+        items: (items || []).map((it) => ({
+          item_id: it.product_id,
+          item_name: it.product_title,
+          price: it.price_per_item,
+          quantity: it.quantity,
+        })),
+        ...attribution,
+        customer: {
+          email: payload.customerEmail,
+          phone: payload.customerPhone,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' ') || undefined,
+          city: payload.city,
+          postalCode: payload.postalCode,
+          country: 'KR',
+        },
+      });
+    } catch (analyticsErr) {
+      console.error('[order/custom/confirm] analytics dispatch failed:', analyticsErr);
     }
 
     return NextResponse.json({

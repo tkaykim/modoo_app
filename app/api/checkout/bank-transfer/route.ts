@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
               await adminClient
                 .from('orders')
                 .update({
-                  attributed_salesman_id: coupon.salesman_profile_id,
+                  salesman_id: coupon.salesman_profile_id,
                   salesman_coupon_id: usage.coupon_id,
                 })
                 .eq('id', order.id);

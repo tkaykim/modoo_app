@@ -7,6 +7,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
+import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest) {
               await adminClient
                 .from('orders')
                 .update({
-                  attributed_salesman_id: coupon.salesman_profile_id,
+                  salesman_id: coupon.salesman_profile_id,
                   salesman_coupon_id: usage.coupon_id,
                 })
                 .eq('id', order.id);
@@ -516,6 +517,39 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailError) {
       console.error('Order notification email error:', emailError);
+    }
+
+    // 서버사이드 purchase 이벤트 (GA4 MP + Meta CAPI). 결제 응답을 막지 않음.
+    try {
+      const attribution = extractAttributionFromRequest(request);
+      const purchaseItems = cartItems.map((it) => ({
+        item_id: it.product_id,
+        item_name: it.product_title,
+        item_variant: it.size_name,
+        price: it.price_per_item,
+        quantity: it.quantity,
+      }));
+      // 이름 분리: "홍 길동" → fn:"홍", ln:"길동" (KR 풀네임은 분리 어려우므로 그대로 둠)
+      const nameParts = (orderData.name || '').trim().split(/\s+/);
+      void trackServerPurchase({
+        transactionId: order.id,
+        value: orderData.total_amount,
+        currency: 'KRW',
+        items: purchaseItems,
+        userId: user?.id,
+        ...attribution,
+        customer: {
+          email: orderData.email || undefined,
+          phone: orderData.phone_num || undefined,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' ') || undefined,
+          country: orderData.country_code || undefined,
+          city: orderData.city || undefined,
+          postalCode: orderData.postal_code || undefined,
+        },
+      });
+    } catch (analyticsErr) {
+      console.error('[toss/confirm] analytics dispatch failed:', analyticsErr);
     }
 
     return NextResponse.json({

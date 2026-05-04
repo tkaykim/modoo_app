@@ -143,6 +143,16 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
       }
     }
 
+    // Warn loudly when a design is saved without a preview — the admin design
+    // list falls back to the product mockup in this case, which has historically
+    // been mistaken for a real customer design.
+    if (!data.previewImage) {
+      console.warn(
+        '[saveDesign] previewImage is empty/missing — saved_designs.preview_url will be null. ' +
+        `productId=${data.productId} title=${data.title ?? '(unnamed)'}`,
+      );
+    }
+
     // Prepare the data for insertion
     const designData: any = {
       user_id: user.id,

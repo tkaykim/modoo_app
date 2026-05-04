@@ -16,6 +16,12 @@ import {
   getOrCreatePseudoId,
   type EcommerceItem,
 } from './gtm';
+import {
+  pixelViewContent,
+  pixelAddToCart,
+  pixelInitiateCheckout,
+  pixelPurchase,
+} from './meta-pixel';
 
 export type DesignActionType =
   | 'text_add'
@@ -82,6 +88,12 @@ export const trackViewItem = (p: {
       value: p.base_price,
       items: [item],
     },
+  });
+  pixelViewContent({
+    content_id: p.product_id,
+    content_name: p.product_name,
+    content_category: p.category,
+    value: p.base_price,
   });
 };
 
@@ -277,6 +289,11 @@ export const trackAddToCart = (p: {
     },
     design_id: p.design_id,
   });
+  pixelAddToCart({
+    content_ids: p.items.map((i) => i.item_id),
+    value: p.value,
+    num_items: p.items.reduce((s, i) => s + (i.quantity ?? 0), 0),
+  });
 };
 
 export const trackViewCart = (p: {
@@ -307,6 +324,11 @@ export const trackBeginCheckout = (p: {
     },
     design_id: p.design_id,
   });
+  pixelInitiateCheckout({
+    content_ids: p.items.map((i) => i.item_id),
+    value: p.value,
+    num_items: p.items.reduce((s, i) => s + (i.quantity ?? 0), 0),
+  });
 };
 
 export const trackPurchase = (p: {
@@ -322,6 +344,12 @@ export const trackPurchase = (p: {
       value: p.value,
       items: p.items,
     },
+  });
+  pixelPurchase({
+    transaction_id: p.transaction_id,
+    content_ids: p.items.map((i) => i.item_id),
+    value: p.value,
+    num_items: p.items.reduce((s, i) => s + (i.quantity ?? 0), 0),
   });
 };
 
