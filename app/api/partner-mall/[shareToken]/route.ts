@@ -19,11 +19,19 @@ export async function GET(
         id, partner_mall_id, product_id,
         display_name, color_hex, color_name, color_code,
         logo_placements, canvas_state, preview_url, price,
+        created_by_role,
         product:products (
           id, title, base_price, configuration,
           size_options, discount_rates,
-          thumbnail_image_link
+          thumbnail_image_link, sizing_chart_image
         )
+      ),
+      partner_mall_assets (
+        id, partner_mall_id, asset_type, url, name,
+        is_primary, sort_order, created_by_role, created_at
+      ),
+      attributed_salesman:salesman_profiles!salesman_id (
+        id, display_name, salesman_code
       )
     `;
 

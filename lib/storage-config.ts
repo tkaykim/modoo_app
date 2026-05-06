@@ -17,6 +17,7 @@ export const STORAGE_FOLDERS = {
   TEXTS: 'texts',
   SVG: 'svg',
   FONTS: 'fonts',
+  PARTNER_MALL_ASSETS: 'partner-mall-assets',
 } as const;
 
 /**

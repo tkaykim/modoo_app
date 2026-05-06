@@ -52,6 +52,7 @@ interface CartItem {
   quantity: number;
   price_per_item: number;
   thumbnail_url?: string;
+  partner_mall_id?: string | null;
   canvasState?: Record<string, unknown>;
   // Guest checkout: inline design data (no saved_designs DB row)
   colorSelections?: Record<string, unknown>;
@@ -134,6 +135,21 @@ export async function POST(request: NextRequest) {
     // Get current user (optional - for guest checkout support)
     const { data: { user } } = await supabase.auth.getUser();
 
+    // 카트에 담긴 첫 partner_mall_id 추출 + 그 mall의 영업사원 자동 귀속.
+    // 쿠폰 처리 블록(아래)이 있으면 salesman_id를 덮어씀(쿠폰 우선).
+    const cartFirstMallId =
+      cartItems.find((it) => it.partner_mall_id)?.partner_mall_id ?? null;
+    let mallSalesmanId: string | null = null;
+    if (cartFirstMallId) {
+      const tmpAdmin = createAdminClient();
+      const { data: mallRow } = await tmpAdmin
+        .from('partner_malls')
+        .select('salesman_id')
+        .eq('id', cartFirstMallId)
+        .maybeSingle();
+      mallSalesmanId = (mallRow?.salesman_id as string | null) ?? null;
+    }
+
     // Insert order into database
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -165,6 +181,9 @@ export async function POST(request: NextRequest) {
         // Customer note & attachments
         customer_note: orderData.customer_note || null,
         attachment_urls: orderData.attachment_urls || [],
+        // 파트너몰 경유 시 mall + 영업사원 자동 귀속
+        partner_mall_id: cartFirstMallId,
+        salesman_id: mallSalesmanId,
       })
       .select()
       .single();

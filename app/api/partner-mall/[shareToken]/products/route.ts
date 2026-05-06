@@ -47,6 +47,15 @@ export async function POST(
 
   const now = new Date().toISOString();
   const admin = createAdminClient();
+  const fingerprint =
+    request.headers.get('x-actor-fingerprint') ??
+    request.headers.get('user-agent')?.slice(0, 80) ??
+    null;
+  const requestedRole = request.headers.get('x-actor-role');
+  const allowedRoles = ['salesman', 'admin', 'guest', 'owner'] as const;
+  const createdByRole = (allowedRoles as readonly string[]).includes(requestedRole ?? '')
+    ? (requestedRole as 'salesman' | 'admin' | 'guest' | 'owner')
+    : 'guest';
   const { data, error } = await admin
     .from('partner_mall_products')
     .insert({
@@ -61,6 +70,8 @@ export async function POST(
       color_name: payload.color_name ?? null,
       color_code: payload.color_code ?? null,
       price: null,
+      created_by_role: createdByRole,
+      created_by_fingerprint: fingerprint,
       created_at: now,
       updated_at: now,
     })

@@ -18,6 +18,8 @@ export interface CartItemData {
   quantity: number;
   price_per_item: number;
   thumbnail_url?: string;
+  /** 파트너몰 경유로 담은 카트 아이템(주문 생성 시 영업사원 자동 귀속에 사용) */
+  partner_mall_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -39,6 +41,8 @@ export interface AddToCartParams {
   canvasMap?: Record<string, fabric.Canvas>; // Optional: canvas instances for SVG export
   customFonts?: FontMetadata[]; // Optional: custom fonts used in the design
   retouchRequested?: boolean; // Optional: whether user requests admin retouch
+  /** 파트너몰 경유로 카트에 담는 경우 mall id. 주문 생성 시 영업사원 자동 귀속의 근거. */
+  partnerMallId?: string | null;
 }
 
 /**
@@ -100,6 +104,7 @@ export async function addToCartDB(params: AddToCartParams): Promise<CartItemData
       quantity: params.quantity,
       price_per_item: params.pricePerItem,
       thumbnail_url: params.thumbnailUrl,
+      partner_mall_id: params.partnerMallId ?? null,
     };
 
     const { data: cartItem, error: insertError } = await supabase

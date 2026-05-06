@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { SizeOption, CartItem } from '@/types/types';
 import { trackQuantityModalDismiss } from '@/lib/gtm-events';
@@ -16,6 +16,12 @@ interface QuantitySelectorModalProps {
   defaultDesignName?: string;
   sizingChartImage?: string | null;
   productId?: string;
+  /**
+   * 제품 미리보기 영역에 임의 노드를 렌더 (없으면 기본은 빈 영역).
+   * 예: 다중 side 캐러셀, ProductDesigner view mode 등.
+   * - undefined면 caller가 별도 미리보기를 안 주는 흐름 (디자인 이름·사이즈만)
+   */
+  previewSlot?: ReactNode;
 }
 
 export default function QuantitySelectorModal({
@@ -28,6 +34,7 @@ export default function QuantitySelectorModal({
   defaultDesignName = '',
   sizingChartImage,
   productId,
+  previewSlot,
 }: QuantitySelectorModalProps) {
   const router = useRouter();
   const [designName, setDesignName] = useState(defaultDesignName);
@@ -211,6 +218,13 @@ export default function QuantitySelectorModal({
         <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
           {!showSuccess ? (
             <>
+              {/* Optional preview slot (e.g. side carousel) */}
+              {previewSlot && (
+                <div className="mt-3 -mx-4 px-4">
+                  {previewSlot}
+                </div>
+              )}
+
               {/* Design Name Input */}
               <div className="mt-4 mb-6">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">

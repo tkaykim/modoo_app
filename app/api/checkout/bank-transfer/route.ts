@@ -51,6 +51,7 @@ interface CartItem {
   quantity: number;
   price_per_item: number;
   thumbnail_url?: string;
+  partner_mall_id?: string | null;
   canvasState?: Record<string, unknown>;
   colorSelections?: Record<string, unknown>;
   textSvgExports?: TextSvgExports;
@@ -90,6 +91,20 @@ export async function POST(request: NextRequest) {
       ? `${orderData.customer_note}\n---\n[계좌이체 정보] ${bankTransferNotes}`
       : `[계좌이체 정보] ${bankTransferNotes}`;
 
+    // 카트에 담긴 첫 partner_mall_id를 주문에 귀속. 여러 mall이 섞여 있어도 차단/경고 없이 첫 row 사용.
+    const cartFirstMallId =
+      cartItems.find((it) => it.partner_mall_id)?.partner_mall_id ?? null;
+    let mallSalesmanId: string | null = null;
+    if (cartFirstMallId) {
+      const tmpAdmin = createAdminClient();
+      const { data: mallRow } = await tmpAdmin
+        .from('partner_malls')
+        .select('salesman_id')
+        .eq('id', cartFirstMallId)
+        .maybeSingle();
+      mallSalesmanId = (mallRow?.salesman_id as string | null) ?? null;
+    }
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -117,6 +132,9 @@ export async function POST(request: NextRequest) {
         salesman_discount_amount: orderData.salesman_discount_amount || 0,
         customer_note: customerNoteWithBankInfo,
         attachment_urls: orderData.attachment_urls || [],
+        // 파트너몰 경유 시 mall + 영업사원 자동 귀속. 쿠폰 블록(아래 ~L203)이 있으면 salesman_id를 덮어씀(쿠폰 우선).
+        partner_mall_id: cartFirstMallId,
+        salesman_id: mallSalesmanId,
       })
       .select()
       .single();

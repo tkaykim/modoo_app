@@ -4,19 +4,21 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Loader2,
-  ShoppingCart,
   Plus,
-  Minus,
-  X,
   Package,
-  Pencil,
 } from 'lucide-react';
-import { PartnerMallPublic, PartnerMallProductPublic, SizeOption } from '@/types/types';
+import {
+  PartnerMallPublic,
+  PartnerMallProductPublic,
+  CartItem,
+} from '@/types/types';
 import { addToCartDB } from '@/lib/cartService';
 import { createClient } from '@/lib/supabase-client';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
 import { setMallAutoCoupon, clearMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
+import { renderPartnerMallSidePreviews, type SidePreview } from '@/lib/partnerMallSidePreviews';
 import Header from '@/app/components/Header';
+import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
 import AddProductModal from './AddProductModal';
 
 // API에서 내려오는 자동 적용 할인코드 형태 (영업사원 mall 전용)
@@ -47,11 +49,11 @@ export default function PartnerMallPage() {
 
   // Product detail sheet state
   const [selectedProduct, setSelectedProduct] = useState<PartnerMallProductPublic | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string>('');
-  const [quantity, setQuantity] = useState(1);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [addedToCart, setAddedToCart] = useState(false);
-  const [cartError, setCartError] = useState<string | null>(null);
+  const [isSavingCart, setIsSavingCart] = useState(false);
+
+  // 다중 side 미리보기(앞/뒤/옆 등). selectedProduct 변경 시 클라이언트에서 fabric으로 합성
+  const [sidePreviews, setSidePreviews] = useState<SidePreview[]>([]);
+  const [previewsLoading, setPreviewsLoading] = useState(false);
 
   // Add product modal state
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -114,12 +116,6 @@ export default function PartnerMallPage() {
     [mall]
   );
 
-  // Get size options for selected product
-  const sizeOptions: SizeOption[] = useMemo(() => {
-    if (!selectedProduct?.product?.size_options) return [];
-    return selectedProduct.product.size_options;
-  }, [selectedProduct]);
-
   const basePrice = selectedProduct?.product?.base_price ?? 0;
 
   // Calculate additional printing cost from logo placements
@@ -155,78 +151,94 @@ export default function PartnerMallPage() {
 
   const openProductSheet = (product: PartnerMallProductPublic) => {
     setSelectedProduct(product);
-    setSelectedSize('');
-    setQuantity(1);
-    setCartError(null);
-    setAddedToCart(false);
+    setSidePreviews([]);
   };
 
   const closeProductSheet = () => {
     setSelectedProduct(null);
-    setCartError(null);
-    setAddedToCart(false);
+    setSidePreviews([]);
   };
 
-  // Navigate to the editor with the partner mall product's canvas state
-  const handleEditDesign = () => {
-    if (!selectedProduct?.product || !mall) return;
+  // 선택된 제품이 바뀌면 sideId별 합성 미리보기 생성 (클라이언트 사이드 fabric)
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedProduct?.product) {
+      setSidePreviews([]);
+      return;
+    }
+    setPreviewsLoading(true);
+    renderPartnerMallSidePreviews(selectedProduct.product, selectedProduct)
+      .then((results) => {
+        if (!cancelled) setSidePreviews(results);
+      })
+      .catch((err) => {
+        console.warn('[mall] side previews failed:', err);
+        if (!cancelled) setSidePreviews([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProduct]);
 
-    sessionStorage.setItem('partnerMallAddData', JSON.stringify({
-      shareToken,
-      mallName: mall.name,
-      logoUrl: mall.logo_url,
-      displayName: selectedProduct.display_name || selectedProduct.product.title,
-      manufacturerColorId: null,
-      colorHex: selectedProduct.color_hex || null,
-      colorName: selectedProduct.color_name || null,
-      colorCode: selectedProduct.color_code || null,
-      // Existing product: include ID + canvas state for update
-      existingId: selectedProduct.id,
-      canvasState: selectedProduct.canvas_state || {},
-    }));
-
-    router.push(`/editor/${selectedProduct.product.id}?partnerMallAdd=true`);
-  };
-
-  const handleAddToCart = async () => {
-    if (!selectedProduct || !selectedSize) return;
+  // 사이즈별 다중 수량을 한 번에 처리. 첫 호출에서 만들어진 saved_design을 후속 호출이 재사용.
+  const handleConfirmCart = async (
+    designName: string,
+    selectedItems: CartItem[],
+    purchaseType: 'direct' | 'cart',
+  ) => {
+    if (!selectedProduct?.product) return;
 
     if (!isLoggedIn) {
       router.push(`/login?redirect=/mall/${shareToken}`);
       return;
     }
 
-    setIsAddingToCart(true);
-    setCartError(null);
-
+    setIsSavingCart(true);
     try {
       const product = selectedProduct.product;
-      if (!product) throw new Error('제품 정보를 찾을 수 없습니다.');
+      let sharedDesignId: string | undefined;
+      const newCartItemIds: string[] = [];
 
-      const result = await addToCartDB({
-        productId: product.id,
-        productTitle: selectedProduct.display_name || product.title,
-        productColor: selectedProduct.color_hex || '',
-        productColorName: selectedProduct.color_name || '',
-        productColorCode: selectedProduct.color_code || '',
-        size: selectedSize,
-        quantity,
-        pricePerItem,
-        canvasState: (selectedProduct.canvas_state || {}) as Record<string, string>,
-        thumbnailUrl: selectedProduct.preview_url || product.thumbnail_image_link?.[0] || '',
-        previewImage: selectedProduct.preview_url || undefined,
-        designName: selectedProduct.display_name || product.title,
-      });
+      for (const item of selectedItems) {
+        const dbCartItem = await addToCartDB({
+          productId: product.id,
+          productTitle: selectedProduct.display_name || product.title,
+          productColor: selectedProduct.color_hex || '',
+          productColorName: selectedProduct.color_name || '',
+          productColorCode: selectedProduct.color_code || '',
+          size: item.size,
+          quantity: item.quantity,
+          pricePerItem,
+          canvasState: (selectedProduct.canvas_state || {}) as Record<string, string>,
+          thumbnailUrl: selectedProduct.preview_url || product.thumbnail_image_link?.[0] || '',
+          previewImage: selectedProduct.preview_url || undefined,
+          designName,
+          savedDesignId: sharedDesignId,
+          partnerMallId: mall?.id ?? null,
+        });
 
-      if (!result) {
-        throw new Error('장바구니 추가에 실패했습니다.');
+        if (dbCartItem?.id) {
+          newCartItemIds.push(dbCartItem.id);
+        }
+        if (!sharedDesignId && dbCartItem?.saved_design_id) {
+          sharedDesignId = dbCartItem.saved_design_id;
+        }
       }
 
-      setAddedToCart(true);
+      if (purchaseType === 'direct' && newCartItemIds.length > 0) {
+        sessionStorage.setItem(
+          'directCheckoutItemIds',
+          JSON.stringify(newCartItemIds),
+        );
+      }
     } catch (err) {
-      setCartError(err instanceof Error ? err.message : '오류가 발생했습니다.');
+      console.error('[mall/shareToken] handleConfirmCart error:', err);
+      throw err;
     } finally {
-      setIsAddingToCart(false);
+      setIsSavingCart(false);
     }
   };
 
@@ -358,218 +370,37 @@ export default function PartnerMallPage() {
         </div>
       </div>
 
-      {/* Product detail bottom sheet */}
+      {/* Product purchase modal — 사이즈별 수량 입력 + 사이즈표 + 다중 side 미리보기 */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={closeProductSheet}
-          />
-
-          {/* Sheet */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col sm:relative sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md sm:rounded-2xl sm:max-h-[80vh] sm:bottom-auto">
-            {/* Handle bar (mobile) */}
-            <div className="flex justify-center pt-3 sm:hidden">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
-            </div>
-
-            {/* Close button */}
-            <button
-              onClick={closeProductSheet}
-              className="absolute top-3 right-3 p-1.5 hover:bg-gray-100 rounded-full z-10"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-
-            {/* Content */}
-            <div className="overflow-y-auto flex-1 p-4 sm:p-5">
-              {/* Product image */}
-              <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden mb-4 max-w-[280px] mx-auto">
-                {selectedProduct.preview_url ? (
-                  <img
-                    src={selectedProduct.preview_url}
-                    alt={selectedProduct.display_name || ''}
-                    className="w-full h-full object-contain p-3"
-                  />
-                ) : selectedProduct.product?.thumbnail_image_link?.[0] ? (
-                  <img
-                    src={selectedProduct.product.thumbnail_image_link[0]}
-                    alt={selectedProduct.display_name || ''}
-                    className="w-full h-full object-contain p-3"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="w-12 h-12 text-gray-300" />
-                  </div>
-                )}
-              </div>
-
-              {/* Product info */}
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                {selectedProduct.display_name || selectedProduct.product?.title || '제품'}
-              </h2>
-              {selectedProduct.color_name && (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span
-                    className="w-3.5 h-3.5 rounded-full border border-gray-200"
-                    style={{ backgroundColor: selectedProduct.color_hex || undefined }}
-                  />
-                  <span className="text-xs text-gray-500">{selectedProduct.color_name}</span>
-                </div>
-              )}
-
-              {/* Price breakdown */}
-              <div className="mt-2">
-                {(() => {
-                  const discounted = applySalesmanDiscount(pricePerItem);
-                  if (discounted !== null && discounted < pricePerItem) {
-                    return (
-                      <>
-                        <p className="text-xs text-gray-400 line-through">{formatPrice(pricePerItem)}</p>
-                        <p className="text-lg font-bold text-blue-700">
-                          {formatPrice(discounted)}
-                          <span className="ml-1.5 text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded align-middle">
-                            {salesmanCoupon?.discount_value}% OFF
-                          </span>
-                        </p>
-                      </>
-                    );
-                  }
-                  return <p className="text-lg font-bold text-gray-900">{formatPrice(pricePerItem)}</p>;
-                })()}
-                {/* Only show breakdown if using calculated price (not set price) */}
-                {!selectedProduct.price && additionalPrice > 0 && (
-                  <p className="text-xs text-gray-500">
-                    제품 {formatPrice(basePrice)} + 인쇄비 {formatPrice(additionalPrice)}
-                  </p>
-                )}
-              </div>
-
-              {/* Edit design button */}
-              <button
-                onClick={handleEditDesign}
-                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-                디자인 편집하기
-              </button>
-
-              {/* Size selector */}
-              {sizeOptions.length > 0 && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    사이즈 선택
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {sizeOptions.map((size) => (
-                      <button
-                        key={size.label}
-                        onClick={() => setSelectedSize(size.label)}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                          selectedSize === size.label
-                            ? 'bg-gray-900 text-white border-gray-900'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                        }`}
-                      >
-                        {size.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quantity selector */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  수량
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                    disabled={quantity <= 1}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <span className="text-base font-medium w-10 text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity((q) => q + 1)}
-                    className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Total price */}
-              <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-                <span className="text-sm text-gray-600">총 금액</span>
-                {(() => {
-                  const total = pricePerItem * quantity;
-                  const discounted = applySalesmanDiscount(pricePerItem);
-                  if (discounted !== null && discounted < pricePerItem) {
-                    return (
-                      <span className="text-right">
-                        <span className="block text-xs text-gray-400 line-through">{formatPrice(total)}</span>
-                        <span className="block text-lg font-bold text-blue-700">{formatPrice(discounted * quantity)}</span>
-                      </span>
-                    );
-                  }
-                  return <span className="text-lg font-bold text-gray-900">{formatPrice(total)}</span>;
-                })()}
-              </div>
-
-              {cartError && (
-                <p className="mt-3 text-sm text-red-600">{cartError}</p>
-              )}
-            </div>
-
-            {/* Footer - Add to cart button */}
-            <div className="p-4 border-t border-gray-200 pb-safe">
-              {addedToCart ? (
-                <div className="flex gap-3">
-                  <button
-                    onClick={closeProductSheet}
-                    className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    계속 쇼핑하기
-                  </button>
-                  <button
-                    onClick={() => router.push('/cart')}
-                    className="flex-1 py-3 px-4 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    장바구니 보기
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleAddToCart}
-                  disabled={
-                    isAddingToCart || (!selectedSize && sizeOptions.length > 0)
-                  }
-                  className="w-full py-3 px-4 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isAddingToCart ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      추가 중...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-4 h-4" />
-                      장바구니에 담기
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <QuantitySelectorModal
+          isOpen={!!selectedProduct}
+          onClose={closeProductSheet}
+          onConfirm={handleConfirmCart}
+          sizeOptions={selectedProduct.product?.size_options ?? []}
+          pricePerItem={applySalesmanDiscount(pricePerItem) ?? pricePerItem}
+          isSaving={isSavingCart}
+          defaultDesignName={
+            selectedProduct.display_name ||
+            selectedProduct.product?.title ||
+            ''
+          }
+          sizingChartImage={selectedProduct.product?.sizing_chart_image ?? null}
+          productId={selectedProduct.product?.id}
+          previewSlot={
+            <SidePreviewCarousel
+              fallbackUrl={
+                selectedProduct.preview_url ||
+                selectedProduct.product?.thumbnail_image_link?.[0] ||
+                null
+              }
+              previews={sidePreviews}
+              loading={previewsLoading}
+            />
+          }
+        />
       )}
 
-      {/* Add product modal */}
+      {/* (definition below) Add product modal */}
       {showAddProduct && mall && (
         <AddProductModal
           shareToken={shareToken}
@@ -582,6 +413,88 @@ export default function PartnerMallPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * 다중 side 가로 캐러셀. fabric 합성 결과(SidePreview[])를 받아 표시.
+ * 합성 실패 또는 로딩 중일 때는 fallback 이미지(partner_mall_products.preview_url 등)로.
+ */
+function SidePreviewCarousel({
+  previews,
+  loading,
+  fallbackUrl,
+}: {
+  previews: SidePreview[];
+  loading: boolean;
+  fallbackUrl: string | null;
+}) {
+  if (loading && previews.length === 0) {
+    return (
+      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (previews.length === 0) {
+    return (
+      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl overflow-hidden">
+        {fallbackUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fallbackUrl}
+            alt=""
+            className="w-full h-full object-contain p-3"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package className="w-10 h-10 text-gray-300" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (previews.length === 1) {
+    return (
+      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={previews[0].dataUrl}
+          alt={previews[0].sideName}
+          className="w-full h-full object-contain p-3"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {previews.map((p) => (
+          <figure
+            key={p.sideId}
+            className="snap-center shrink-0 w-[260px] sm:w-[300px]"
+          >
+            <div className="aspect-square w-full bg-gray-100 rounded-xl overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.dataUrl}
+                alt={p.sideName}
+                className="w-full h-full object-contain p-3"
+              />
+            </div>
+            <figcaption className="mt-1.5 text-center text-[11px] text-gray-500">
+              {p.sideName}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <p className="mt-1 text-center text-[10px] text-gray-400">
+        좌우로 넘기면서 앞·뒤·옆면 확인
+      </p>
     </div>
   );
 }

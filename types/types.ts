@@ -684,12 +684,42 @@ export interface LogoPlacement {
   height: number;
 }
 
+export interface PartnerMallSalesmanPublic {
+  id: string;
+  display_name: string | null;
+  salesman_code: string | null;
+  phone?: string | null;
+  kakao_id?: string | null;
+  business_card_url?: string | null;
+  profile_image_url?: string | null;
+}
+
 export interface PartnerMallPublic {
   id: string;
   name: string;
   logo_url: string;
+  slug: string | null;
   is_active: boolean;
+  salesman_id: string | null;
   partner_mall_products?: PartnerMallProductPublic[];
+  partner_mall_assets?: PartnerMallAssetPublic[];
+  attributed_salesman?: PartnerMallSalesmanPublic | null;
+}
+
+export type PartnerMallActorRole = 'salesman' | 'admin' | 'guest' | 'owner';
+
+export type PartnerMallAssetType = 'logo' | 'image' | 'document' | 'reference';
+
+export interface PartnerMallAssetPublic {
+  id: string;
+  partner_mall_id: string;
+  asset_type: PartnerMallAssetType;
+  url: string;
+  name: string | null;
+  is_primary: boolean | null;
+  sort_order: number | null;
+  created_by_role?: PartnerMallActorRole | null;
+  created_at: string;
 }
 
 export interface PartnerMallProductPublic {
@@ -704,6 +734,7 @@ export interface PartnerMallProductPublic {
   canvas_state: Record<string, unknown>;
   preview_url: string | null;
   price: number | null;
+  created_by_role?: PartnerMallActorRole | null;
   product?: Product;
 }
 
