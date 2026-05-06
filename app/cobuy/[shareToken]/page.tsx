@@ -712,6 +712,17 @@ export default function CoBuySharePage() {
                 </p>
               </div>
 
+              {product?.sizing_chart_image && (
+                <button
+                  type="button"
+                  onClick={() => setIsSizingChartOpen(true)}
+                  className="flex items-center justify-center gap-2 w-full py-2 px-4 mb-4 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                  <Ruler className="w-4 h-4" />
+                  사이즈 정보 보기
+                </button>
+              )}
+
               <div className="space-y-3 mb-6">
                 {selectedItems.map((item, index) => (
                   <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded-xl">

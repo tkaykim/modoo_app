@@ -925,8 +925,8 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         )}
 
         {/* Progress Bar Section */}
-        <section className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">진행 상태</h2>
+        <section className="bg-white rounded-2xl shadow-sm p-3 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">진행 상태</h2>
           <CoBuyProgressBar currentStatus={session.status} />
         </section>
 

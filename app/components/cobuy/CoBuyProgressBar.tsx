@@ -32,113 +32,54 @@ export default function CoBuyProgressBar({ currentStatus }: CoBuyProgressBarProp
 
   return (
     <div className="w-full">
-      {/* Mobile: Vertical layout */}
-      <div className="md:hidden">
-        <div className="relative">
-          {PROGRESS_STEPS.map((step, index) => {
-            const isCompleted = index < currentIndex;
-            const isCurrent = index === currentIndex;
+      <div className="flex items-start justify-between relative gap-1 md:gap-2">
+        {/* Background line */}
+        <div className="absolute left-0 right-0 top-3 md:top-4 h-0.5 bg-gray-200" />
+        {/* Progress line */}
+        <div
+          className="absolute left-0 top-3 md:top-4 h-0.5 bg-green-500 transition-all duration-300"
+          style={{
+            width: `${currentIndex > 0 ? (currentIndex / (PROGRESS_STEPS.length - 1)) * 100 : 0}%`,
+          }}
+        />
 
-            return (
-              <div key={step.key} className="flex items-start gap-3 pb-4 last:pb-0">
-                {/* Connector line */}
-                <div className="flex flex-col items-center">
-                  {/* Circle */}
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                      isCompleted
-                        ? 'bg-green-500 text-white'
-                        : isCurrent
-                        ? 'bg-[#3B55A5] text-white'
-                        : 'bg-gray-200 text-gray-400'
-                    }`}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <span className="text-xs font-medium">{index + 1}</span>
-                    )}
-                  </div>
-                  {/* Vertical line */}
-                  {index < PROGRESS_STEPS.length - 1 && (
-                    <div
-                      className={`w-0.5 h-6 ${
-                        isCompleted ? 'bg-green-500' : 'bg-gray-200'
-                      }`}
-                    />
-                  )}
-                </div>
-                {/* Label */}
-                <div className="pt-0.5">
-                  <span
-                    className={`text-sm font-medium ${
-                      isCompleted
-                        ? 'text-green-600'
-                        : isCurrent
-                        ? 'text-[#3B55A5]'
-                        : 'text-gray-400'
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
+        {PROGRESS_STEPS.map((step, index) => {
+          const isCompleted = index < currentIndex;
+          const isCurrent = index === currentIndex;
+
+          return (
+            <div key={step.key} className="flex flex-col items-center relative z-10 flex-1 min-w-0">
+              {/* Circle */}
+              <div
+                className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
+                  isCompleted
+                    ? 'bg-green-500 text-white'
+                    : isCurrent
+                    ? 'bg-[#3B55A5] text-white'
+                    : 'bg-gray-200 text-gray-400'
+                }`}
+              >
+                {isCompleted ? (
+                  <Check className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                ) : (
+                  <span className="text-[11px] md:text-sm font-medium">{index + 1}</span>
+                )}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Desktop: Horizontal layout */}
-      <div className="hidden md:block">
-        <div className="flex items-center justify-between relative">
-          {/* Background line */}
-          <div className="absolute left-0 right-0 top-4 h-0.5 bg-gray-200" />
-          {/* Progress line */}
-          <div
-            className="absolute left-0 top-4 h-0.5 bg-green-500 transition-all duration-300"
-            style={{
-              width: `${currentIndex > 0 ? (currentIndex / (PROGRESS_STEPS.length - 1)) * 100 : 0}%`,
-            }}
-          />
-
-          {PROGRESS_STEPS.map((step, index) => {
-            const isCompleted = index < currentIndex;
-            const isCurrent = index === currentIndex;
-
-            return (
-              <div key={step.key} className="flex flex-col items-center relative z-10">
-                {/* Circle */}
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    isCompleted
-                      ? 'bg-green-500 text-white'
-                      : isCurrent
-                      ? 'bg-[#3B55A5] text-white'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  {isCompleted ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <span className="text-sm font-medium">{index + 1}</span>
-                  )}
-                </div>
-                {/* Label */}
-                <span
-                  className={`mt-2 text-xs font-medium whitespace-nowrap ${
-                    isCompleted
-                      ? 'text-green-600'
-                      : isCurrent
-                      ? 'text-[#3B55A5]'
-                      : 'text-gray-400'
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+              {/* Label */}
+              <span
+                className={`mt-1.5 md:mt-2 text-[10px] md:text-xs font-medium whitespace-nowrap ${
+                  isCompleted
+                    ? 'text-green-600'
+                    : isCurrent
+                    ? 'text-[#3B55A5]'
+                    : 'text-gray-400'
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
