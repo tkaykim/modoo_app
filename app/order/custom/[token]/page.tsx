@@ -74,24 +74,24 @@ export default function CustomOrderPage() {
   const ceFields = orderData?.customer_editable_fields;
   const isQtyEditable = !!ceFields?.quantities;
 
-  const handleVariantQty = useCallback((itemId: string, sizeId: string, delta: number) => {
+  const handleVariantQty = useCallback((itemId: string, index: number, delta: number) => {
     setItemQuantities(prev => {
       const variants = prev[itemId] || [];
       return {
         ...prev,
-        [itemId]: variants.map(v => v.sizeId === sizeId ? { ...v, quantity: Math.max(0, v.quantity + delta) } : v),
+        [itemId]: variants.map((v, i) => i === index ? { ...v, quantity: Math.max(0, v.quantity + delta) } : v),
       };
     });
   }, []);
 
-  const handleVariantQtyInput = useCallback((itemId: string, sizeId: string, value: string) => {
+  const handleVariantQtyInput = useCallback((itemId: string, index: number, value: string) => {
     const q = parseInt(value, 10);
     if (isNaN(q) || q < 0) return;
     setItemQuantities(prev => {
       const variants = prev[itemId] || [];
       return {
         ...prev,
-        [itemId]: variants.map(v => v.sizeId === sizeId ? { ...v, quantity: q } : v),
+        [itemId]: variants.map((v, i) => i === index ? { ...v, quantity: q } : v),
       };
     });
   }, []);
@@ -472,13 +472,13 @@ export default function CustomOrderPage() {
 
                           {expandedQtyItems[item.id] && showEditable && (
                             <div className="space-y-2">
-                              {variants.map(v => (
-                                <div key={v.sizeId} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                              {variants.map((v, vi) => (
+                                <div key={`${item.id}-${vi}`} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
                                   <span className="text-sm text-gray-700 font-medium">{v.sizeName}</span>
                                   <div className="flex items-center gap-1.5">
                                     <button
                                       type="button"
-                                      onClick={() => handleVariantQty(item.id, v.sizeId, -1)}
+                                      onClick={() => handleVariantQty(item.id, vi, -1)}
                                       disabled={v.quantity <= 0}
                                       className="p-1.5 rounded bg-white border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
@@ -488,12 +488,12 @@ export default function CustomOrderPage() {
                                       type="number"
                                       min="0"
                                       value={v.quantity}
-                                      onChange={(e) => handleVariantQtyInput(item.id, v.sizeId, e.target.value)}
+                                      onChange={(e) => handleVariantQtyInput(item.id, vi, e.target.value)}
                                       className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                     <button
                                       type="button"
-                                      onClick={() => handleVariantQty(item.id, v.sizeId, 1)}
+                                      onClick={() => handleVariantQty(item.id, vi, 1)}
                                       className="p-1.5 rounded bg-white border border-gray-200 hover:bg-gray-100"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
