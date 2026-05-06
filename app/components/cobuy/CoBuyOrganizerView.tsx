@@ -860,6 +860,15 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         {/* Delivery Settings Section */}
         {session.delivery_settings && (
           <section className="bg-white rounded-2xl shadow-sm p-6">
+            {!session.delivery_settings.deliveryAddress?.roadAddress && (
+              <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="text-amber-700 text-sm">⚠</span>
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">일괄 수령지가 입력되지 않았습니다.</p>
+                  <p className="text-xs mt-0.5">제작/배송 진행 전까지 어드민에게 요청해 주소를 입력해야 발송이 가능합니다.</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">수령/배송 장소</h2>
               {canEditDeliverySettings && (

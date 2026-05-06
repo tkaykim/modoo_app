@@ -666,6 +666,15 @@ export default function CoBuySharePage() {
                 </div>
               </div>
 
+              {!deliverySettings?.enabled && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-2">
+                  <Truck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <p className="text-xs md:text-sm text-blue-800">
+                    이 공동구매는 <span className="font-semibold">대표자가 일괄 수령</span>합니다. 별도 배송비는 없습니다.
+                  </p>
+                </div>
+              )}
+
               {/* Base Price */}
               <div className="text-center mb-6">
                 <p className="text-sm text-gray-500 mb-1">단가</p>
@@ -1215,7 +1224,9 @@ export default function CoBuySharePage() {
                   {deliveryMethod === 'pickup' ? (
                     <div className="flex items-center gap-2 text-sm md:text-base">
                       <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-700">직접 수령</span>
+                      <span className="text-gray-700">
+                        {deliverySettings?.enabled ? '직접 수령' : '대표자가 일괄 수령'}
+                      </span>
                     </div>
                   ) : (
                     <div className="space-y-1 text-sm md:text-base">
