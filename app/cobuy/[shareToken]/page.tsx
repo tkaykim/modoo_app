@@ -200,6 +200,20 @@ export default function CoBuySharePage() {
 
   const totalAmount = Math.round(calcItemsTotal()) + deliveryFee;
 
+  const sizePriceRange = (() => {
+    const sp = session?.size_prices;
+    if (!sp || sizeOptions.length === 0) return null;
+    const hasAny = Object.values(sp).some((v) => typeof v === 'number' && v > 0);
+    if (!hasAny) return null;
+    const prices = sizeOptions.map((opt) => {
+      const label = typeof opt === 'string' ? opt : opt.label;
+      return getItemPrice(label);
+    });
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return { min, max, varies: min !== max };
+  })();
+
   // Closed reason check
   const closedReason = useMemo(() => {
     if (!session) return null;
@@ -656,8 +670,13 @@ export default function CoBuySharePage() {
               <div className="text-center mb-6">
                 <p className="text-sm text-gray-500 mb-1">단가</p>
                 <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                  {formatPrice(currentPrice)}
+                  {sizePriceRange && sizePriceRange.varies
+                    ? `${formatPrice(sizePriceRange.min)} ~ ${formatPrice(sizePriceRange.max)}`
+                    : formatPrice(sizePriceRange ? sizePriceRange.min : currentPrice)}
                 </p>
+                {sizePriceRange && sizePriceRange.varies && (
+                  <p className="text-xs text-gray-500 mt-1">사이즈별 상이</p>
+                )}
               </div>
 
               {/* Start Button */}
@@ -762,13 +781,32 @@ export default function CoBuySharePage() {
                     <span className="text-gray-700">총 수량</span>
                     <span className="font-bold text-[#3B55A5]">{getTotalQuantity()}벌</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">단가</span>
-                    <span className="font-medium text-[#3B55A5]">{formatPrice(currentPrice)}</span>
-                  </div>
+                  {sizePriceRange && sizePriceRange.varies ? (
+                    <div className="space-y-1 pt-1">
+                      {selectedItems
+                        .filter((item) => item.size && item.quantity > 0)
+                        .map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-700">
+                              {item.size} ({formatPrice(getItemPrice(item.size))}) × {item.quantity}벌
+                            </span>
+                            <span className="font-medium text-[#3B55A5]">
+                              {formatPrice(getItemPrice(item.size) * item.quantity)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">단가</span>
+                      <span className="font-medium text-[#3B55A5]">
+                        {formatPrice(sizePriceRange ? sizePriceRange.min : currentPrice)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm pt-2 border-t border-blue-200">
                     <span className="text-gray-700 font-medium">예상 금액</span>
-                    <span className="font-bold text-[#3B55A5] text-lg">{formatPrice(currentPrice * getTotalQuantity())}</span>
+                    <span className="font-bold text-[#3B55A5] text-lg">{formatPrice(calcItemsTotal())}</span>
                   </div>
 
                 </div>
