@@ -15,7 +15,7 @@ import {
   updateDeliverySettings
 } from '@/lib/cobuyService';
 import { CoBuyParticipant, CoBuySession, CoBuyDeliverySettings, CoBuyPickupStatus } from '@/types/types';
-import { Calendar, CheckCircle, Clock, Copy, Users, PackageCheck, ShoppingBag, Info, ChevronDown, Truck, MapPin, Pencil, Search, UserPlus, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Copy, Users, PackageCheck, ShoppingBag, Info, ChevronDown, Truck, MapPin, Pencil, Search, UserPlus, Trash2, X } from 'lucide-react';
 import CoBuyProgressBar from '@/app/components/cobuy/CoBuyProgressBar';
 import CoBuyOrderModal from '@/app/components/cobuy/CoBuyOrderModal';
 import DeliverySettingsEditModal from '@/app/components/cobuy/DeliverySettingsEditModal';
@@ -33,12 +33,39 @@ const statusLabels: Record<CoBuySession['status'], { label: string; color: strin
   cancelled: { label: '취소됨', color: 'bg-red-100 text-red-800' },
 };
 
-const paymentLabels: Record<CoBuyParticipant['payment_status'], { label: string; color: string }> = {
+const individualPaymentLabels: Record<CoBuyParticipant['payment_status'], { label: string; color: string }> = {
   pending: { label: '대기', color: 'bg-yellow-100 text-yellow-800' },
   completed: { label: '완료', color: 'bg-green-100 text-green-800' },
   failed: { label: '실패', color: 'bg-red-100 text-red-800' },
   refunded: { label: '환불', color: 'bg-gray-100 text-gray-800' },
   not_required: { label: '대표자 일괄결제', color: 'bg-blue-100 text-blue-800' },
+};
+
+// survey 모드(대표자 일괄결제)에서는 payment_status가 "참여자 → 대표자 입금" 상태를 의미한다.
+// not_required는 레거시 데이터 호환을 위해 pending(미입금)과 동일하게 취급한다.
+const surveyPaymentLabels: Record<CoBuyParticipant['payment_status'], { label: string; color: string }> = {
+  pending: { label: '대표자 입금 대기', color: 'bg-yellow-100 text-yellow-800' },
+  not_required: { label: '대표자 입금 대기', color: 'bg-yellow-100 text-yellow-800' },
+  completed: { label: '대표자 입금 완료', color: 'bg-green-100 text-green-800' },
+  failed: { label: '실패', color: 'bg-red-100 text-red-800' },
+  refunded: { label: '환불', color: 'bg-gray-100 text-gray-800' },
+};
+
+const getPaymentLabel = (
+  status: CoBuyParticipant['payment_status'],
+  paymentMode: CoBuySession['payment_mode'] | undefined
+) => (paymentMode === 'survey' ? surveyPaymentLabels[status] : individualPaymentLabels[status]);
+
+// 세션 헤더용: 대표자 → 본사(모두의유니폼) 결제 여부.
+// bulk_order_id 가 채워졌거나 status가 order_complete 이상이면 본사 결제 완료로 간주한다.
+const ORDER_COMPLETED_STATUSES: CoBuySession['status'][] = [
+  'order_complete', 'manufacturing', 'manufacture_complete', 'delivering', 'delivery_complete'
+];
+const getBulkPaymentChip = (session: CoBuySession) => {
+  const completed = !!session.bulk_order_id || ORDER_COMPLETED_STATUSES.includes(session.status);
+  return completed
+    ? { label: '본사 결제 완료', color: 'bg-blue-100 text-blue-800' }
+    : { label: '본사 결제 대기', color: 'bg-gray-100 text-gray-700' };
 };
 
 const pickupLabels: Record<CoBuyPickupStatus, { label: string; cls: string }> = {
@@ -73,6 +100,28 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
   const [copied, setCopied] = useState(false);
   const [expandedParticipants, setExpandedParticipants] = useState<Set<string>>(new Set());
   const [updatingPickupStatus, setUpdatingPickupStatus] = useState<Set<string>>(new Set());
+  const [updatingDepositStatus, setUpdatingDepositStatus] = useState<Set<string>>(new Set());
+  const [depositHintDismissed, setDepositHintDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (window.localStorage.getItem('cobuy:host:depositHintDismissed') === '1') {
+        setDepositHintDismissed(true);
+      }
+    } catch {
+      // localStorage 접근 실패 시 배너는 그대로 노출
+    }
+  }, []);
+
+  const dismissDepositHint = () => {
+    setDepositHintDismissed(true);
+    try {
+      window.localStorage.setItem('cobuy:host:depositHintDismissed', '1');
+    } catch {
+      // ignore
+    }
+  };
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isDeliverySettingsModalOpen, setIsDeliverySettingsModalOpen] = useState(false);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
@@ -148,6 +197,53 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
     }
 
     setUpdatingPickupStatus((prev) => {
+      const next = new Set(prev);
+      next.delete(participant.id);
+      return next;
+    });
+  };
+
+  // 대표자 일괄결제(survey) 모드에서, 호스트가 "참여자 → 대표자 입금" 여부를 토글한다.
+  const handleHostDepositToggle = async (participant: CoBuyParticipant) => {
+    if (updatingDepositStatus.has(participant.id)) return;
+    if (session?.payment_mode !== 'survey') return;
+
+    const isCurrentlyCompleted = participant.payment_status === 'completed';
+    const nextStatus: 'pending' | 'completed' = isCurrentlyCompleted ? 'pending' : 'completed';
+
+    setUpdatingDepositStatus((prev) => new Set(prev).add(participant.id));
+
+    let success = false;
+    if (isTokenAccess) {
+      const res = await fetch('/api/cobuy/host/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: routeShareToken, participantId: participant.id, depositStatus: nextStatus }),
+      });
+      success = res.ok;
+    } else {
+      // 로그인 호스트: admin client 없이 직접 supabase RLS로 업데이트할 수 없어 동일 API 사용
+      const res = await fetch('/api/cobuy/host/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareToken: session.share_token, participantId: participant.id, depositStatus: nextStatus }),
+      });
+      success = res.ok;
+    }
+
+    if (success) {
+      setParticipants((current) =>
+        current.map((p) =>
+          p.id === participant.id
+            ? { ...p, payment_status: nextStatus, paid_at: nextStatus === 'completed' ? new Date().toISOString() : null }
+            : p
+        )
+      );
+    } else {
+      alert('입금 상태 변경에 실패했습니다.');
+    }
+
+    setUpdatingDepositStatus((prev) => {
       const next = new Set(prev);
       next.delete(participant.id);
       return next;
@@ -286,13 +382,24 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
 
   const isSurveyMode = session?.payment_mode === 'survey';
 
+  // survey 모드에서는 참여자 본인이 대표자에게 입금했는지(payment_status: completed)와
+  // 무관하게 "참여 확정 인원/수량"을 세야 한다. 레거시 not_required와 신규 pending/completed
+  // 모두 카운트에 포함한다.
+  const isSurveyParticipantCounted = (status: CoBuyParticipant['payment_status']) =>
+    status === 'not_required' || status === 'pending' || status === 'completed';
+
   const completedCount = useMemo(
     () => participants.filter((p) =>
       isSurveyMode
-        ? p.payment_status === 'not_required'
+        ? isSurveyParticipantCounted(p.payment_status)
         : p.payment_status === 'completed'
     ).length,
     [participants, isSurveyMode]
+  );
+
+  const surveyDepositConfirmedCount = useMemo(
+    () => participants.filter((p) => p.payment_status === 'completed').length,
+    [participants]
   );
 
   const totalPaid = useMemo(
@@ -303,7 +410,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
   const totalQuantity = useMemo(
     () => participants
       .filter((p) => isSurveyMode
-        ? p.payment_status === 'not_required'
+        ? isSurveyParticipantCounted(p.payment_status)
         : p.payment_status === 'completed'
       )
       .reduce((sum, p) => sum + (p.total_quantity || 0), 0),
@@ -321,13 +428,18 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       );
     }
     if (participantPaymentFilter !== 'all') {
-      filtered = filtered.filter(p => p.payment_status === participantPaymentFilter);
+      filtered = filtered.filter(p => {
+        if (isSurveyMode && participantPaymentFilter === 'pending') {
+          return p.payment_status === 'pending' || p.payment_status === 'not_required';
+        }
+        return p.payment_status === participantPaymentFilter;
+      });
     }
     if (participantPickupFilter !== 'all') {
       filtered = filtered.filter(p => (p.pickup_status || 'pending') === participantPickupFilter);
     }
     return filtered;
-  }, [participants, participantSearch, participantPaymentFilter, participantPickupFilter]);
+  }, [participants, participantSearch, participantPaymentFilter, participantPickupFilter, isSurveyMode]);
 
   // 컬럼 가시성: 실제로 데이터가 있는 컬럼만 표시
   const showDeliveryColumn = useMemo(
@@ -407,8 +519,14 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
 
   const handleDeleteParticipant = async (participant: CoBuyParticipant) => {
     if (!session) return;
-    if (participant.payment_status !== 'pending') {
-      alert('결제 대기 상태의 참여자만 삭제할 수 있습니다.');
+    const isSurvey = session.payment_mode === 'survey';
+    const deletable = isSurvey
+      ? participant.payment_status === 'pending' || participant.payment_status === 'not_required'
+      : participant.payment_status === 'pending';
+    if (!deletable) {
+      alert(isSurvey
+        ? '대표자에게 미입금 상태인 참여자만 삭제할 수 있습니다.'
+        : '결제 대기 상태의 참여자만 삭제할 수 있습니다.');
       return;
     }
     const confirmed = window.confirm(`${participant.name}님을 삭제하시겠습니까?`);
@@ -775,12 +893,31 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         <section className="bg-white rounded-2xl shadow-sm p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <h1 className="text-xl font-bold text-gray-900">{session.title}</h1>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
                   {statusInfo.label}
                 </span>
+                {isSurveyMode && (() => {
+                  const bulkChip = getBulkPaymentChip(session);
+                  return (
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${bulkChip.color}`}
+                      title="대표자가 모두의유니폼(본사)에 결제했는지 여부"
+                    >
+                      {bulkChip.label}
+                    </span>
+                  );
+                })()}
               </div>
+              {isSurveyMode && (
+                <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-1.5 text-xs text-blue-800">
+                  <span className="font-medium">대표자 입금 현황</span>
+                  <span className="text-blue-700">
+                    {surveyDepositConfirmedCount} / {participants.length}명 입금 확인
+                  </span>
+                </div>
+              )}
               {session.description && (
                 <p className="text-gray-600 mb-3">{session.description}</p>
               )}
@@ -1019,6 +1156,24 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
             </div>
           </div>
 
+          {/* Survey-mode deposit hint banner */}
+          {isSurveyMode && !depositHintDismissed && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs sm:text-sm text-blue-800">
+              <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />
+              <p className="flex-1 leading-relaxed">
+                참여자 이름을 검색해서 입금 칩을 클릭하면 <span className="font-semibold">&apos;대표자 입금 완료&apos;</span>로 표시할 수 있어요. 다시 클릭하면 <span className="font-semibold">&apos;대표자 입금 대기&apos;</span>로 되돌립니다.
+              </p>
+              <button
+                type="button"
+                onClick={dismissDepositHint}
+                aria-label="안내 닫기"
+                className="shrink-0 p-1 -mr-1 -mt-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Search & Filters */}
           <div className="flex flex-wrap gap-2 mb-4">
             <div className="relative flex-1 min-w-[180px]">
@@ -1036,11 +1191,22 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
               onChange={(e) => setParticipantPaymentFilter(e.target.value as typeof participantPaymentFilter)}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
             >
-              <option value="all">결제: 전체</option>
-              <option value="pending">결제: 대기</option>
-              <option value="completed">결제: 완료</option>
-              <option value="failed">결제: 실패</option>
-              <option value="refunded">결제: 환불</option>
+              {isSurveyMode ? (
+                <>
+                  <option value="all">입금: 전체</option>
+                  <option value="pending">대표자 입금 대기</option>
+                  <option value="completed">대표자 입금 완료</option>
+                  <option value="refunded">환불</option>
+                </>
+              ) : (
+                <>
+                  <option value="all">결제: 전체</option>
+                  <option value="pending">결제: 대기</option>
+                  <option value="completed">결제: 완료</option>
+                  <option value="failed">결제: 실패</option>
+                  <option value="refunded">결제: 환불</option>
+                </>
+              )}
             </select>
             <select
               value={participantPickupFilter}
@@ -1062,8 +1228,10 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
               {/* Mobile view - Accordion layout */}
               <div className="md:hidden space-y-2">
                 {filteredParticipants.map((participant) => {
-                  const paymentInfo = paymentLabels[participant.payment_status];
+                  const paymentInfo = getPaymentLabel(participant.payment_status, session?.payment_mode);
                   const isExpanded = expandedParticipants.has(participant.id);
+                  const isUpdatingDeposit = updatingDepositStatus.has(participant.id);
+                  const depositCompleted = participant.payment_status === 'completed';
                   const totalQty = participant.total_quantity || participant.selected_items?.reduce((sum, i) => sum + i.quantity, 0) || 1;
 
                   return (
@@ -1082,9 +1250,26 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                           </button>
                           <div className="flex items-center gap-2 shrink-0 pr-3 flex-wrap justify-end">
                             {renderPickupStatusToggle(participant)}
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}>
-                              {paymentInfo.label}
-                            </span>
+                            {isSurveyMode ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleHostDepositToggle(participant); }}
+                                disabled={isUpdatingDeposit}
+                                title={depositCompleted ? '클릭하여 미입금으로 변경' : '클릭하여 입금 완료로 변경'}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${paymentInfo.color} ${
+                                  isUpdatingDeposit ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:opacity-80'
+                                }`}
+                              >
+                                {isUpdatingDeposit && (
+                                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                )}
+                                {paymentInfo.label}
+                              </button>
+                            ) : (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentInfo.color}`}>
+                                {paymentInfo.label}
+                              </span>
+                            )}
                             <button
                               type="button"
                               onClick={() => toggleParticipantExpand(participant.id)}
@@ -1155,7 +1340,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                             >
                               <Pencil className="w-3 h-3" /> 수정
                             </button>
-                            {participant.payment_status === 'pending' && (
+                            {(participant.payment_status === 'pending' || (isSurveyMode && participant.payment_status === 'not_required')) && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteParticipant(participant); }}
                                 className="flex items-center gap-1 px-3 py-1.5 text-xs text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50"
@@ -1194,8 +1379,10 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                   </thead>
                   <tbody>
                     {filteredParticipants.map((participant) => {
-                      const paymentInfo = paymentLabels[participant.payment_status];
+                      const paymentInfo = getPaymentLabel(participant.payment_status, session?.payment_mode);
                       const visibleEmail = displayEmail(participant.email);
+                      const isUpdatingDeposit = updatingDepositStatus.has(participant.id);
+                      const depositCompleted = participant.payment_status === 'completed';
                       return (
                         <tr key={participant.id} className="border-b last:border-b-0 align-top hover:bg-gray-50/50">
                           <td className="py-3 pr-4">
@@ -1225,9 +1412,26 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                             </td>
                           )}
                           <td className="py-3 pr-4">
-                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${paymentInfo.color}`}>
-                              {paymentInfo.label}
-                            </span>
+                            {isSurveyMode ? (
+                              <button
+                                type="button"
+                                onClick={() => handleHostDepositToggle(participant)}
+                                disabled={isUpdatingDeposit}
+                                title={depositCompleted ? '클릭하여 미입금으로 변경' : '클릭하여 입금 완료로 변경'}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${paymentInfo.color} ${
+                                  isUpdatingDeposit ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:opacity-80'
+                                }`}
+                              >
+                                {isUpdatingDeposit && (
+                                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                )}
+                                {paymentInfo.label}
+                              </button>
+                            ) : (
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${paymentInfo.color}`}>
+                                {paymentInfo.label}
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 pr-4 text-gray-700 whitespace-nowrap text-right tabular-nums">
                             {participant.payment_amount ? participant.payment_amount.toLocaleString('ko-KR') + '원' : '—'}
@@ -1247,7 +1451,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                               >
                                 <Pencil className="w-4 h-4" />
                               </button>
-                              {participant.payment_status === 'pending' && (
+                              {(participant.payment_status === 'pending' || (isSurveyMode && participant.payment_status === 'not_required')) && (
                                 <button
                                   onClick={() => handleDeleteParticipant(participant)}
                                   title="삭제"
