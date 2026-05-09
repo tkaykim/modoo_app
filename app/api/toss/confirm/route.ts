@@ -8,6 +8,7 @@ import {
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
+import { validateOrderPricing } from '@/lib/orderPricingValidator';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -81,6 +82,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 가격 위변조 방지: 클라가 보낸 amount/total_amount/price_per_item을 DB와 교차 검증.
+    const pricingResult = await validateOrderPricing({
+      cartItems: cartItems.map((it) => ({
+        product_id: it.product_id,
+        saved_design_id: it.saved_design_id,
+        quantity: it.quantity,
+        price_per_item: it.price_per_item,
+        partner_mall_id: it.partner_mall_id ?? null,
+      })),
+      orderData: {
+        shipping_method: orderData.shipping_method,
+        delivery_fee: orderData.delivery_fee,
+        total_amount: orderData.total_amount,
+        coupon_discount: orderData.coupon_discount,
+        salesman_discount_amount: orderData.salesman_discount_amount ?? 0,
+      },
+      amount,
+    });
+    if (!pricingResult.ok) {
+      console.error('[toss/confirm] price validation failed:', pricingResult);
+      return NextResponse.json(
+        { success: false, error: pricingResult.message, code: pricingResult.code },
+        { status: 400 }
+      );
+    }
+
     const isFreeOrder = paymentKey === 'FREE_ORDER' && amount === 0;
     let tossData = null;
 
@@ -144,10 +171,35 @@ export async function POST(request: NextRequest) {
       const tmpAdmin = createAdminClient();
       const { data: mallRow } = await tmpAdmin
         .from('partner_malls')
-        .select('salesman_id')
+        .select('salesman_id, is_active')
         .eq('id', cartFirstMallId)
         .maybeSingle();
+      if (mallRow && mallRow.is_active === false) {
+        return NextResponse.json(
+          { success: false, error: '비활성화된 파트너몰의 상품은 결제할 수 없습니다.' },
+          { status: 400 }
+        );
+      }
       mallSalesmanId = (mallRow?.salesman_id as string | null) ?? null;
+    }
+
+    // 멱등성: 동일 payment_key로 이미 주문이 존재하면 그대로 성공 응답.
+    // (Toss confirm 재시도, 클라이언트 더블클릭, 네트워크 단절 후 재시도 등을 흡수)
+    if (!isFreeOrder && paymentKey) {
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('payment_key', paymentKey)
+        .maybeSingle();
+      if (existing?.id) {
+        console.log('[toss/confirm] idempotent retry detected, returning existing order:', existing.id);
+        return NextResponse.json({
+          success: true,
+          orderId: existing.id,
+          paymentData: tossData,
+          idempotent: true,
+        });
+      }
     }
 
     // Insert order into database
@@ -420,12 +472,26 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) {
       console.error('Order items creation error:', itemsError);
-      // Order was created but items failed - log for manual reconciliation
+      // 보상 로직: orders는 생성됐는데 items 실패 → 환불 큐 마킹 + 주문 상태를 명시적 'reconciliation_required'로 전환.
+      // (실제 환불은 별도 admin 워커가 payment_status='refund_required' 주문을 처리)
+      try {
+        await createAdminClient()
+          .from('orders')
+          .update({
+            order_status: 'reconciliation_required',
+            payment_status: 'refund_required',
+            customer_note: `[AUTO] order_items insert 실패: ${itemsError.message}`,
+          })
+          .eq('id', order.id);
+      } catch (compErr) {
+        console.error('[toss/confirm] compensation update failed:', compErr);
+      }
       return NextResponse.json(
         {
           success: false,
-          error: '주문 상품 정보 저장에 실패했습니다.',
-          orderId: order.id
+          error: '주문 상품 정보 저장에 실패했습니다. 결제는 완료되었으니 고객센터로 문의해주세요.',
+          orderId: order.id,
+          requiresReconciliation: true,
         },
         { status: 500 }
       );

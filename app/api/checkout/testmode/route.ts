@@ -54,7 +54,14 @@ interface TestModeRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if test mode is enabled (server-side check)
+    // testmode는 NODE_ENV=production에서는 절대 활성화되지 않는다.
+    // 운영 환경에 TESTMODE=true가 잘못 설정되어도 결제 우회로가 되지 않도록 이중 가드.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { success: false, error: 'Not available in production.' },
+        { status: 403 }
+      );
+    }
     const isTestMode = process.env.TESTMODE === 'true';
     if (!isTestMode) {
       return NextResponse.json(

@@ -39,6 +39,8 @@ export async function GET(
         payment_method,
         order_status,
         payment_link_token,
+        payment_link_expires_at,
+        partner_mall_id,
         customer_editable_fields
       `)
       .eq('payment_link_token', token)
@@ -46,6 +48,23 @@ export async function GET(
 
     if (orderError || !order) {
       return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 결제 링크 만료 검증 (NULL이면 만료 없음 — 기존 데이터 호환).
+    if (order.payment_link_expires_at && new Date(order.payment_link_expires_at as string) < new Date()) {
+      return NextResponse.json({ error: '결제 링크가 만료되었습니다.' }, { status: 410 });
+    }
+
+    // 파트너몰이 비활성화되었으면 결제 차단.
+    if (order.partner_mall_id) {
+      const { data: mall } = await adminClient
+        .from('partner_malls')
+        .select('is_active')
+        .eq('id', order.partner_mall_id as string)
+        .maybeSingle();
+      if (mall && mall.is_active === false) {
+        return NextResponse.json({ error: '파트너몰이 비활성화되어 결제할 수 없습니다.' }, { status: 410 });
+      }
     }
 
     if (order.payment_status === 'completed') {
@@ -132,6 +151,8 @@ export async function GET(
       ? `${firstTitle} 외 ${orderItems.length - 1}건`
       : firstTitle;
 
+    // 내부 메모(pricing_note)와 산출 분해(original_amount)는 고객 응답에서 제거.
+    // admin_discount/admin_surcharge는 고객이 보는 영수증 항목이므로 유지.
     return NextResponse.json({
       data: {
         id: order.id,
@@ -147,11 +168,9 @@ export async function GET(
         address_line_2: order.address_line_2,
         delivery_fee: order.delivery_fee,
         total_amount: order.total_amount,
-        original_amount: order.original_amount,
         admin_discount: order.admin_discount || 0,
         admin_surcharge: order.admin_surcharge || 0,
         coupon_discount: order.coupon_discount || 0,
-        pricing_note: order.pricing_note,
         payment_status: order.payment_status,
         payment_method: order.payment_method,
         order_status: order.order_status,
@@ -188,7 +207,7 @@ export async function PUT(
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge, delivery_fee, total_amount')
+      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge, delivery_fee, total_amount, payment_link_expires_at, partner_mall_id')
       .eq('payment_link_token', token)
       .single();
 
@@ -196,37 +215,69 @@ export async function PUT(
       return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 });
     }
 
+    if (order.payment_link_expires_at && new Date(order.payment_link_expires_at as string) < new Date()) {
+      return NextResponse.json({ error: '결제 링크가 만료되었습니다.' }, { status: 410 });
+    }
+    if (order.partner_mall_id) {
+      const { data: mall } = await adminClient
+        .from('partner_malls')
+        .select('is_active')
+        .eq('id', order.partner_mall_id as string)
+        .maybeSingle();
+      if (mall && mall.is_active === false) {
+        return NextResponse.json({ error: '파트너몰이 비활성화되어 변경할 수 없습니다.' }, { status: 410 });
+      }
+    }
+
     if (order.payment_status === 'completed') {
       return NextResponse.json({ error: '이미 결제가 완료된 주문입니다.' }, { status: 400 });
     }
 
-    const ceFields = order.customer_editable_fields as Record<string, boolean> | null;
+    const ceFields = order.customer_editable_fields as {
+      quantities?: boolean;
+      customerInfo?: boolean;
+      shipping?: boolean;
+    } | null;
+
+    // 영업사원이 명시적으로 허용한 필드만 변경 가능. 토큰만 알면 누구든 호출 가능하므로
+    // customer_editable_fields가 false/null인 필드는 무시해야 한다.
+    const allowCustomerInfo = ceFields?.customerInfo === true;
+    const allowShipping = ceFields?.shipping === true;
+    const allowQuantities = ceFields?.quantities === true;
 
     const updatePayload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
     if (payload.confirmBankTransfer) {
+      // 무통장 입금 의사 표시. 결제 검증은 운영자가 admin UI에서 수행.
       updatePayload.payment_method = 'bank_transfer';
       updatePayload.payment_status = 'pending';
       updatePayload.order_status = 'payment_pending';
     }
 
-    if (payload.customerName) updatePayload.customer_name = payload.customerName;
-    if (payload.customerEmail) updatePayload.customer_email = payload.customerEmail;
-    if (payload.customerPhone !== undefined) updatePayload.customer_phone = payload.customerPhone || null;
-    if (payload.shippingMethod) updatePayload.shipping_method = payload.shippingMethod;
-    if (payload.shippingMethod === 'domestic') {
-      updatePayload.country_code = 'KR';
-      if (payload.postalCode) updatePayload.postal_code = payload.postalCode;
-      if (payload.state !== undefined) updatePayload.state = payload.state;
-      if (payload.city !== undefined) updatePayload.city = payload.city;
-      if (payload.addressLine1) updatePayload.address_line_1 = payload.addressLine1;
-      if (payload.addressLine2 !== undefined) updatePayload.address_line_2 = payload.addressLine2 || null;
+    if (allowCustomerInfo) {
+      if (payload.customerName) updatePayload.customer_name = payload.customerName;
+      if (payload.customerEmail) updatePayload.customer_email = payload.customerEmail;
+      if (payload.customerPhone !== undefined) updatePayload.customer_phone = payload.customerPhone || null;
     }
 
-    const newDeliveryFee = payload.shippingMethod === 'domestic' ? 3000
-      : payload.shippingMethod === 'pickup' ? 0
+    if (allowShipping) {
+      if (payload.shippingMethod) updatePayload.shipping_method = payload.shippingMethod;
+      if (payload.shippingMethod === 'domestic') {
+        updatePayload.country_code = 'KR';
+        if (payload.postalCode) updatePayload.postal_code = payload.postalCode;
+        if (payload.state !== undefined) updatePayload.state = payload.state;
+        if (payload.city !== undefined) updatePayload.city = payload.city;
+        if (payload.addressLine1) updatePayload.address_line_1 = payload.addressLine1;
+        if (payload.addressLine2 !== undefined) updatePayload.address_line_2 = payload.addressLine2 || null;
+      }
+    }
+
+    const newDeliveryFee = allowShipping
+      ? (payload.shippingMethod === 'domestic' ? 3000
+        : payload.shippingMethod === 'pickup' ? 0
+        : null)
       : null;
 
     if (newDeliveryFee !== null) {
@@ -235,7 +286,7 @@ export async function PUT(
 
     // Handle customer quantity updates
     let newTotalAmount: number | null = null;
-    if (ceFields?.quantities && Array.isArray(payload.items)) {
+    if (allowQuantities && Array.isArray(payload.items)) {
       const { data: existingItems, error: itemsFetchErr } = await adminClient
         .from('order_items')
         .select('id, price_per_item, item_options')

@@ -7,6 +7,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
+import { validateOrderPricing } from '@/lib/orderPricingValidator';
 
 interface OrderData {
   id: string;
@@ -77,6 +78,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 가격 위변조 방지: 무통장 입금 흐름도 동일한 서버 검증을 거친다.
+    const pricingResult = await validateOrderPricing({
+      cartItems: cartItems.map((it) => ({
+        product_id: it.product_id,
+        saved_design_id: it.saved_design_id,
+        quantity: it.quantity,
+        price_per_item: it.price_per_item,
+        partner_mall_id: it.partner_mall_id ?? null,
+      })),
+      orderData: {
+        shipping_method: orderData.shipping_method,
+        delivery_fee: orderData.delivery_fee,
+        total_amount: orderData.total_amount,
+        coupon_discount: orderData.coupon_discount,
+        salesman_discount_amount: orderData.salesman_discount_amount ?? 0,
+      },
+    });
+    if (!pricingResult.ok) {
+      console.error('[checkout/bank-transfer] price validation failed:', pricingResult);
+      return NextResponse.json(
+        { success: false, error: pricingResult.message, code: pricingResult.code },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -99,9 +125,15 @@ export async function POST(request: NextRequest) {
       const tmpAdmin = createAdminClient();
       const { data: mallRow } = await tmpAdmin
         .from('partner_malls')
-        .select('salesman_id')
+        .select('salesman_id, is_active')
         .eq('id', cartFirstMallId)
         .maybeSingle();
+      if (mallRow && mallRow.is_active === false) {
+        return NextResponse.json(
+          { success: false, error: '비활성화된 파트너몰의 상품은 주문할 수 없습니다.' },
+          { status: 400 }
+        );
+      }
       mallSalesmanId = (mallRow?.salesman_id as string | null) ?? null;
     }
 
@@ -353,6 +385,12 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) {
       console.error('Order items creation error:', itemsError);
+      // 무통장은 결제가 PG로 빠지지 않은 상태이므로 보상 단순화: 빈 주문 행을 정리.
+      try {
+        await createAdminClient().from('orders').delete().eq('id', order.id);
+      } catch (compErr) {
+        console.error('[bank-transfer] orphan order cleanup failed:', compErr);
+      }
       return NextResponse.json(
         { success: false, error: '주문 상품 정보 저장에 실패했습니다.', orderId: order.id },
         { status: 500 }
