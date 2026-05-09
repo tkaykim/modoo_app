@@ -41,6 +41,10 @@ import LandingStep from "./steps/LandingStep";
 import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
 import ReviewsSection from "@/app/components/ReviewsSection";
 import DescriptionImageSection from "@/app/components/DescriptionImageSection";
+import QuickReplacePanel from "@/app/components/canvas/QuickReplacePanel";
+import { getTemplate } from "@/lib/templateService";
+import { applyTemplateToStore } from "@/lib/applyTemplate";
+import type { DesignTemplate } from "@/types/types";
 
 type EditorStep = 'landing' | 'editor' | 'quantity';
 
@@ -61,11 +65,17 @@ export default function ProductEditorUnified({
   const router = useRouter();
   const cartItemId = searchParams.get('cartItemId');
   const partnerMallAdd = searchParams.get('partnerMallAdd');
-  const isSpecialMode = !!cartItemId || !!partnerMallAdd;
+  const partnerMallBuy = searchParams.get('partnerMallBuy');
+  const templateIdParam = searchParams.get('templateId');
+  const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam;
 
   const [currentStep, setCurrentStep] = useState<EditorStep>(
     isSpecialMode ? 'editor' : 'landing'
   );
+
+  // Quick-replace template state — populated when entering with ?templateId=...
+  const [quickReplaceTemplate, setQuickReplaceTemplate] = useState<DesignTemplate | null>(null);
+  const [templateApplyAttempted, setTemplateApplyAttempted] = useState(false);
 
   const {
     setEditMode,
@@ -292,14 +302,19 @@ export default function ProductEditorUnified({
 
   // ─── Save to cart ────────────────────────────────────────────────
   const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
+    // 단체몰에서 진입한 경우 단체몰의 색상/표시명/소속을 덮어쓴다.
+    // (productColors 조회 결과보다 단체몰 메타가 우선)
+    const mallProductTitle = partnerMallBuyData?.displayName || product.title;
+    const partnerMallId = partnerMallBuyData?.partnerMallId ?? null;
+
     if (!isAuthenticated) {
       // Guest flow: save to cart store (localStorage) and navigate
       const canvasState = saveAllCanvasState();
       const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
       const previewImage = generateProductThumbnail(canvasMap, 'front', 800, 800);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
-      const colorName = selectedColor?.manufacturer_colors.name || '색상';
-      const colorCode = selectedColor?.manufacturer_colors.color_code;
+      const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
+      const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
       const customFonts = useFontStore.getState().customFonts;
 
       // Also save guest design as backup
@@ -311,7 +326,7 @@ export default function ProductEditorUnified({
       for (const item of selectedItems) {
         addToCart({
           productId: product.id,
-          productTitle: product.title,
+          productTitle: mallProductTitle,
           productColor,
           productColorName: colorName,
           productColorCode: colorCode,
@@ -325,6 +340,7 @@ export default function ProductEditorUnified({
           customFonts,
           previewImage,
           retouchRequested,
+          partnerMallId,
         });
       }
 
@@ -379,8 +395,8 @@ export default function ProductEditorUnified({
       const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
       const previewImage = generateProductThumbnail(canvasMap, 'front', 800, 800);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
-      const colorName = selectedColor?.manufacturer_colors.name || '색상';
-      const colorCode = selectedColor?.manufacturer_colors.color_code;
+      const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
+      const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
       const customFonts = useFontStore.getState().customFonts;
 
       let sharedDesignId: string | undefined;
@@ -389,7 +405,7 @@ export default function ProductEditorUnified({
       for (const item of selectedItems) {
         const dbCartItem = await addToCartDB({
           productId: product.id,
-          productTitle: product.title,
+          productTitle: mallProductTitle,
           productColor,
           productColorName: colorName,
           productColorCode: colorCode,
@@ -404,6 +420,7 @@ export default function ProductEditorUnified({
           customFonts,
           canvasMap,
           retouchRequested,
+          partnerMallId,
         });
 
         if (dbCartItem?.id) {
@@ -418,7 +435,7 @@ export default function ProductEditorUnified({
 
         addToCart({
           productId: product.id,
-          productTitle: product.title,
+          productTitle: mallProductTitle,
           productColor,
           productColorName: colorName,
           productColorCode: colorCode,
@@ -432,6 +449,7 @@ export default function ProductEditorUnified({
           customFonts,
           previewImage,
           retouchRequested,
+          partnerMallId,
         });
       }
 
@@ -497,6 +515,19 @@ export default function ProductEditorUnified({
     colorCode: string | null;
     existingId?: string;
     canvasState?: Record<string, string>;
+  } | null>(null);
+
+  // ?partnerMallBuy=1 진입 시 사용. 단체몰의 기존 디자인을 에디터에 그대로 restore해서
+  // 사용자가 그대로 또는 살짝 수정해서 주문할 수 있게 한다. 장바구니 insert 시
+  // partnerMallId 가 함께 들어가 영업사원 자동 귀속이 유지된다.
+  const [partnerMallBuyData, setPartnerMallBuyData] = useState<{
+    shareToken: string;
+    partnerMallId: string;
+    displayName: string;
+    colorHex: string | null;
+    colorName: string | null;
+    colorCode: string | null;
+    canvasState: Record<string, string>;
   } | null>(null);
 
   useEffect(() => {
@@ -573,6 +604,43 @@ export default function ProductEditorUnified({
     };
     loadPartnerMallAddData();
   }, [partnerMallAdd, canvasMap, product.configuration, setProductColor, restoreAllCanvasState, incrementCanvasVersion]);
+
+  useEffect(() => {
+    if (!partnerMallBuy) return;
+    const loadPartnerMallBuyData = async () => {
+      const raw = sessionStorage.getItem('partnerMallBuyData');
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        setPartnerMallBuyData(data);
+        sessionStorage.removeItem('partnerMallBuyData');
+
+        const checkCanvasesReady = () => {
+          const store = useCanvasStore.getState();
+          return product.configuration.every(side => store.canvasMap[side.id] && store.imageLoadedMap[side.id]);
+        };
+        let attempts = 0;
+        while (!checkCanvasesReady() && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        if (!checkCanvasesReady()) return;
+
+        if (data.colorHex) {
+          setProductColor(data.colorHex);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (data.canvasState && Object.keys(data.canvasState).length > 0) {
+          await restoreAllCanvasState(data.canvasState as Record<string, string>);
+          incrementCanvasVersion();
+        }
+      } catch (err) {
+        console.error('Failed to load partner mall buy data:', err);
+      }
+    };
+    loadPartnerMallBuyData();
+  }, [partnerMallBuy, canvasMap, product.configuration, setProductColor, restoreAllCanvasState, incrementCanvasVersion]);
 
   const handleSaveToMall = async () => {
     if (!partnerMallAddData) return;
@@ -671,11 +739,65 @@ export default function ProductEditorUnified({
 
   // Set initial product color from first available color
   useEffect(() => {
-    if (cartItemId || partnerMallAdd) return;
+    if (cartItemId || partnerMallAdd || partnerMallBuy) return;
     if (productColors.length > 0) {
       setProductColor(productColors[0].manufacturer_colors.hex);
     }
-  }, [productColors, cartItemId, partnerMallAdd, setProductColor]);
+  }, [productColors, cartItemId, partnerMallAdd, partnerMallBuy, setProductColor]);
+
+  // ─── Quick-replace template auto-apply ──────────────────────────────
+  // When editor is opened with ?templateId=..., load the template and apply
+  // it to the canvas as soon as canvases (and product images) are ready.
+  // QuickReplacePanel mounts only when image_slots/text_slots are non-empty;
+  // legacy templates fall back to the regular editor experience with a hint.
+  useEffect(() => {
+    if (!templateIdParam || templateApplyAttempted) return;
+    let cancelled = false;
+    (async () => {
+      const template = await getTemplate(templateIdParam);
+      if (!template || cancelled) {
+        setTemplateApplyAttempted(true);
+        return;
+      }
+      // Wait for all canvases to be mounted with their product images.
+      const checkReady = () => {
+        const store = useCanvasStore.getState();
+        return product.configuration.every(
+          (side) => store.canvasMap[side.id] && store.imageLoadedMap[side.id],
+        );
+      };
+      let attempts = 0;
+      while (!checkReady() && attempts < 80) {
+        await new Promise((r) => setTimeout(r, 100));
+        attempts++;
+      }
+      if (cancelled) return;
+      try {
+        await applyTemplateToStore(template);
+        trackDesignAction({ action_type: 'template_quick_apply', product_id: product.id });
+      } catch (err) {
+        console.error('Failed to apply template from URL:', err);
+      }
+      const hasSlots =
+        (template.image_slots?.length ?? 0) > 0 ||
+        (template.text_slots?.length ?? 0) > 0;
+      if (hasSlots) {
+        setQuickReplaceTemplate(template);
+        setEditMode(false); // quick replace mode
+      } else {
+        // Legacy template — fall through to normal editor with toast.
+        setEditMode(true);
+        if (typeof window !== 'undefined') {
+          // Lightweight toast: console.info; UI-side could swap for a real toast lib.
+          console.info('[template] legacy template (no slots) — full editor active');
+        }
+      }
+      setTemplateApplyAttempted(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [templateIdParam, templateApplyAttempted, product.id, product.configuration, setEditMode]);
 
   // Load cart item design
   useEffect(() => {
@@ -716,12 +838,12 @@ export default function ProductEditorUnified({
 
   // Guest design recall
   useEffect(() => {
-    if (cartItemId || partnerMallAdd) return;
+    if (cartItemId || partnerMallAdd || partnerMallBuy) return;
     const saved = getGuestDesign(product.id);
     if (!saved) return;
     setGuestDesign(saved);
     setIsRecallGuestDesignOpen(true);
-  }, [cartItemId, partnerMallAdd, product.id]);
+  }, [cartItemId, partnerMallAdd, partnerMallBuy, product.id]);
 
   // Set active side on mount
   useEffect(() => {
@@ -947,7 +1069,20 @@ export default function ProductEditorUnified({
           hasColorOptions={hasAnyColorOptions}
         />
 
-        {/* Bottom bar */}
+        {/* Quick replace panel — overrides bottom bar when active */}
+        {quickReplaceTemplate && (
+          <QuickReplacePanel
+            template={quickReplaceTemplate}
+            product={product}
+            onProceed={handleEditorDone}
+            onAdvancedEdit={() => { setQuickReplaceTemplate(null); setEditMode(true); }}
+            onOpenColorModal={() => setIsColorModalOpen(true)}
+            formattedPrice={`${pricePerItem.toLocaleString('ko-KR')}원`}
+          />
+        )}
+
+        {/* Bottom bar (hidden in quick-replace mode) */}
+        {!quickReplaceTemplate && (
         <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
           {/* Background removal checkbox - shown when image object is selected */}
           {selectedObject && selectedObject.type === 'image' && (
@@ -997,6 +1132,7 @@ export default function ProductEditorUnified({
             )}
           </div>
         </div>
+        )}
 
         {/* Product info below canvas - scrollable */}
         <div className="pb-24">
@@ -1070,6 +1206,16 @@ export default function ProductEditorUnified({
   // Desktop editor step
   return (
     <div className="min-h-screen bg-white text-black">
+      {quickReplaceTemplate && (
+        <QuickReplacePanel
+          template={quickReplaceTemplate}
+          product={product}
+          onProceed={handleEditorDone}
+          onAdvancedEdit={() => { setQuickReplaceTemplate(null); setEditMode(true); }}
+          onOpenColorModal={() => setIsColorModalOpen(true)}
+          formattedPrice={`${pricePerItem.toLocaleString('ko-KR')}원`}
+        />
+      )}
       <div className="w-full sticky top-0 bg-white/95 backdrop-blur z-40">
         <Header back={true} />
       </div>

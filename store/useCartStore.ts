@@ -23,6 +23,8 @@ export interface CartItemData {
   customFonts?: FontMetadata[];
   previewImage?: string;
   retouchRequested?: boolean;
+  /** 단체몰 경유 카트 아이템. 주문 생성 시 영업사원 자동 귀속의 근거. */
+  partnerMallId?: string | null;
 }
 
 interface CartState {

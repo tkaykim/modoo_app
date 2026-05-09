@@ -10,15 +10,10 @@ import {
 import {
   PartnerMallPublic,
   PartnerMallProductPublic,
-  CartItem,
 } from '@/types/types';
-import { addToCartDB } from '@/lib/cartService';
-import { createClient } from '@/lib/supabase-client';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
 import { setMallAutoCoupon, clearMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
-import { renderPartnerMallSidePreviews, type SidePreview } from '@/lib/partnerMallSidePreviews';
 import Header from '@/app/components/Header';
-import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
 import AddProductModal from './AddProductModal';
 
 // API에서 내려오는 자동 적용 할인코드 형태 (영업사원 mall 전용)
@@ -47,27 +42,8 @@ export default function PartnerMallPage() {
   const [error, setError] = useState<string | null>(null);
   const [salesmanCoupon, setSalesmanCoupon] = useState<SalesmanCouponPayload | null>(null);
 
-  // Product detail sheet state
-  const [selectedProduct, setSelectedProduct] = useState<PartnerMallProductPublic | null>(null);
-  const [isSavingCart, setIsSavingCart] = useState(false);
-
-  // 다중 side 미리보기(앞/뒤/옆 등). selectedProduct 변경 시 클라이언트에서 fabric으로 합성
-  const [sidePreviews, setSidePreviews] = useState<SidePreview[]>([]);
-  const [previewsLoading, setPreviewsLoading] = useState(false);
-
   // Add product modal state
   const [showAddProduct, setShowAddProduct] = useState(false);
-
-  // Auth state
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-
-  // Check auth
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(!!data.user);
-    });
-  }, []);
 
   const fetchMall = async () => {
     if (!shareToken) return;
@@ -116,27 +92,9 @@ export default function PartnerMallPage() {
     [mall]
   );
 
-  const basePrice = selectedProduct?.product?.base_price ?? 0;
-
-  // Calculate additional printing cost from logo placements
-  const additionalPrice = useMemo(() => {
-    if (!selectedProduct?.product?.configuration || !selectedProduct?.logo_placements) return 0;
-    return calculateLogoAdditionalPrice(
-      selectedProduct.product.configuration,
-      selectedProduct.logo_placements
-    );
-  }, [selectedProduct]);
-
-  // Use set price if available, otherwise calculate from base + additional
-  const pricePerItem = selectedProduct?.price ?? (basePrice + additionalPrice);
-
   // Get product price - use set price if available, otherwise calculate
   const getProductPrice = (mp: PartnerMallProductPublic): number => {
-    // If custom price is set, use it
-    if (mp.price !== null && mp.price !== undefined) {
-      return mp.price;
-    }
-    // Otherwise calculate from base price + logo additional price
+    if (mp.price !== null && mp.price !== undefined) return mp.price;
     const base = mp.product?.base_price ?? 0;
     if (!mp.product?.configuration || !mp.logo_placements) return base;
     return base + calculateLogoAdditionalPrice(mp.product.configuration, mp.logo_placements);
@@ -149,97 +107,28 @@ export default function PartnerMallPage() {
     return Math.max(0, discounted);
   };
 
-  const openProductSheet = (product: PartnerMallProductPublic) => {
-    setSelectedProduct(product);
-    setSidePreviews([]);
-  };
-
-  const closeProductSheet = () => {
-    setSelectedProduct(null);
-    setSidePreviews([]);
-  };
-
-  // 선택된 제품이 바뀌면 sideId별 합성 미리보기 생성 (클라이언트 사이드 fabric)
-  useEffect(() => {
-    let cancelled = false;
-    if (!selectedProduct?.product) {
-      setSidePreviews([]);
-      return;
-    }
-    setPreviewsLoading(true);
-    renderPartnerMallSidePreviews(selectedProduct.product, selectedProduct)
-      .then((results) => {
-        if (!cancelled) setSidePreviews(results);
-      })
-      .catch((err) => {
-        console.warn('[mall] side previews failed:', err);
-        if (!cancelled) setSidePreviews([]);
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProduct]);
-
-  // 사이즈별 다중 수량을 한 번에 처리. 첫 호출에서 만들어진 saved_design을 후속 호출이 재사용.
-  const handleConfirmCart = async (
-    designName: string,
-    selectedItems: CartItem[],
-    purchaseType: 'direct' | 'cart',
-  ) => {
-    if (!selectedProduct?.product) return;
-
-    if (!isLoggedIn) {
-      router.push(`/login?redirect=/mall/${shareToken}`);
-      return;
-    }
-
-    setIsSavingCart(true);
+  // 카드 클릭 → 에디터로 이동. 에디터가 단체몰 디자인을 실제 캔버스에 restore해서
+  // 사용자가 그대로 또는 약간 수정해서 주문할 수 있게 한다. 미리보기/장바구니/게스트 처리
+  // 모두 에디터 흐름을 그대로 재사용 (modoo_app의 단일 주문 흐름).
+  const openProductInEditor = (mp: PartnerMallProductPublic) => {
+    if (!mp.product || !mall) return;
     try {
-      const product = selectedProduct.product;
-      let sharedDesignId: string | undefined;
-      const newCartItemIds: string[] = [];
-
-      for (const item of selectedItems) {
-        const dbCartItem = await addToCartDB({
-          productId: product.id,
-          productTitle: selectedProduct.display_name || product.title,
-          productColor: selectedProduct.color_hex || '',
-          productColorName: selectedProduct.color_name || '',
-          productColorCode: selectedProduct.color_code || '',
-          size: item.size,
-          quantity: item.quantity,
-          pricePerItem,
-          canvasState: (selectedProduct.canvas_state || {}) as Record<string, string>,
-          thumbnailUrl: selectedProduct.preview_url || product.thumbnail_image_link?.[0] || '',
-          previewImage: selectedProduct.preview_url || undefined,
-          designName,
-          savedDesignId: sharedDesignId,
-          partnerMallId: mall?.id ?? null,
-        });
-
-        if (dbCartItem?.id) {
-          newCartItemIds.push(dbCartItem.id);
-        }
-        if (!sharedDesignId && dbCartItem?.saved_design_id) {
-          sharedDesignId = dbCartItem.saved_design_id;
-        }
-      }
-
-      if (purchaseType === 'direct' && newCartItemIds.length > 0) {
-        sessionStorage.setItem(
-          'directCheckoutItemIds',
-          JSON.stringify(newCartItemIds),
-        );
-      }
+      sessionStorage.setItem(
+        'partnerMallBuyData',
+        JSON.stringify({
+          shareToken,
+          partnerMallId: mall.id,
+          displayName: mp.display_name || mp.product.title,
+          colorHex: mp.color_hex || null,
+          colorName: mp.color_name || null,
+          colorCode: mp.color_code || null,
+          canvasState: mp.canvas_state || {},
+        }),
+      );
     } catch (err) {
-      console.error('[mall/shareToken] handleConfirmCart error:', err);
-      throw err;
-    } finally {
-      setIsSavingCart(false);
+      console.warn('[mall] failed to persist partnerMallBuyData', err);
     }
+    router.push(`/editor/${mp.product.id}?partnerMallBuy=1`);
   };
 
   // Loading state
@@ -308,7 +197,7 @@ export default function PartnerMallPage() {
           {products.map((mp) => (
             <button
               key={mp.id}
-              onClick={() => openProductSheet(mp)}
+              onClick={() => openProductInEditor(mp)}
               className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow text-left"
             >
               <div className="aspect-square bg-gray-100 relative">
@@ -370,37 +259,7 @@ export default function PartnerMallPage() {
         </div>
       </div>
 
-      {/* Product purchase modal — 사이즈별 수량 입력 + 사이즈표 + 다중 side 미리보기 */}
-      {selectedProduct && (
-        <QuantitySelectorModal
-          isOpen={!!selectedProduct}
-          onClose={closeProductSheet}
-          onConfirm={handleConfirmCart}
-          sizeOptions={selectedProduct.product?.size_options ?? []}
-          pricePerItem={applySalesmanDiscount(pricePerItem) ?? pricePerItem}
-          isSaving={isSavingCart}
-          defaultDesignName={
-            selectedProduct.display_name ||
-            selectedProduct.product?.title ||
-            ''
-          }
-          sizingChartImage={selectedProduct.product?.sizing_chart_image ?? null}
-          productId={selectedProduct.product?.id}
-          previewSlot={
-            <SidePreviewCarousel
-              fallbackUrl={
-                selectedProduct.preview_url ||
-                selectedProduct.product?.thumbnail_image_link?.[0] ||
-                null
-              }
-              previews={sidePreviews}
-              loading={previewsLoading}
-            />
-          }
-        />
-      )}
-
-      {/* (definition below) Add product modal */}
+      {/* Add product modal */}
       {showAddProduct && mall && (
         <AddProductModal
           shareToken={shareToken}
@@ -413,88 +272,6 @@ export default function PartnerMallPage() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-/**
- * 다중 side 가로 캐러셀. fabric 합성 결과(SidePreview[])를 받아 표시.
- * 합성 실패 또는 로딩 중일 때는 fallback 이미지(partner_mall_products.preview_url 등)로.
- */
-function SidePreviewCarousel({
-  previews,
-  loading,
-  fallbackUrl,
-}: {
-  previews: SidePreview[];
-  loading: boolean;
-  fallbackUrl: string | null;
-}) {
-  if (loading && previews.length === 0) {
-    return (
-      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (previews.length === 0) {
-    return (
-      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl overflow-hidden">
-        {fallbackUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={fallbackUrl}
-            alt=""
-            className="w-full h-full object-contain p-3"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Package className="w-10 h-10 text-gray-300" />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (previews.length === 1) {
-    return (
-      <div className="aspect-square w-full max-w-[320px] mx-auto bg-gray-100 rounded-xl overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={previews[0].dataUrl}
-          alt={previews[0].sideName}
-          className="w-full h-full object-contain p-3"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {previews.map((p) => (
-          <figure
-            key={p.sideId}
-            className="snap-center shrink-0 w-[260px] sm:w-[300px]"
-          >
-            <div className="aspect-square w-full bg-gray-100 rounded-xl overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.dataUrl}
-                alt={p.sideName}
-                className="w-full h-full object-contain p-3"
-              />
-            </div>
-            <figcaption className="mt-1.5 text-center text-[11px] text-gray-500">
-              {p.sideName}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-      <p className="mt-1 text-center text-[10px] text-gray-400">
-        좌우로 넘기면서 앞·뒤·옆면 확인
-      </p>
     </div>
   );
 }
