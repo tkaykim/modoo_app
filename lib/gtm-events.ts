@@ -31,7 +31,15 @@ export type DesignActionType =
   | 'face_change'
   | 'layer_move'
   | 'reset'
-  | 'object_delete';
+  | 'object_delete'
+  | 'template_gallery_view'
+  | 'template_card_click'
+  | 'template_quick_apply'
+  | 'slot_image_replace'
+  | 'slot_text_replace'
+  | 'slot_crop_complete'
+  | 'slot_bg_remove_complete'
+  | 'template_to_quantity';
 
 export type DesignFace = 'front' | 'back' | 'left' | 'right';
 

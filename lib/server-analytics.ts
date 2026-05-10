@@ -123,7 +123,16 @@ async function sendMetaCAPI(input: ServerPurchaseInput): Promise<void> {
   const pixelId = process.env.META_PIXEL_ID || process.env.NEXT_PUBLIC_META_PIXEL_ID;
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
   const apiVersion = process.env.META_GRAPH_API_VERSION || 'v21.0';
-  if (!pixelId || !accessToken) return;
+  const testEventCode = process.env.META_CAPI_TEST_EVENT_CODE;
+  if (!pixelId || !accessToken) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[server-analytics] Meta CAPI skipped:',
+        !pixelId ? 'META_PIXEL_ID missing' : 'META_CAPI_ACCESS_TOKEN missing',
+      );
+    }
+    return;
+  }
 
   const userData: Record<string, unknown> = {};
   if (input.customer?.email) userData.em = [sha256(input.customer.email)];
@@ -139,7 +148,7 @@ async function sendMetaCAPI(input: ServerPurchaseInput): Promise<void> {
   if (input.clientIp) userData.client_ip_address = input.clientIp;
   if (input.userAgent) userData.client_user_agent = input.userAgent;
 
-  const body = {
+  const body: Record<string, unknown> = {
     data: [
       {
         event_name: 'Purchase',
@@ -163,6 +172,7 @@ async function sendMetaCAPI(input: ServerPurchaseInput): Promise<void> {
       },
     ],
   };
+  if (testEventCode) body.test_event_code = testEventCode;
 
   try {
     const res = await fetch(
