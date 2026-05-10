@@ -80,6 +80,96 @@ export async function submitDesignerRequest(
   return { success: true, sourceUrl };
 }
 
+/**
+ * Walk a saved canvas state map (sideId -> fabric JSON) and collect every
+ * fabric object marked as a pending designer job. Each canvas object has its
+ * custom metadata under the `data` key (preserved by `toObject(['data'])`
+ * during serialization).
+ */
+export function collectDesignerJobsFromCanvasStates(
+  canvasStateMap: Record<string, unknown> | null | undefined,
+): Array<{
+  jobId: string;
+  sourceUrl: string;
+  sourceFileName?: string | null;
+}> {
+  if (!canvasStateMap || typeof canvasStateMap !== 'object') return [];
+  const jobs: Array<{ jobId: string; sourceUrl: string; sourceFileName?: string | null }> = [];
+  for (const sideState of Object.values(canvasStateMap)) {
+    if (!sideState) continue;
+    let parsed: unknown = sideState;
+    if (typeof sideState === 'string') {
+      try { parsed = JSON.parse(sideState); } catch { continue; }
+    }
+    const objs = (parsed as { objects?: unknown[] })?.objects;
+    if (!Array.isArray(objs)) continue;
+    for (const obj of objs) {
+      const data = (obj as { data?: Record<string, unknown> })?.data;
+      if (!data) continue;
+      const jobId = data.designerJobId as string | undefined;
+      const pending = data.designerPending;
+      if (!jobId || pending !== true) continue;
+      const sourceUrl = (data.designerSourceUrl as string | undefined)
+        ?? (data.originalFileUrl as string | undefined)
+        ?? (data.supabaseUrl as string | undefined);
+      if (!sourceUrl) continue;
+      jobs.push({
+        jobId,
+        sourceUrl,
+        sourceFileName: (data.designerSourceFileName as string | undefined)
+          ?? (data.originalFileName as string | undefined)
+          ?? null,
+      });
+    }
+  }
+  return jobs;
+}
+
+/**
+ * Insert designer_requests rows for every pending designer job found in the
+ * given order_items' canvas_state. Idempotent on `fabric_object_id`.
+ * Failures are logged and swallowed — order completion must not be blocked.
+ */
+export async function insertDesignerRequestsForOrder(
+  supabase: SupabaseClient,
+  params: {
+    orderId: string;
+    designId?: string | null;
+    requesterUserId: string | null;
+    requesterName: string;
+    requesterContact: string;
+    requestNote?: string | null;
+    orderItems: Array<{ canvas_state: Record<string, unknown> | null | undefined }>;
+  },
+): Promise<{ inserted: number; failed: number }> {
+  const allJobs: Array<{ jobId: string; sourceUrl: string; sourceFileName?: string | null }> = [];
+  for (const item of params.orderItems) {
+    allJobs.push(...collectDesignerJobsFromCanvasStates(item.canvas_state ?? null));
+  }
+  if (allJobs.length === 0) return { inserted: 0, failed: 0 };
+  const seen = new Set<string>();
+  const rows = allJobs
+    .filter((j) => (seen.has(j.jobId) ? false : (seen.add(j.jobId), true)))
+    .map((j) => ({
+      fabric_object_id: j.jobId,
+      design_id: params.designId ?? params.orderId,
+      source_url: j.sourceUrl,
+      requester_user_id: params.requesterUserId,
+      requester_name: params.requesterName,
+      requester_contact: params.requesterContact,
+      request_note: params.requestNote ?? null,
+      status: 'pending' as const,
+    }));
+  const { error } = await supabase
+    .from('designer_requests')
+    .upsert(rows, { onConflict: 'fabric_object_id', ignoreDuplicates: true });
+  if (error) {
+    console.error('[designer_requests] insert failed:', error);
+    return { inserted: 0, failed: rows.length };
+  }
+  return { inserted: rows.length, failed: 0 };
+}
+
 export async function markDesignerRequestCompleted(
   supabase: SupabaseClient,
   jobId: string,

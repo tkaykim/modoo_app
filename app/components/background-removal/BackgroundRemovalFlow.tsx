@@ -9,7 +9,6 @@ type Step =
   | 'ask'
   | 'processing'
   | 'review'
-  | 'designer-form'
   | 'designer-done';
 type Progress = { key: string; current: number; total: number } | null;
 type Tier = { engine: Engine; model: ModelKey; statusLabel: string };
@@ -213,13 +212,6 @@ const checkerStyle: React.CSSProperties = {
   backgroundColor: '#fff',
 };
 
-export type DesignerRequestPayload = {
-  name: string;
-  contact: string;
-  note: string;
-  file: File;
-};
-
 export type FlowResult = {
   blob: Blob;
   /** true: user accepted bg-removed result. false: user opted to keep original or this is a designer-pending placeholder. */
@@ -244,8 +236,6 @@ export type BackgroundRemovalFlowProps = {
   initialFile?: File;
   onComplete: (result: FlowResult) => void;
   onCancel?: () => void;
-  /** Optional handler. If omitted, the flow shows its own success message after submit. */
-  onDesignerRequest?: (payload: DesignerRequestPayload) => void | Promise<void>;
   /** Force a specific model (skip auto-escalation). Mostly for testing. */
   forceModel?: ModelKey;
   /** Chroma-key tolerance for solid-bg detection. Default 8. */
@@ -257,7 +247,6 @@ export function BackgroundRemovalFlow({
   initialFile,
   onComplete,
   onCancel,
-  onDesignerRequest,
   forceModel,
   chromaTolerance = 8,
   className = '',
@@ -272,10 +261,6 @@ export function BackgroundRemovalFlow({
   const [progress, setProgress] = useState<Progress>(null);
   const [statusOverride, setStatusOverride] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [requesterName, setRequesterName] = useState('');
-  const [requesterContact, setRequesterContact] = useState('');
-  const [requestNote, setRequestNote] = useState('');
 
   // Object URL lifecycle — tied to source blob, survives StrictMode double-effect
   useEffect(() => {
@@ -374,20 +359,6 @@ export function BackgroundRemovalFlow({
   }
 
   function onAskDesigner() {
-    setStep('designer-form');
-  }
-
-  async function submitDesignerRequest(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file) return;
-    if (onDesignerRequest) {
-      await onDesignerRequest({
-        name: requesterName,
-        contact: requesterContact,
-        note: requestNote,
-        file,
-      });
-    }
     setStep('designer-done');
   }
 
@@ -439,19 +410,6 @@ export function BackgroundRemovalFlow({
           onAccept={onAcceptResult}
           onRetry={onRetry}
           onAskDesigner={onAskDesigner}
-        />
-      )}
-
-      {step === 'designer-form' && (
-        <DesignerFormView
-          name={requesterName}
-          contact={requesterContact}
-          note={requestNote}
-          setName={setRequesterName}
-          setContact={setRequesterContact}
-          setNote={setRequestNote}
-          onSubmit={submitDesignerRequest}
-          onBack={() => setStep('review')}
         />
       )}
 
@@ -706,86 +664,6 @@ function ReviewView({
         )}
       </div>
     </div>
-  );
-}
-
-function DesignerFormView({
-  name,
-  contact,
-  note,
-  setName,
-  setContact,
-  setNote,
-  onSubmit,
-  onBack,
-}: {
-  name: string;
-  contact: string;
-  note: string;
-  setName: (v: string) => void;
-  setContact: (v: string) => void;
-  setNote: (v: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onBack: () => void;
-}) {
-  return (
-    <form onSubmit={onSubmit} className="rounded-2xl border bg-white p-6">
-      <h2 className="text-lg font-semibold">디자이너에게 맡기기</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        걱정하지 마세요. 전문 디자이너가 24시간 안에 깨끗하게 작업해서 보내드려요.
-      </p>
-      <div className="mt-5 space-y-3">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">이름</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            placeholder="홍길동"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            연락처 (이메일 또는 휴대폰)
-          </label>
-          <input
-            type="text"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            placeholder="hello@example.com"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">요청사항 (선택)</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            placeholder="예: 인물의 머리카락 디테일을 살려주세요"
-          />
-        </div>
-      </div>
-      <div className="mt-5 flex gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium"
-        >
-          뒤로
-        </button>
-        <button
-          type="submit"
-          className="flex-1 rounded-xl bg-black py-3 text-sm font-semibold text-white"
-        >
-          요청 보내기
-        </button>
-      </div>
-    </form>
   );
 }
 

@@ -8,6 +8,7 @@ import {
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
+import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
 interface OrderData {
   id: string;
@@ -431,6 +432,23 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error(`Error exporting SVG for item ${item.id}:`, error);
       }
+    }
+
+    // Designer-pending placeholders → designer_requests row insert.
+    try {
+      await insertDesignerRequestsForOrder(supabase, {
+        orderId: order.id,
+        designId: null,
+        requesterUserId: user?.id ?? null,
+        requesterName: orderData.name,
+        requesterContact: orderData.email || orderData.phone_num,
+        requestNote: customerNoteWithBankInfo ?? null,
+        orderItems: (insertedItems ?? []).map((it) => ({
+          canvas_state: it.canvas_state as Record<string, unknown> | null | undefined,
+        })),
+      });
+    } catch (designerErr) {
+      console.error('[bank-transfer] designer_requests insert failed:', designerErr);
     }
 
     // Send notification emails (non-blocking)

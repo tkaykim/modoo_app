@@ -5,7 +5,6 @@ import {
   BackgroundRemovalFlow,
   clearBackgroundRemovalCache,
   preloadBackgroundRemoval,
-  type DesignerRequestPayload,
   type FlowResult,
   type ModelKey,
 } from '@/app/components/background-removal/BackgroundRemovalFlow';
@@ -173,9 +172,6 @@ function PageDemo({ forceModel, chromaTolerance }: FlowOverrides) {
       forceModel={forceModel}
       chromaTolerance={chromaTolerance}
       onComplete={handleComplete}
-      onDesignerRequest={async (p) => {
-        console.log('[demo] designer request', p);
-      }}
     />
   );
 }
@@ -244,11 +240,6 @@ function ModalDemo({ forceModel, chromaTolerance }: FlowOverrides) {
       prev.map((it) => (it.id === id ? { ...it, designerPending: false, usedRemoval: true } : it)),
     );
     log(`디자이너 작업 결과 도착 → placeholder 교체 (id=${id})`);
-  }
-
-  function onDesignerRequest(p: DesignerRequestPayload) {
-    log(`디자이너 요청 접수: ${p.name} / ${p.contact}`);
-    // In prod: POST to /api/designer-request with file upload
   }
 
   function removeItem(id: number) {
@@ -385,7 +376,6 @@ function ModalDemo({ forceModel, chromaTolerance }: FlowOverrides) {
             chromaTolerance={chromaTolerance}
             onComplete={onComplete}
             onCancel={closeModal}
-            onDesignerRequest={onDesignerRequest}
           />
         </Modal>
       )}

@@ -9,6 +9,7 @@ import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
+import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -578,6 +579,25 @@ export async function POST(request: NextRequest) {
           console.error(`Error stack:`, error.stack);
         }
       }
+    }
+
+    // Designer-pending objects on the canvas → insert designer_requests rows
+    // here (rather than at click time in the editor). Customer info is now
+    // available, and abandoned designs never produce orphan rows.
+    try {
+      await insertDesignerRequestsForOrder(supabase, {
+        orderId: order.id,
+        designId: null,
+        requesterUserId: user?.id ?? null,
+        requesterName: orderData.name,
+        requesterContact: orderData.email || orderData.phone_num,
+        requestNote: orderData.customer_note ?? null,
+        orderItems: (insertedItems ?? []).map((it) => ({
+          canvas_state: it.canvas_state as Record<string, unknown> | null | undefined,
+        })),
+      });
+    } catch (designerErr) {
+      console.error('[toss/confirm] designer_requests insert failed:', designerErr);
     }
 
     // Send order notification emails (non-blocking)

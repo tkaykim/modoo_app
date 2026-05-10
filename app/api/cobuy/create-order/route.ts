@@ -7,6 +7,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
+import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
 interface OrderData {
   id: string;
@@ -307,6 +308,20 @@ export async function POST(request: NextRequest) {
     } catch (exportError) {
       // Log error but don't fail the order
       console.error(`Failed to export SVG for order ${order.id}:`, exportError);
+    }
+
+    try {
+      await insertDesignerRequestsForOrder(db, {
+        orderId: order.id,
+        designId: null,
+        requesterUserId: orderUserId ?? null,
+        requesterName: orderData.name,
+        requesterContact: orderData.email || orderData.phone_num,
+        requestNote: null,
+        orderItems: [{ canvas_state: orderItem.canvas_state as Record<string, unknown> | null | undefined }],
+      });
+    } catch (designerErr) {
+      console.error('[cobuy/create-order] designer_requests insert failed:', designerErr);
     }
 
     // Update session with bulk_order_id and set status to order_complete

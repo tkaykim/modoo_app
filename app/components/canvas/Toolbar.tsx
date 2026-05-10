@@ -21,11 +21,10 @@ import { trackDesignAction } from '@/lib/gtm-events';
 import {
   BackgroundRemovalFlow,
   preloadBackgroundRemoval,
-  type DesignerRequestPayload,
   type FlowResult,
 } from '@/app/components/background-removal/BackgroundRemovalFlow';
 import { addDesignerPendingBadge } from './designerPendingBadge';
-import { submitDesignerRequest } from '@/lib/designerRequest';
+import FreeFormCropper from './FreeFormCropper';
 
 interface ToolbarProps {
   sides?: ProductSide[];
@@ -66,7 +65,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   };
   const [bgPending, setBgPending] = useState<BgPending | null>(null);
   const [bgModalOpen, setBgModalOpen] = useState(false);
-  const [designerPayload, setDesignerPayload] = useState<DesignerRequestPayload | null>(null);
+  // Crop step (free-form) sits between file pick and bg-removal modal.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
   // const canvas = getActiveCanvas();
 
   // Anchor preset panel state.
@@ -380,18 +381,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             sourceUrl: origUploadResult.url,
             sourcePath: origUploadResult.path ?? null,
           });
-          setDesignerPayload(null);
-          setBgModalOpen(true);
+          // Show crop step before bg-removal.
+          setCropFile(pngFile);
+          setCropOpen(true);
         } else {
-          // Regular image — feed directly into bg-removal modal.
+          // Regular image — show crop step before bg-removal modal.
           setBgPending({
             pngFile: file,
             sourceFile: file,
             sourceUrl: null,
             sourcePath: null,
           });
-          setDesignerPayload(null);
-          setBgModalOpen(true);
+          setCropFile(file);
+          setCropOpen(true);
         }
       } catch (error) {
         setIsLoadingModalOpen(false);
@@ -406,7 +408,27 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const handleBgCancel = () => {
     setBgModalOpen(false);
     setBgPending(null);
-    setDesignerPayload(null);
+  };
+
+  const handleCropCancel = () => {
+    setCropOpen(false);
+    setCropFile(null);
+    setBgPending(null);
+  };
+
+  const proceedToBgRemoval = (pngFile: File) => {
+    setBgPending((prev) => (prev ? { ...prev, pngFile } : prev));
+    setCropOpen(false);
+    setCropFile(null);
+    setBgModalOpen(true);
+  };
+
+  const handleCropConfirm = (cropped: File) => {
+    proceedToBgRemoval(cropped);
+  };
+
+  const handleCropSkip = () => {
+    if (bgPending) proceedToBgRemoval(bgPending.pngFile);
   };
 
   // Phase 2: BackgroundRemovalFlow finished → upload result → place on canvas.
@@ -457,37 +479,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           : `이미지 업로드에 실패했습니다.\n사유: ${rawErr || '알 수 없음'}`;
         alert(friendly);
         setBgPending(null);
-        setDesignerPayload(null);
         return;
       }
 
-      // Designer request: only when user explicitly delegated.
+      // Designer delegation: tag the canvas object with a pending jobId. The
+      // actual designer_requests row is inserted at order placement time using
+      // the customer info collected at checkout — avoids duplicate data entry
+      // and prevents orphan rows from abandoned designs.
       let designerJobId: string | null = null;
       if (result.designerPending) {
         designerJobId =
           typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const payload = designerPayload;
-        // submitDesignerRequest reuses already-uploaded sourceUrl when available
-        // (AI/PSD flow); otherwise uploads the source file.
-        const baseInput = {
-          jobId: designerJobId,
-          designId: productId ?? null,
-          requesterName: payload?.name ?? '',
-          requesterContact: payload?.contact ?? '',
-          requestNote: payload?.note,
-        };
-        const submission = await submitDesignerRequest(
-          supabase,
-          pending.sourceUrl
-            ? { ...baseInput, sourceUrl: pending.sourceUrl }
-            : { ...baseInput, sourceFile: pending.sourceFile },
-        );
-        if (!submission.success) {
-          // Non-fatal: still place the image so user keeps layout, but warn.
-          console.error('Designer request submit failed:', submission.error);
-        }
       }
 
       const displayUrl = displayUploadResult.url;
@@ -527,7 +531,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         uploadedAt: new Date().toISOString(),
         printMethod: 'dtf',
         ...(designerJobId
-          ? { designerJobId, designerPending: true }
+          ? {
+              designerJobId,
+              designerPending: true,
+              designerSourceUrl: pending.sourceUrl ?? displayUrl,
+              designerSourcePath: pending.sourcePath ?? null,
+              designerSourceFileName: pending.sourceFile.name,
+            }
           : { bgRemoved: result.usedRemoval }),
       };
 
@@ -561,7 +571,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       alert('이미지를 캔버스에 추가하는 데 실패했습니다.');
     } finally {
       setBgPending(null);
-      setDesignerPayload(null);
     }
   };
 
@@ -748,13 +757,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             initialFile={bgPending.pngFile}
             onComplete={handleBgComplete}
             onCancel={handleBgCancel}
-            onDesignerRequest={async (payload) => {
-              setDesignerPayload(payload);
-            }}
           />
         </div>
       </div>
     ) : null;
+
+  const cropModal = cropOpen && cropFile ? (
+    <FreeFormCropper
+      file={cropFile}
+      isOpen={cropOpen}
+      title="영역 선택"
+      onConfirm={handleCropConfirm}
+      onSkip={handleCropSkip}
+      onCancel={handleCropCancel}
+    />
+  ) : null;
 
   if (isDesktop) {
     return (
@@ -893,6 +910,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           />
         )}
 
+        {cropModal}
         {bgRemovalModal}
       </>
     );

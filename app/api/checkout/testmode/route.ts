@@ -5,6 +5,7 @@ import {
   type TextSvgExports,
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
+import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
 // Type definitions for request body
 interface OrderData {
@@ -336,6 +337,22 @@ export async function POST(request: NextRequest) {
         // Log error but don't fail the order
         console.error(`Error exporting SVG for item ${item.id}:`, error);
       }
+    }
+
+    try {
+      await insertDesignerRequestsForOrder(supabase, {
+        orderId: order.id,
+        designId: null,
+        requesterUserId: user?.id ?? null,
+        requesterName: orderData.name,
+        requesterContact: orderData.email || orderData.phone_num,
+        requestNote: orderData.customer_note ?? null,
+        orderItems: (insertedItems ?? []).map((it) => ({
+          canvas_state: it.canvas_state as Record<string, unknown> | null | undefined,
+        })),
+      });
+    } catch (designerErr) {
+      console.error('[testmode] designer_requests insert failed:', designerErr);
     }
 
     return NextResponse.json({
