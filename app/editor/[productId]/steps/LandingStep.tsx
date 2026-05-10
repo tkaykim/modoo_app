@@ -5,6 +5,7 @@ import ReviewsSection from '@/app/components/ReviewsSection'
 import DescriptionImageSection from '@/app/components/DescriptionImageSection'
 import ShareProductButton from '@/app/components/ShareProductButton'
 import SimilarProducts from '@/app/components/SimilarProducts'
+import ProductTemplatesStrip from '@/app/components/templates/ProductTemplatesStrip'
 
 interface LandingStepProps {
   product: Product
@@ -58,6 +59,11 @@ export default function LandingStep({
               디자인하기
             </button>
           </div>
+        </div>
+
+        {/* Product templates quick-start */}
+        <div className="px-4 lg:px-0 lg:mt-4">
+          <ProductTemplatesStrip productId={product.id} />
         </div>
 
         {/* Reviews */}

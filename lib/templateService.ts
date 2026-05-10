@@ -1,5 +1,90 @@
 import { createClient } from './supabase-client';
 import { DesignTemplate, TemplatePickerItem } from '@/types/types';
+import { TemplateCategory } from './templateCategories';
+
+type ProductJoin = {
+  id: string;
+  title: string;
+  base_price: number;
+  thumbnail_image_link: string[] | null;
+};
+
+function mapJoinedToPickerItem(row: {
+  id: string;
+  title: string;
+  description: string | null;
+  preview_url: string | null;
+  category: string | null;
+  tags: string[] | null;
+  products?: ProductJoin | ProductJoin[] | null;
+}): TemplatePickerItem {
+  const productRaw = Array.isArray(row.products) ? row.products[0] : row.products;
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    preview_url: row.preview_url,
+    category: row.category,
+    tags: row.tags ?? [],
+    product: productRaw ?? null,
+  };
+}
+
+/**
+ * Featured templates surfaced on the home page and global gallery.
+ */
+export async function getFeaturedTemplates(limit = 8): Promise<TemplatePickerItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('design_templates')
+    .select(
+      'id, title, description, preview_url, category, tags, products:product_id (id, title, base_price, thumbnail_image_link)',
+    )
+    .eq('is_active', true)
+    .eq('is_featured', true)
+    .neq('type', 'cobuy_preset')
+    .order('sort_order', { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error('Failed to fetch featured templates:', error);
+    return [];
+  }
+  return (data ?? []).map(mapJoinedToPickerItem);
+}
+
+/**
+ * Filter templates for the global /templates gallery (and category sub-pages).
+ */
+export async function getTemplatesByFilter(opts: {
+  category?: TemplateCategory;
+  tag?: string;
+  productId?: string;
+  limit?: number;
+}): Promise<TemplatePickerItem[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from('design_templates')
+    .select(
+      'id, title, description, preview_url, category, tags, products:product_id (id, title, base_price, thumbnail_image_link)',
+    )
+    .eq('is_active', true)
+    .neq('type', 'cobuy_preset')
+    .order('is_featured', { ascending: false })
+    .order('sort_order', { ascending: true });
+
+  if (opts.category) query = query.eq('category', opts.category);
+  if (opts.productId) query = query.eq('product_id', opts.productId);
+  if (opts.tag) query = query.contains('tags', [opts.tag]);
+  if (opts.limit) query = query.limit(opts.limit);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('Failed to fetch templates by filter:', error);
+    return [];
+  }
+  return (data ?? []).map(mapJoinedToPickerItem);
+}
 
 /**
  * Get all active templates for a product (lightweight version for picker)

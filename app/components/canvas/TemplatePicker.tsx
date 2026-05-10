@@ -7,6 +7,7 @@ import { getProductTemplates, getTemplate } from '@/lib/templateService';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import TemplateCard from './TemplateCard';
 import { trackDesignAction } from '@/lib/gtm-events';
+import { applyTemplateToStore } from '@/lib/applyTemplate';
 
 interface TemplatePickerProps {
   productId: string;
@@ -21,7 +22,8 @@ const TemplatePicker: React.FC<TemplatePickerProps> = ({ productId, isOpen, onCl
   const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { restoreAllCanvasState, incrementCanvasVersion, setLayerColor } = useCanvasStore();
+  // store hook kept for backwards compat (no direct callers post-refactor)
+  useCanvasStore();
 
   // Fetch templates when modal opens
   useEffect(() => {
@@ -64,24 +66,7 @@ const TemplatePicker: React.FC<TemplatePickerProps> = ({ productId, isOpen, onCl
         return;
       }
 
-      // Apply template canvas state
-      restoreAllCanvasState(template.canvas_state);
-
-      // Apply layer colors if present
-      if (template.layer_colors && Object.keys(template.layer_colors).length > 0) {
-        // Iterate through each side's layer colors
-        for (const [sideId, layerColorMap] of Object.entries(template.layer_colors)) {
-          if (layerColorMap && typeof layerColorMap === 'object') {
-            for (const [layerId, hexColor] of Object.entries(layerColorMap)) {
-              setLayerColor(sideId, layerId, hexColor as string);
-            }
-          }
-        }
-      }
-
-      // Trigger pricing recalculation
-      incrementCanvasVersion();
-
+      await applyTemplateToStore(template);
       trackDesignAction({ action_type: 'template_apply', product_id: productId });
 
       onClose();

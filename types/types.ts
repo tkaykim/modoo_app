@@ -297,6 +297,28 @@ export interface SavedDesignScreenshot {
   image_urls: Record<string, unknown>;
 }
 
+// Design Template — replaceable image slot manifest entry.
+// admin tags Fabric image objects so customers see only the parts that should be swapped.
+export interface ImageSlot {
+  slot_id: string;             // matches Fabric object data.slot_id
+  side_id: string;             // ProductSide.id
+  label: string;               // user-facing label (e.g. "메인 사진")
+  default_image_url: string;
+  aspect_ratio: number;        // width / height — enforced by SlotImageCropper
+  print_method_id: string;     // locked print method id (자수/실사/전사 등)
+  accepts: 'photo' | 'logo';
+  bg_removal_default?: boolean; // default ON for photo/logo slots
+}
+
+export interface TextSlot {
+  slot_id: string;
+  side_id: string;
+  label: string;
+  placeholder?: string;
+  max_length?: number;
+  lock_style: boolean; // true: keep template font/color/size, only swap text
+}
+
 // Design Template - Admin-managed pre-made designs for products
 export interface DesignTemplate {
   id: string;
@@ -309,6 +331,11 @@ export interface DesignTemplate {
   sort_order: number;
   is_active: boolean;
   type: string; // 'template' | 'cobuy_preset'
+  category: string | null;
+  tags: string[];
+  is_featured: boolean;
+  image_slots: ImageSlot[];
+  text_slots: TextSlot[];
   created_at: string;
   updated_at: string;
 }
@@ -319,6 +346,15 @@ export interface TemplatePickerItem {
   title: string;
   description: string | null;
   preview_url: string | null;
+  category?: string | null;
+  tags?: string[];
+  // Joined product info for global gallery cards
+  product?: {
+    id: string;
+    title: string;
+    base_price: number;
+    thumbnail_image_link: string[] | null;
+  } | null;
 }
 
 export interface OrderItem {
