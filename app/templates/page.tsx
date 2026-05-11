@@ -2,19 +2,19 @@ import type { Metadata } from 'next';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import CategoryChips from '@/app/components/templates/CategoryChips';
-import TemplateGalleryCard from '@/app/components/templates/TemplateGalleryCard';
-import { getTemplatesByFilter } from '@/lib/templateService';
+import GalleryItemCard from '@/app/components/templates/GalleryItemCard';
+import { getGalleryFeed } from '@/lib/templateService';
 
 export const metadata: Metadata = {
   title: { absolute: '디자인 템플릿 둘러보기 · 모두의 유니폼' },
-  description: '가족·반려동물·단체·로고 등 다양한 커스텀 의류 디자인 템플릿. 사진만 교체해 빠르게 주문하세요.',
+  description: '가족·반려동물·단체·로고 등 자주 쓰이는 디자인 템플릿. 사진과 텍스트만 교체해서 빠르게 주문하세요.',
   alternates: { canonical: '/templates' },
 };
 
 export const revalidate = 60;
 
 export default async function TemplatesIndexPage() {
-  const items = await getTemplatesByFilter({});
+  const items = await getGalleryFeed();
 
   return (
     <div className="min-h-screen bg-white text-black">
@@ -24,7 +24,7 @@ export default async function TemplatesIndexPage() {
 
       <main className="max-w-screen-lg mx-auto px-4 py-6">
         <div className="mb-4">
-          <h1 className="text-xl font-bold">디자인 템플릿</h1>
+          <h1 className="text-xl font-bold">자주 쓰이는 템플릿으로 빠르게 제작</h1>
           <p className="text-sm text-gray-500 mt-1">사진과 텍스트만 교체해서 즉시 주문하세요.</p>
         </div>
 
@@ -38,8 +38,8 @@ export default async function TemplatesIndexPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {items.map((t) => (
-              <TemplateGalleryCard key={t.id} template={t} />
+            {items.map((item) => (
+              <GalleryItemCard key={`${item.kind}-${item.id}`} item={item} />
             ))}
           </div>
         )}

@@ -15,6 +15,12 @@ const STATIC_PATHS: MetadataRoute.Sitemap = [
   "/order/lookup",
   "/inquiries",
   "/cobuy",
+  "/templates",
+  "/templates/family",
+  "/templates/pet",
+  "/templates/group",
+  "/templates/logo",
+  "/templates/event",
 ].map((path) => ({
   url: new URL(path, getSiteUrl()).href,
   changeFrequency: "daily" as const,

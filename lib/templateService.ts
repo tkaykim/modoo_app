@@ -1,5 +1,11 @@
 import { createClient } from './supabase-client';
-import { DesignTemplate, TemplatePickerItem } from '@/types/types';
+import {
+  DesignTemplate,
+  TemplatePickerItem,
+  TemplateGroup,
+  TemplateGroupWithInstances,
+  TemplateGalleryItem,
+} from '@/types/types';
 import { TemplateCategory } from './templateCategories';
 
 type ProductJoin = {
@@ -84,6 +90,179 @@ export async function getTemplatesByFilter(opts: {
     return [];
   }
   return (data ?? []).map(mapJoinedToPickerItem);
+}
+
+// ============================================================================
+// Template Groups (concept-level bundles of product-specific templates)
+// ============================================================================
+
+type GroupRow = TemplateGroup & {
+  // Joined count of active instance templates (group page filters out inactive)
+  active_instance_count?: number;
+};
+
+/**
+ * Build a unified gallery feed: groups + stand-alone templates (group_id NULL).
+ * Featured items first, then sort_order. Cobuy presets are excluded.
+ */
+export async function getGalleryFeed(opts: {
+  category?: TemplateCategory;
+  tag?: string;
+  limit?: number;
+} = {}): Promise<TemplateGalleryItem[]> {
+  const supabase = createClient();
+
+  // 1) Active groups (with their active instance count)
+  let groupQuery = supabase
+    .from('template_groups')
+    .select(
+      'id, title, description, preview_url, category, tags, sort_order, is_featured, is_active, design_templates:design_templates!design_templates_template_group_id_fkey (id, is_active, type, preview_url)',
+    )
+    .eq('is_active', true)
+    .order('is_featured', { ascending: false })
+    .order('sort_order', { ascending: true });
+  if (opts.category) groupQuery = groupQuery.eq('category', opts.category);
+  if (opts.tag) groupQuery = groupQuery.contains('tags', [opts.tag]);
+
+  // 2) Stand-alone templates (group_id NULL)
+  let singleQuery = supabase
+    .from('design_templates')
+    .select(
+      'id, product_id, title, description, preview_url, category, tags, sort_order, is_featured, products:product_id (id, title, base_price, thumbnail_image_link)',
+    )
+    .eq('is_active', true)
+    .neq('type', 'cobuy_preset')
+    .is('template_group_id', null)
+    .order('is_featured', { ascending: false })
+    .order('sort_order', { ascending: true });
+  if (opts.category) singleQuery = singleQuery.eq('category', opts.category);
+  if (opts.tag) singleQuery = singleQuery.contains('tags', [opts.tag]);
+
+  const [groupsRes, singlesRes] = await Promise.all([groupQuery, singleQuery]);
+
+  if (groupsRes.error) console.error('groups feed error:', groupsRes.error);
+  if (singlesRes.error) console.error('singles feed error:', singlesRes.error);
+
+  const groupItems: TemplateGalleryItem[] = (groupsRes.data ?? [])
+    .map((g) => {
+      const instances = ((g as unknown as { design_templates?: { is_active: boolean; type: string; preview_url: string | null }[] }).design_templates ?? [])
+        .filter((t) => t.is_active && t.type !== 'cobuy_preset');
+      const fallbackPreview = instances.find((t) => t.preview_url)?.preview_url ?? null;
+      return {
+        kind: 'group' as const,
+        id: g.id as string,
+        title: g.title as string,
+        description: (g.description as string | null) ?? null,
+        preview_url: ((g.preview_url as string | null) ?? fallbackPreview) ?? null,
+        category: (g.category as string | null) ?? null,
+        tags: ((g.tags as string[] | null) ?? []),
+        instance_count: instances.length,
+        sort_order: (g.sort_order as number) ?? 0,
+        is_featured: !!g.is_featured,
+      };
+    })
+    .filter((g) => g.instance_count > 0);
+
+  const singleItems: TemplateGalleryItem[] = (singlesRes.data ?? []).map((row) => {
+    const productRaw = Array.isArray(row.products) ? row.products[0] : row.products;
+    return {
+      kind: 'single' as const,
+      id: row.id as string,
+      product_id: row.product_id as string,
+      title: row.title as string,
+      description: (row.description as string | null) ?? null,
+      preview_url: (row.preview_url as string | null) ?? null,
+      category: (row.category as string | null) ?? null,
+      tags: ((row.tags as string[] | null) ?? []),
+      sort_order: (row.sort_order as number) ?? 0,
+      is_featured: !!row.is_featured,
+      product: productRaw ?? null,
+    };
+  });
+
+  const merged = [...groupItems, ...singleItems].sort((a, b) => {
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
+
+  return opts.limit ? merged.slice(0, opts.limit) : merged;
+}
+
+/**
+ * Featured items for the home carousel — groups + featured single templates.
+ */
+export async function getFeaturedGalleryItems(limit = 8): Promise<TemplateGalleryItem[]> {
+  const all = await getGalleryFeed();
+  return all.filter((it) => it.is_featured).slice(0, limit);
+}
+
+/**
+ * Fetch a single template group's full row (including design_composition).
+ * Returned even if not active — used by admin and runtime composition.
+ */
+export async function getGroup(groupId: string): Promise<TemplateGroup | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('template_groups')
+    .select('*')
+    .eq('id', groupId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error('group fetch error:', error);
+    return null;
+  }
+  return data as TemplateGroup;
+}
+
+/**
+ * Group detail page — group meta + its active product instances.
+ */
+export async function getGroupWithInstances(
+  groupId: string,
+): Promise<TemplateGroupWithInstances | null> {
+  const supabase = createClient();
+  const { data: group, error } = await supabase
+    .from('template_groups')
+    .select('*')
+    .eq('id', groupId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error || !group) {
+    if (error) console.error('group fetch error:', error);
+    return null;
+  }
+
+  const { data: templates, error: tErr } = await supabase
+    .from('design_templates')
+    .select(
+      'id, product_id, title, preview_url, is_active, sort_order, products:product_id (id, title, base_price, thumbnail_image_link)',
+    )
+    .eq('template_group_id', groupId)
+    .eq('is_active', true)
+    .neq('type', 'cobuy_preset')
+    .order('sort_order', { ascending: true });
+  if (tErr) console.error('group instances fetch error:', tErr);
+
+  type InstanceRow = {
+    id: string;
+    product_id: string;
+    title: string;
+    preview_url: string | null;
+    is_active: boolean;
+    sort_order: number | null;
+    products?: { id: string; title: string; base_price: number; thumbnail_image_link: string[] | null } | { id: string; title: string; base_price: number; thumbnail_image_link: string[] | null }[] | null;
+  };
+  const instances = (templates ?? []).map((row: InstanceRow) => ({
+    id: row.id,
+    product_id: row.product_id,
+    title: row.title,
+    preview_url: row.preview_url,
+    is_active: row.is_active,
+    sort_order: row.sort_order ?? 0,
+    product: Array.isArray(row.products) ? row.products[0] : row.products,
+  }));
+
+  return { ...(group as TemplateGroup), templates: instances };
 }
 
 /**

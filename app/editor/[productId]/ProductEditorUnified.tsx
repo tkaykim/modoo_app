@@ -42,9 +42,9 @@ import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
 import ReviewsSection from "@/app/components/ReviewsSection";
 import DescriptionImageSection from "@/app/components/DescriptionImageSection";
 import QuickReplacePanel from "@/app/components/canvas/QuickReplacePanel";
-import { getTemplate } from "@/lib/templateService";
-import { applyTemplateToStore } from "@/lib/applyTemplate";
-import type { DesignTemplate } from "@/types/types";
+import { getTemplate, getGroup } from "@/lib/templateService";
+import { applyTemplateToStore, applyGroupTemplateToStore } from "@/lib/applyTemplate";
+import type { DesignTemplate, TemplateGroup } from "@/types/types";
 
 type EditorStep = 'landing' | 'editor' | 'quantity';
 
@@ -75,6 +75,7 @@ export default function ProductEditorUnified({
 
   // Quick-replace template state — populated when entering with ?templateId=...
   const [quickReplaceTemplate, setQuickReplaceTemplate] = useState<DesignTemplate | null>(null);
+  const [quickReplaceGroup, setQuickReplaceGroup] = useState<TemplateGroup | null>(null);
   const [templateApplyAttempted, setTemplateApplyAttempted] = useState(false);
 
   const {
@@ -82,6 +83,7 @@ export default function ProductEditorUnified({
     setActiveSide,
     productColor,
     setProductColor,
+    setSelectedProductColor,
     saveAllCanvasState,
     restoreAllCanvasState,
     canvasMap,
@@ -193,6 +195,12 @@ export default function ProductEditorUnified({
   // ─── Color change ────────────────────────────────────────────────
   const handleColorChange = (color: string) => {
     setProductColor(color);
+    const matched = productColors.find((c) => c.manufacturer_colors.hex === color);
+    setSelectedProductColor(
+      matched
+        ? { id: matched.id, sideMockups: (matched.side_mockups ?? {}) as Record<string, string> }
+        : null
+    );
     trackDesignAction({ action_type: 'color_change', product_id: product.id, color });
   };
 
@@ -741,15 +749,33 @@ export default function ProductEditorUnified({
   useEffect(() => {
     if (cartItemId || partnerMallAdd || partnerMallBuy) return;
     if (productColors.length > 0) {
-      setProductColor(productColors[0].manufacturer_colors.hex);
+      const first = productColors[0];
+      setProductColor(first.manufacturer_colors.hex);
+      setSelectedProductColor({
+        id: first.id,
+        sideMockups: (first.side_mockups ?? {}) as Record<string, string>,
+      });
     }
-  }, [productColors, cartItemId, partnerMallAdd, partnerMallBuy, setProductColor]);
+  }, [productColors, cartItemId, partnerMallAdd, partnerMallBuy, setProductColor, setSelectedProductColor]);
 
   // ─── Quick-replace template auto-apply ──────────────────────────────
   // When editor is opened with ?templateId=..., load the template and apply
   // it to the canvas as soon as canvases (and product images) are ready.
   // QuickReplacePanel mounts only when image_slots/text_slots are non-empty;
   // legacy templates fall back to the regular editor experience with a hint.
+
+  // Force-skip landing when ?templateId is added on the same route (e.g. user
+  // taps a template card in LandingStep — router.push only updates URL, the
+  // useState initializer doesn't re-run, so we explicitly switch the step).
+  useEffect(() => {
+    if (templateIdParam && currentStep === 'landing') {
+      setCurrentStep('editor');
+      setEditMode(false);
+      setTemplateApplyAttempted(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateIdParam]);
+
   useEffect(() => {
     if (!templateIdParam || templateApplyAttempted) return;
     let cancelled = false;
@@ -772,23 +798,40 @@ export default function ProductEditorUnified({
         attempts++;
       }
       if (cancelled) return;
+
+      // Group-bound template? Compose from group.design_composition + template.placement_map
+      let group: TemplateGroup | null = null;
+      if (template.template_group_id) {
+        group = await getGroup(template.template_group_id);
+      }
+
       try {
-        await applyTemplateToStore(template);
+        if (group && (group.design_composition?.slots?.length ?? 0) > 0) {
+          await applyGroupTemplateToStore(template, group, product);
+        } else {
+          // Legacy single template — restore canvas_state directly
+          await applyTemplateToStore(template);
+        }
         trackDesignAction({ action_type: 'template_quick_apply', product_id: product.id });
       } catch (err) {
         console.error('Failed to apply template from URL:', err);
       }
-      const hasSlots =
-        (template.image_slots?.length ?? 0) > 0 ||
-        (template.text_slots?.length ?? 0) > 0;
-      if (hasSlots) {
+
+      // Quick-replace panel decision:
+      //  - group + composition slots → quick replace mode
+      //  - legacy + image_slots/text_slots → quick replace mode
+      //  - otherwise (legacy w/ no slots) → fall back to full editor
+      const hasGroupSlots = (group?.design_composition?.slots?.length ?? 0) > 0;
+      const hasLegacySlots =
+        (template.image_slots?.length ?? 0) > 0 || (template.text_slots?.length ?? 0) > 0;
+
+      if (hasGroupSlots || hasLegacySlots) {
         setQuickReplaceTemplate(template);
-        setEditMode(false); // quick replace mode
+        setQuickReplaceGroup(group);
+        setEditMode(false);
       } else {
-        // Legacy template — fall through to normal editor with toast.
         setEditMode(true);
         if (typeof window !== 'undefined') {
-          // Lightweight toast: console.info; UI-side could swap for a real toast lib.
           console.info('[template] legacy template (no slots) — full editor active');
         }
       }
@@ -1073,6 +1116,7 @@ export default function ProductEditorUnified({
         {quickReplaceTemplate && (
           <QuickReplacePanel
             template={quickReplaceTemplate}
+            group={quickReplaceGroup}
             product={product}
             onProceed={handleEditorDone}
             onAdvancedEdit={() => { setQuickReplaceTemplate(null); setEditMode(true); }}
@@ -1209,6 +1253,7 @@ export default function ProductEditorUnified({
       {quickReplaceTemplate && (
         <QuickReplacePanel
           template={quickReplaceTemplate}
+          group={quickReplaceGroup}
           product={product}
           onProceed={handleEditorDone}
           onAdvancedEdit={() => { setQuickReplaceTemplate(null); setEditMode(true); }}

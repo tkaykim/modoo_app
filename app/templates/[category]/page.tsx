@@ -3,8 +3,8 @@ import { notFound } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import CategoryChips from '@/app/components/templates/CategoryChips';
-import TemplateGalleryCard from '@/app/components/templates/TemplateGalleryCard';
-import { getTemplatesByFilter } from '@/lib/templateService';
+import GalleryItemCard from '@/app/components/templates/GalleryItemCard';
+import { getGalleryFeed } from '@/lib/templateService';
 import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_CATEGORY_LABELS,
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
   const label = TEMPLATE_CATEGORY_LABELS[category];
   return {
     title: { absolute: `${label} 디자인 템플릿 · 모두의 유니폼` },
-    description: `${label} 카테고리 커스텀 의류 디자인 템플릿. 사진만 교체해 빠르게 주문하세요.`,
+    description: `${label} 카테고리 커스텀 의류 디자인 템플릿. 사진과 텍스트만 교체해 빠르게 주문하세요.`,
     alternates: { canonical: `/templates/${category}` },
   };
 }
@@ -36,7 +36,7 @@ export default async function TemplatesCategoryPage({ params }: RouteParams) {
   const { category } = await params;
   if (!isTemplateCategory(category)) notFound();
 
-  const items = await getTemplatesByFilter({ category });
+  const items = await getGalleryFeed({ category });
   const label = TEMPLATE_CATEGORY_LABELS[category];
 
   return (
@@ -61,8 +61,8 @@ export default async function TemplatesCategoryPage({ params }: RouteParams) {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {items.map((t) => (
-              <TemplateGalleryCard key={t.id} template={t} />
+            {items.map((item) => (
+              <GalleryItemCard key={`${item.kind}-${item.id}`} item={item} />
             ))}
           </div>
         )}

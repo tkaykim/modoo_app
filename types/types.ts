@@ -60,6 +60,7 @@ export interface ProductColor {
   manufacturer_color_id: string;
   is_active: boolean;
   sort_order: number;
+  side_mockups?: Record<string, string> | null;
   created_at: string;
   updated_at: string;
   // Joined from manufacturer_colors
@@ -297,6 +298,9 @@ export interface SavedDesignScreenshot {
   image_urls: Record<string, unknown>;
 }
 
+// ============================================================================
+// Legacy slot types (single template only — group templates use CompositionSlot)
+// ============================================================================
 // Design Template — replaceable image slot manifest entry.
 // admin tags Fabric image objects so customers see only the parts that should be swapped.
 export interface ImageSlot {
@@ -319,10 +323,75 @@ export interface TextSlot {
   lock_style: boolean; // true: keep template font/color/size, only swap text
 }
 
+// ============================================================================
+// Composition slots — live in template_groups.design_composition.
+// These describe WHAT the design contains; placement (where on canvas) is
+// stored separately on each design_templates row in placement_map.
+// ============================================================================
+
+/** Reusable text slot (defined once in a group, reused across product instances). */
+export interface CompositionTextSlot {
+  slot_id: string;
+  kind: 'text';
+  label: string;                    // "펫 이름", "생년월일" 등
+  default_text: string;             // 기본 텍스트
+  placeholder?: string;
+  max_length?: number;
+  lock_style: boolean;              // true: 사용자가 폰트/색은 못 바꾸고 텍스트만 교체
+  // Style hints used when no per-instance override exists:
+  font_family?: string;
+  font_weight?: string;             // 'normal' | 'bold' | numeric string
+  font_color?: string;              // hex
+  print_method_id?: string;         // 그룹 기본 인쇄 방식 (인스턴스 override 가능)
+}
+
+/** Reusable image slot. */
+export interface CompositionImageSlot {
+  slot_id: string;
+  kind: 'image';
+  label: string;                    // "반려동물 사진"
+  default_image_url: string;        // 미리보기·기본 이미지
+  aspect_ratio: number;             // width/height — 크로퍼 강제 비율
+  accepts: 'photo' | 'logo';
+  bg_removal_default?: boolean;     // 인물·펫·로고 슬롯 기본 ON
+  print_method_id?: string;         // 그룹 기본 인쇄 방식
+}
+
+export type CompositionSlot = CompositionTextSlot | CompositionImageSlot;
+
+export interface DesignComposition {
+  slots: CompositionSlot[];
+}
+
+/**
+ * Per-instance placement of a composition slot on a specific product canvas.
+ * All coordinates are normalized (0-1) relative to the side's print area so
+ * the same composition can map cleanly across products of different sizes.
+ */
+export interface PlacementEntry {
+  side_id: string;            // ProductSide.id
+  x: number;                  // 0-1, relative to print area width  (origin reference below)
+  y: number;                  // 0-1, relative to print area height
+  width: number;              // 0-1
+  height: number;             // 0-1
+  angle?: number;             // degrees
+  origin_x?: 'left' | 'center' | 'right';
+  origin_y?: 'top' | 'center' | 'bottom';
+  // Per-instance overrides (fall back to composition slot defaults):
+  print_method_id?: string;
+  font_family?: string;
+  font_color?: string;
+  font_weight?: string;
+}
+
+/** Map slot_id → placement on this product's canvas. */
+export type PlacementMap = Record<string, PlacementEntry>;
+
 // Design Template - Admin-managed pre-made designs for products
 export interface DesignTemplate {
   id: string;
   product_id: string;
+  template_group_id: string | null;
   title: string;
   description: string | null;
   canvas_state: Record<string, any>; // sideId -> canvas state (objects, layerColors)
@@ -334,10 +403,53 @@ export interface DesignTemplate {
   category: string | null;
   tags: string[];
   is_featured: boolean;
+  // Legacy slot manifests (used by single templates that don't belong to a group)
   image_slots: ImageSlot[];
   text_slots: TextSlot[];
+  // Placement of a group's composition slots on this product's canvas
+  // (only populated when template_group_id is set)
+  placement_map: PlacementMap;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Template Group — bundles N product-specific templates that share the same
+ * design concept (e.g. "왼쪽 가슴 로고", "가족사진 정중앙"). Customers pick a
+ * concept first and then choose which product to apply it to.
+ */
+export interface TemplateGroup {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  tags: string[];
+  preview_url: string | null;
+  is_active: boolean;
+  is_featured: boolean;
+  sort_order: number;
+  /** Reusable design composition (text/image slots) shared across all instances */
+  design_composition: DesignComposition;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Group + its product instances (used in detail/management views) */
+export interface TemplateGroupWithInstances extends TemplateGroup {
+  templates: Array<{
+    id: string;
+    product_id: string;
+    title: string;
+    preview_url: string | null;
+    is_active: boolean;
+    sort_order: number;
+    product?: {
+      id: string;
+      title: string;
+      base_price: number;
+      thumbnail_image_link: string[] | null;
+    } | null;
+  }>;
 }
 
 // Lightweight type for template picker display
@@ -348,6 +460,7 @@ export interface TemplatePickerItem {
   preview_url: string | null;
   category?: string | null;
   tags?: string[];
+  template_group_id?: string | null;
   // Joined product info for global gallery cards
   product?: {
     id: string;
@@ -356,6 +469,42 @@ export interface TemplatePickerItem {
     thumbnail_image_link: string[] | null;
   } | null;
 }
+
+/**
+ * Lightweight gallery item — either a TemplateGroup card or a stand-alone
+ * (group_id NULL) DesignTemplate. The customer gallery mixes both.
+ */
+export type TemplateGalleryItem =
+  | {
+      kind: 'group';
+      id: string;
+      title: string;
+      description: string | null;
+      preview_url: string | null;
+      category: string | null;
+      tags: string[];
+      instance_count: number;
+      sort_order: number;
+      is_featured: boolean;
+    }
+  | {
+      kind: 'single';
+      id: string;          // template id
+      product_id: string;  // for direct ?templateId= entry
+      title: string;
+      description: string | null;
+      preview_url: string | null;
+      category: string | null;
+      tags: string[];
+      sort_order: number;
+      is_featured: boolean;
+      product?: {
+        id: string;
+        title: string;
+        base_price: number;
+        thumbnail_image_link: string[] | null;
+      } | null;
+    };
 
 export interface OrderItem {
   id: string;

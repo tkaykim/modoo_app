@@ -18,7 +18,13 @@ export default function ColorSelectorModal({
   side,
   productColors,
 }: ColorSelectorModalProps) {
-  const { productColor, setProductColor } = useCanvasStore()
+  const { productColor, setProductColor, setSelectedProductColor } = useCanvasStore()
+
+  const handleSelectColor = (color: ProductColor) => {
+    setProductColor(color.manufacturer_colors.hex)
+    const sideMockups = (color.side_mockups ?? {}) as Record<string, string>
+    setSelectedProductColor({ id: color.id, sideMockups })
+  }
 
   if (!isOpen) return null
 
@@ -56,7 +62,7 @@ export default function ColorSelectorModal({
                 {productColors.map((color) => (
                   <button
                     key={color.id}
-                    onClick={() => setProductColor(color.manufacturer_colors.hex)}
+                    onClick={() => handleSelectColor(color)}
                     className="flex flex-col items-center gap-1.5"
                   >
                     <div

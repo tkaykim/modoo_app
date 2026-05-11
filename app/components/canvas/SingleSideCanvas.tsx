@@ -42,8 +42,11 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   /** Native mmPerPx (mm per ORIGINAL mockup pixel) from product_calibrations. 0 = no calibration → legacy fallback. */
   const calibrationNativeMmPerPxRef = useRef<number>(0);
 
-  const { registerCanvas, unregisterCanvas, productColor: productColorFromStore, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor, layerColors, resetZoom, zoomLevels, setZoom } = useCanvasStore();
+  const { registerCanvas, unregisterCanvas, productColor: productColorFromStore, markImageLoaded, incrementCanvasVersion, initializeLayerColors, initializeSideColor, layerColors, resetZoom, zoomLevels, setZoom, selectedProductColor } = useCanvasStore();
   const productColor = productColorProp ?? productColorFromStore;
+  // Per-color side mockup override. When present, we swap the background image
+  // source instead of applying a BlendColor filter (preserves stripes/patterns).
+  const sideMockupOverride = selectedProductColor?.sideMockups?.[side.id] ?? null;
   const zoomLevel = zoomLevels[side.id] || 1.0;
 
   // Pan/drag state (for viewport movement while zoomed)
@@ -787,8 +790,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         setIsLoading(false);
       });
     } else {
-      // Legacy single-image mode: use imageUrl
-      const imageUrl = side.imageUrl;
+      // Legacy single-image mode: use imageUrl (or selected color's per-side mockup override)
+      const imageUrl = sideMockupOverride ?? side.imageUrl;
       if (!imageUrl) {
         setIsLoading(false);
         return;
@@ -891,17 +894,21 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           initializeSideColor(side.id, side.colorOptions);
         }
 
-        // Apply initial color filter using color from configuration or fallback to productColor
-        const currentColor = side.colorOptions && side.colorOptions.length > 0
-          ? useCanvasStore.getState().layerColors[side.id]?.[side.id] || side.colorOptions[0]?.hex || '#FFFFFF'
-          : (productColorProp ?? useCanvasStore.getState().productColor);
+        // Apply initial color filter using color from configuration or fallback to productColor.
+        // Skip the filter entirely when this color has a per-side mockup override (the
+        // override image already encodes the correct color/pattern).
         img.filters = [];
-        const initialColorFilter = new fabric.filters.BlendColor({
-          color: currentColor,
-          mode: 'multiply',
-          alpha: 1,
-        });
-        img.filters.push(initialColorFilter);
+        if (!sideMockupOverride) {
+          const currentColor = side.colorOptions && side.colorOptions.length > 0
+            ? useCanvasStore.getState().layerColors[side.id]?.[side.id] || side.colorOptions[0]?.hex || '#FFFFFF'
+            : (productColorProp ?? useCanvasStore.getState().productColor);
+          const initialColorFilter = new fabric.filters.BlendColor({
+            color: currentColor,
+            mode: 'multiply',
+            alpha: 1,
+          });
+          img.filters.push(initialColorFilter);
+        }
         img.applyFilters();
 
         // Calculate print area position relative to the product image
@@ -1344,28 +1351,52 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       ? layerColors[side.id]?.[side.id] || side.colorOptions[0]?.hex || '#FFFFFF'
       : productColor;
 
-    // Find all objects with id 'background-product-image' and apply color filter
+    // Collect background image targets (forEachObject is sync; we async-process below)
+    const targets: fabric.FabricImage[] = [];
     canvas.forEachObject((obj) => {
       // @ts-expect-error - Checking custom data property
       if (obj.data?.id === 'background-product-image' && obj.type === 'image') {
-        const imgObj = obj as fabric.FabricImage;
-
-        // Remove any existing filters
-        imgObj.filters = [];
-
-        const colorFilter = new fabric.filters.BlendColor({
-          color: selectedColor,
-          mode: 'multiply',
-          alpha: 1, // Adjust opacity of the color overlay
-        });
-
-        imgObj.filters.push(colorFilter);
-        imgObj.applyFilters();
+        targets.push(obj as fabric.FabricImage);
       }
     });
 
-    canvas.requestRenderAll();
-  }, [productColor, side.layers, side.colorOptions, side.id, layerColors]);
+    const fallbackUrl = side.imageUrl;
+
+    (async () => {
+      for (const imgObj of targets) {
+        if (sideMockupOverride) {
+          // Color provides a per-side mockup — swap the image source and skip the filter
+          if (imgObj.getSrc() !== sideMockupOverride) {
+            try {
+              await imgObj.setSrc(sideMockupOverride, { crossOrigin: 'anonymous' });
+            } catch (err) {
+              console.error('[SingleSideCanvas] Failed to swap mockup image:', err);
+            }
+          }
+          imgObj.filters = [];
+          imgObj.applyFilters();
+        } else {
+          // No override — restore base mockup if previously swapped, then apply BlendColor
+          if (fallbackUrl && imgObj.getSrc() !== fallbackUrl) {
+            try {
+              await imgObj.setSrc(fallbackUrl, { crossOrigin: 'anonymous' });
+            } catch (err) {
+              console.error('[SingleSideCanvas] Failed to restore base mockup image:', err);
+            }
+          }
+          imgObj.filters = [
+            new fabric.filters.BlendColor({
+              color: selectedColor,
+              mode: 'multiply',
+              alpha: 1,
+            }),
+          ];
+          imgObj.applyFilters();
+        }
+      }
+      canvas.requestRenderAll();
+    })();
+  }, [productColor, side.layers, side.colorOptions, side.id, side.imageUrl, layerColors, sideMockupOverride]);
 
   // Effect to apply color filter to layers when layerColors change or layers are ready
   useEffect(() => {

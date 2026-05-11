@@ -2,7 +2,15 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronUp, ChevronDown, Image as ImageIcon, Type, Edit3 } from 'lucide-react';
-import type { DesignTemplate, ImageSlot, TextSlot, Product } from '@/types/types';
+import type {
+  DesignTemplate,
+  TemplateGroup,
+  ImageSlot,
+  Product,
+  CompositionSlot,
+  CompositionImageSlot,
+  PlacementMap,
+} from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { replaceImageSlot, replaceTextSlot } from '@/lib/slotReplacement';
 import SlotImageCropper from './SlotImageCropper';
@@ -10,15 +18,42 @@ import { trackDesignAction } from '@/lib/gtm-events';
 
 interface Props {
   template: DesignTemplate;
+  /** Optional — group meta when this template is group-bound. */
+  group?: TemplateGroup | null;
   product: Product;
-  onProceed: () => void;          // → quantity step
-  onAdvancedEdit: () => void;     // → switch to full editor
-  onOpenColorModal: () => void;   // open existing ColorSelectorModal
-  formattedPrice: string;         // current per-unit price (string, "12,000원")
+  onProceed: () => void;
+  onAdvancedEdit: () => void;
+  onOpenColorModal: () => void;
+  formattedPrice: string;
 }
+
+/**
+ * Unified internal row used by the panel — collapses both the legacy
+ * (image_slots/text_slots) and the new group composition (CompositionSlot +
+ * placement_map) shapes into one render-friendly structure.
+ */
+type SlotRow =
+  | {
+      kind: 'image';
+      slot_id: string;
+      side_id: string;
+      label: string;
+      thumbnail_url: string | null;
+      // Adapter to drive SlotImageCropper from either source
+      cropperSlot: ImageSlot;
+    }
+  | {
+      kind: 'text';
+      slot_id: string;
+      side_id: string;
+      label: string;
+      placeholder?: string;
+      max_length?: number;
+    };
 
 const QuickReplacePanel: React.FC<Props> = ({
   template,
+  group,
   product,
   onProceed,
   onAdvancedEdit,
@@ -26,42 +61,114 @@ const QuickReplacePanel: React.FC<Props> = ({
   formattedPrice,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeSlot, setActiveSlot] = useState<ImageSlot | null>(null);
+  const [activeImageSlot, setActiveImageSlot] = useState<ImageSlot | null>(null);
   const [textValues, setTextValues] = useState<Record<string, string>>({});
   const incrementCanvasVersion = useCanvasStore((s) => s.incrementCanvasVersion);
 
-  // Group slots by side for clearer UX on multi-side products.
-  const groupedImage = useMemo(() => groupBySide(template.image_slots), [template.image_slots]);
-  const groupedText = useMemo(() => groupBySide(template.text_slots), [template.text_slots]);
+  /** Produce unified rows from either composition or legacy slot manifests. */
+  const rows = useMemo<SlotRow[]>(() => {
+    const out: SlotRow[] = [];
 
-  const sideName = (sideId: string): string => {
-    const side = product.configuration.find((s) => s.id === sideId);
-    return side?.name || sideId;
-  };
+    // Group composition path (preferred when present)
+    const compSlots: CompositionSlot[] = group?.design_composition?.slots ?? [];
+    const placement = (template.placement_map ?? {}) as PlacementMap;
+    if (compSlots.length > 0) {
+      for (const s of compSlots) {
+        const place = placement[s.slot_id];
+        if (!place) continue; // unplaced — hide from customer
+        if (s.kind === 'text') {
+          out.push({
+            kind: 'text',
+            slot_id: s.slot_id,
+            side_id: place.side_id,
+            label: s.label,
+            placeholder: s.placeholder ?? s.default_text,
+            max_length: s.max_length,
+          });
+        } else {
+          const im = s as CompositionImageSlot;
+          out.push({
+            kind: 'image',
+            slot_id: im.slot_id,
+            side_id: place.side_id,
+            label: im.label,
+            thumbnail_url: im.default_image_url || null,
+            // Adapt to legacy ImageSlot shape so SlotImageCropper can reuse
+            cropperSlot: {
+              slot_id: im.slot_id,
+              side_id: place.side_id,
+              label: im.label,
+              default_image_url: im.default_image_url,
+              aspect_ratio: im.aspect_ratio,
+              print_method_id: place.print_method_id ?? im.print_method_id ?? '',
+              accepts: im.accepts,
+              bg_removal_default: im.bg_removal_default,
+            },
+          });
+        }
+      }
+      return out;
+    }
 
-  const handleImageReplaced = async (slot: ImageSlot, url: string) => {
-    const ok = await replaceImageSlot(slot.side_id, slot.slot_id, url);
+    // Legacy single-template path
+    for (const s of template.image_slots ?? []) {
+      out.push({
+        kind: 'image',
+        slot_id: s.slot_id,
+        side_id: s.side_id,
+        label: s.label,
+        thumbnail_url: s.default_image_url || null,
+        cropperSlot: s,
+      });
+    }
+    for (const s of template.text_slots ?? []) {
+      out.push({
+        kind: 'text',
+        slot_id: s.slot_id,
+        side_id: s.side_id,
+        label: s.label,
+        placeholder: s.placeholder,
+        max_length: s.max_length,
+      });
+    }
+    return out;
+  }, [group, template.image_slots, template.text_slots, template.placement_map]);
+
+  const groupedRows = useMemo(() => {
+    const map: Record<string, SlotRow[]> = {};
+    for (const r of rows) {
+      if (!map[r.side_id]) map[r.side_id] = [];
+      map[r.side_id].push(r);
+    }
+    return map;
+  }, [rows]);
+
+  const sideName = (sideId: string): string =>
+    product.configuration.find((s) => s.id === sideId)?.name || sideId;
+
+  const handleImageReplaced = async (row: Extract<SlotRow, { kind: 'image' }>, url: string) => {
+    const ok = await replaceImageSlot(row.side_id, row.slot_id, url);
     if (ok) {
       trackDesignAction({
         action_type: 'slot_image_replace',
         product_id: product.id,
-        side_id: slot.side_id,
+        side_id: row.side_id,
       });
     }
   };
 
-  const handleTextChange = (slot: TextSlot, value: string) => {
-    setTextValues((prev) => ({ ...prev, [slot.slot_id]: value }));
+  const handleTextChange = (slotId: string, value: string) => {
+    setTextValues((prev) => ({ ...prev, [slotId]: value }));
   };
-  const commitText = (slot: TextSlot) => {
-    const value = textValues[slot.slot_id];
+  const commitText = (row: Extract<SlotRow, { kind: 'text' }>) => {
+    const value = textValues[row.slot_id];
     if (value === undefined) return;
-    const ok = replaceTextSlot(slot.side_id, slot.slot_id, value);
+    const ok = replaceTextSlot(row.side_id, row.slot_id, value);
     if (ok) {
       trackDesignAction({
         action_type: 'slot_text_replace',
         product_id: product.id,
-        side_id: slot.side_id,
+        side_id: row.side_id,
       });
     }
   };
@@ -71,21 +178,16 @@ const QuickReplacePanel: React.FC<Props> = ({
     onProceed();
   };
 
-  const sides = Array.from(new Set([
-    ...Object.keys(groupedImage),
-    ...Object.keys(groupedText),
-  ]));
+  const sides = Object.keys(groupedRows);
 
   return (
     <>
-      {/* Mobile: bottom sheet. Desktop: right side panel. */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 bg-white border-t border-gray-200 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] rounded-t-2xl
                    lg:inset-y-0 lg:right-0 lg:left-auto lg:bottom-auto lg:top-0 lg:w-96 lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-xl
                    transition-[max-height] duration-200"
         style={{ maxHeight: collapsed ? '64px' : '70vh' }}
       >
-        {/* Drag handle / collapse toggle */}
         <button
           onClick={() => setCollapsed((v) => !v)}
           className="lg:hidden w-full flex flex-col items-center pt-2 pb-1"
@@ -96,8 +198,12 @@ const QuickReplacePanel: React.FC<Props> = ({
 
         <div className="px-4 pt-2 pb-3 flex items-center justify-between border-b border-gray-100">
           <div>
-            <p className="text-xs text-gray-400">템플릿</p>
-            <p className="text-sm font-semibold text-gray-900 truncate max-w-[60vw]">{template.title}</p>
+            <p className="text-xs text-gray-400">
+              {group ? '디자인 그룹' : '템플릿'}
+            </p>
+            <p className="text-sm font-semibold text-gray-900 truncate max-w-[60vw]">
+              {group?.title ?? template.title}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400">개당</p>
@@ -113,7 +219,6 @@ const QuickReplacePanel: React.FC<Props> = ({
 
         {!collapsed && (
           <div className="overflow-y-auto p-4 space-y-5" style={{ maxHeight: 'calc(70vh - 160px)' }}>
-            {/* Color picker shortcut */}
             <button
               onClick={onOpenColorModal}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm flex items-center justify-between hover:bg-gray-50"
@@ -133,51 +238,51 @@ const QuickReplacePanel: React.FC<Props> = ({
                     {sideName(sideId)}
                   </h4>
 
-                  {(groupedImage[sideId] ?? []).map((slot) => (
-                    <div
-                      key={slot.slot_id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-200"
-                    >
-                      <div className="size-14 shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-                        {slot.default_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={slot.default_image_url} alt={slot.label} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="size-6 text-gray-300" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{slot.label}</p>
-                        <p className="text-[11px] text-gray-400">
-                          {slot.accepts === 'logo' ? '로고' : '사진'} · 비율 {slot.aspect_ratio.toFixed(2)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setActiveSlot(slot)}
-                        className="px-3 py-1.5 rounded-md bg-black text-white text-xs font-medium hover:bg-gray-800"
+                  {(groupedRows[sideId] ?? []).map((row) =>
+                    row.kind === 'image' ? (
+                      <div
+                        key={row.slot_id}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200"
                       >
-                        교체
-                      </button>
-                    </div>
-                  ))}
-
-                  {(groupedText[sideId] ?? []).map((slot) => (
-                    <div key={slot.slot_id} className="p-3 rounded-lg border border-gray-200">
-                      <label className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-                        <Type className="size-3.5" />
-                        {slot.label}
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue=""
-                        placeholder={slot.placeholder ?? ''}
-                        maxLength={slot.max_length}
-                        onChange={(e) => handleTextChange(slot, e.target.value)}
-                        onBlur={() => commitText(slot)}
-                        className="mt-1.5 w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-black"
-                      />
-                    </div>
-                  ))}
+                        <div className="size-14 shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                          {row.thumbnail_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={row.thumbnail_url} alt={row.label} className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="size-6 text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{row.label}</p>
+                          <p className="text-[11px] text-gray-400">
+                            {row.cropperSlot.accepts === 'logo' ? '로고' : '사진'} · 비율 {row.cropperSlot.aspect_ratio.toFixed(2)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setActiveImageSlot(row.cropperSlot)}
+                          className="px-3 py-1.5 rounded-md bg-black text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          교체
+                        </button>
+                      </div>
+                    ) : (
+                      <div key={row.slot_id} className="p-3 rounded-lg border border-gray-200">
+                        <label className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
+                          <Type className="size-3.5" />
+                          {row.label}
+                        </label>
+                        <input
+                          type="text"
+                          defaultValue=""
+                          placeholder={row.placeholder ?? ''}
+                          maxLength={row.max_length}
+                          onChange={(e) => handleTextChange(row.slot_id, e.target.value)}
+                          onBlur={() => commitText(row)}
+                          className="mt-1.5 w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-black"
+                        />
+                      </div>
+                    ),
+                  )}
                 </section>
               ))
             )}
@@ -202,16 +307,20 @@ const QuickReplacePanel: React.FC<Props> = ({
         </div>
       </div>
 
-      {activeSlot && (
+      {activeImageSlot && (
         <SlotImageCropper
-          slot={activeSlot}
-          isOpen={!!activeSlot}
-          onClose={() => setActiveSlot(null)}
+          slot={activeImageSlot}
+          isOpen={!!activeImageSlot}
+          onClose={() => setActiveImageSlot(null)}
           onUploaded={(url) => {
-            const slot = activeSlot;
-            setActiveSlot(null);
-            void handleImageReplaced(slot, url);
-            // store version bump already handled inside replaceImageSlot
+            const slot = activeImageSlot;
+            setActiveImageSlot(null);
+            const matchingRow = rows.find(
+              (r) => r.kind === 'image' && r.slot_id === slot.slot_id,
+            );
+            if (matchingRow && matchingRow.kind === 'image') {
+              void handleImageReplaced(matchingRow, url);
+            }
             void incrementCanvasVersion;
           }}
         />
@@ -219,14 +328,5 @@ const QuickReplacePanel: React.FC<Props> = ({
     </>
   );
 };
-
-function groupBySide<T extends { side_id: string }>(arr: T[] | undefined | null): Record<string, T[]> {
-  const map: Record<string, T[]> = {};
-  (arr ?? []).forEach((item) => {
-    if (!map[item.side_id]) map[item.side_id] = [];
-    map[item.side_id].push(item);
-  });
-  return map;
-}
 
 export default QuickReplacePanel;

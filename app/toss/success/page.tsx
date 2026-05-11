@@ -5,7 +5,7 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { clearCart } from "@/lib/cartService";
 import { useCartStore } from "@/store/useCartStore";
-import { trackPurchase, trackPurchaseAttempt } from "@/lib/gtm-events";
+import { trackPurchaseAttempt } from "@/lib/gtm-events";
 
 function WidgetSuccessPageContent() {
   const router = useRouter();
@@ -58,38 +58,38 @@ function WidgetSuccessPageContent() {
           throw { message: json.message || json.error || '결제 확인 실패', code: json.code };
         }
 
-        // GTM: purchase (중복 방지: orderId 단위 sessionStorage 가드)
+        // Purchase 픽셀/GTM 발화는 /payment/complete 도착 페이지에서 수행 (네비게이션 race로 fbq 비콘 유실 방지).
+        // 여기서는 페이로드만 sessionStorage에 넘겨둔다.
         try {
-          const dedupeKey = `gtm_purchase_pushed_${json.orderId}`;
-          if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
-            sessionStorage.setItem(dedupeKey, '1');
-            const totalAmount = Number(searchParams.get('amount')) || 0;
-            const items = Array.isArray(cartItems)
-              ? cartItems.map((it: {
-                  productId?: string;
-                  productTitle?: string;
-                  productColorName?: string;
-                  size?: string;
-                  pricePerItem?: number;
-                  quantity?: number;
-                  savedDesignId?: string;
-                }) => ({
-                  item_id: it.productId ?? '',
-                  item_name: it.productTitle ?? '',
-                  item_variant: it.size,
-                  price: it.pricePerItem,
-                  quantity: it.quantity,
-                  design_id: it.savedDesignId,
-                }))
-              : [];
-            trackPurchase({
+          const totalAmount = Number(searchParams.get('amount')) || 0;
+          const items = Array.isArray(cartItems)
+            ? cartItems.map((it: {
+                productId?: string;
+                productTitle?: string;
+                productColorName?: string;
+                size?: string;
+                pricePerItem?: number;
+                quantity?: number;
+                savedDesignId?: string;
+              }) => ({
+                item_id: it.productId ?? '',
+                item_name: it.productTitle ?? '',
+                item_variant: it.size,
+                price: it.pricePerItem,
+                quantity: it.quantity,
+                design_id: it.savedDesignId,
+              }))
+            : [];
+          sessionStorage.setItem(
+            `meta_purchase_payload_${json.orderId}`,
+            JSON.stringify({
               transaction_id: String(json.orderId),
               value: totalAmount,
               items,
-            });
-          }
+            }),
+          );
         } catch {
-          // 트래킹 실패는 무시
+          // 페이로드 저장 실패해도 결제 흐름은 막지 않음
         }
 
         // Clear pending order data

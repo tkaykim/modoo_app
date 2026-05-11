@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CircleUser, PanelRightDashedIcon, PencilLine, PersonStanding, PlusCircle, Search } from 'lucide-react';
+import { CircleUser, LayoutTemplate, PanelRightDashedIcon, PencilLine, PersonStanding, PlusCircle, Search } from 'lucide-react';
 import CartButton from './CartButton';
 import { BsPerson } from 'react-icons/bs';
 
@@ -39,6 +39,14 @@ export default function BottomNavBar() {
       href: '/home/search',
       icon: (
         <Search size={20} />
+      ),
+    },
+    {
+      id: 'templates',
+      label: '템플릿',
+      href: '/templates',
+      icon: (
+        <LayoutTemplate size={20} />
       ),
     },
     {

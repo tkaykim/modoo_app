@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, Clock } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { trackPurchase } from '@/lib/gtm-events';
 
 function PaymentCompleteContent() {
   const router = useRouter();
@@ -19,6 +20,41 @@ function PaymentCompleteContent() {
     if (!orderId) {
       router.push('/home');
       return;
+    }
+
+    // Meta Pixel + GTM Purchase 발화: /toss/success가 sessionStorage에 남긴 페이로드 사용.
+    // dedupe 가드(orderId 단위)로 새로고침/뒤로가기 재진입 시 중복 발화 차단.
+    try {
+      const dedupeKey = `gtm_purchase_pushed_${orderId}`;
+      const payloadKey = `meta_purchase_payload_${orderId}`;
+      if (typeof window !== 'undefined' && !sessionStorage.getItem(dedupeKey)) {
+        const raw = sessionStorage.getItem(payloadKey);
+        if (raw) {
+          const payload = JSON.parse(raw) as {
+            transaction_id: string;
+            value: number;
+            items: Array<{
+              item_id: string;
+              item_name: string;
+              item_variant?: string;
+              price?: number;
+              quantity?: number;
+              design_id?: string;
+            }>;
+          };
+          if (payload?.transaction_id) {
+            trackPurchase({
+              transaction_id: payload.transaction_id,
+              value: payload.value,
+              items: payload.items ?? [],
+            });
+            sessionStorage.setItem(dedupeKey, '1');
+            sessionStorage.removeItem(payloadKey);
+          }
+        }
+      }
+    } catch {
+      // 트래킹 실패는 결제 완료 화면에 영향 주지 않음
     }
 
     setIsLoading(false);

@@ -24,6 +24,14 @@ interface CanvasState {
   productColor: string;
   setProductColor: (color: string) => void;
 
+  // Selected product color row (with optional per-side mockup overrides).
+  // When `sideMockups[sideId]` exists, SingleSideCanvas swaps the background image
+  // and skips the BlendColor filter (preserves patterns like stripes).
+  selectedProductColor: { id: string; sideMockups: Record<string, string> } | null;
+  setSelectedProductColor: (
+    value: { id: string; sideMockups: Record<string, string> } | null
+  ) => void;
+
   // Layer color state - maps sideId -> layerId -> hex color
   // For single-layered sides, use sideId as the layerId
   layerColors: Record<string, Record<string, string>>;
@@ -88,12 +96,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   imageLoadedMap: {},
   isEditMode: false,
   productColor: '#FFFFFF', // Default mix gray color
+  selectedProductColor: null,
   canvasVersion: 0,
   layerColors: {},
   zoomLevels: {},
   setActiveSide: (id) => set({ activeSideId: id}),
   setEditMode: (isEdit) => set({ isEditMode: isEdit }),
   setProductColor: (color) => set({ productColor: color }),
+  setSelectedProductColor: (value) => set({ selectedProductColor: value }),
   incrementCanvasVersion: () => set((state) => ({ canvasVersion: state.canvasVersion + 1 })),
 
   // Zoom methods
@@ -799,6 +809,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       activeSideId: 'front',
       isEditMode: false,
       productColor: '#FFFFFF',
+      selectedProductColor: null,
       layerColors: {},
       zoomLevels: {},
       canvasVersion: 0,

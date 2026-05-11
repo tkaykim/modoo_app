@@ -9,6 +9,7 @@ import ProductionExamples from "@/app/components/ProductionExamples";
 import InquiryBoardSection from "@/app/components/InquiryBoardSection";
 import CoBuySessionCard from "@/app/components/CoBuySessionCard";
 import BestReviewsSection from "@/app/components/BestReviewsSection";
+import FeaturedTemplatesSection from "@/app/components/templates/FeaturedTemplatesSection";
 import { createAnonClient } from "@/lib/supabase";
 import { Product, CoBuySessionWithDetails, ReviewWithProduct } from "@/types/types";
 import { CATEGORIES } from "@/lib/categories";
@@ -198,6 +199,9 @@ export default async function HomePage() {
             )}
           </div>
         </section>
+
+        {/* Featured Templates Section */}
+        <FeaturedTemplatesSection />
 
         {/* Best Reviews Section */}
         <BestReviewsSection reviews={bestReviews} />
