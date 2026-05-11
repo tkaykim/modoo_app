@@ -7,18 +7,23 @@ import type {
   TemplateGroup,
   ImageSlot,
   Product,
-  CompositionSlot,
-  CompositionImageSlot,
-  PlacementMap,
+  SlotManifestEntry,
+  SlotManifestImageEntry,
 } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { replaceImageSlot, replaceTextSlot } from '@/lib/slotReplacement';
+import {
+  findTemplateGroup,
+  findSlotObjectInGroup,
+  replaceGroupTextSlot,
+  replaceGroupImageSlot,
+} from '@/lib/templateGroupComposer';
 import SlotImageCropper from './SlotImageCropper';
 import { trackDesignAction } from '@/lib/gtm-events';
 
 interface Props {
   template: DesignTemplate;
-  /** Optional — group meta when this template is group-bound. */
+  /** Optional — group meta when this template is group-bound (new model). */
   group?: TemplateGroup | null;
   product: Product;
   onProceed: () => void;
@@ -28,19 +33,18 @@ interface Props {
 }
 
 /**
- * Unified internal row used by the panel — collapses both the legacy
- * (image_slots/text_slots) and the new group composition (CompositionSlot +
- * placement_map) shapes into one render-friendly structure.
+ * Internal row: collapses both the new group slot_manifest and the legacy
+ * image_slots/text_slots into one render-friendly structure.
  */
 type SlotRow =
   | {
       kind: 'image';
-      slot_id: string;
+      slot_id: string;        // for legacy = slot_id, for group = object_id
       side_id: string;
       label: string;
       thumbnail_url: string | null;
-      // Adapter to drive SlotImageCropper from either source
-      cropperSlot: ImageSlot;
+      cropperSlot: ImageSlot;  // adapted shape for SlotImageCropper
+      source: 'group' | 'legacy';
     }
   | {
       kind: 'text';
@@ -49,6 +53,7 @@ type SlotRow =
       label: string;
       placeholder?: string;
       max_length?: number;
+      source: 'group' | 'legacy';
     };
 
 const QuickReplacePanel: React.FC<Props> = ({
@@ -61,49 +66,66 @@ const QuickReplacePanel: React.FC<Props> = ({
   formattedPrice,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeImageSlot, setActiveImageSlot] = useState<ImageSlot | null>(null);
+  const [activeImageSlot, setActiveImageSlot] = useState<{ slot: ImageSlot; source: 'group' | 'legacy' } | null>(null);
   const [textValues, setTextValues] = useState<Record<string, string>>({});
   const incrementCanvasVersion = useCanvasStore((s) => s.incrementCanvasVersion);
+  const canvasMap = useCanvasStore((s) => s.canvasMap);
 
-  /** Produce unified rows from either composition or legacy slot manifests. */
+  /** Helper: resolve current image src for a group slot from the live canvas. */
+  const groupSlotThumbnail = (objectId: string): string | null => {
+    if (!group || !template.side_id) return null;
+    const canvas = canvasMap[template.side_id];
+    if (!canvas) return null;
+    const fGroup = findTemplateGroup(canvas);
+    if (!fGroup) return null;
+    const obj = findSlotObjectInGroup(fGroup, objectId);
+    if (obj && obj.type === 'image') {
+      try {
+        return (obj as import('fabric').FabricImage).getSrc?.() ?? null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  /** Produce unified rows from either new group manifest or legacy slot manifests. */
   const rows = useMemo<SlotRow[]>(() => {
     const out: SlotRow[] = [];
 
-    // Group composition path (preferred when present)
-    const compSlots: CompositionSlot[] = group?.design_composition?.slots ?? [];
-    const placement = (template.placement_map ?? {}) as PlacementMap;
-    if (compSlots.length > 0) {
-      for (const s of compSlots) {
-        const place = placement[s.slot_id];
-        if (!place) continue; // unplaced — hide from customer
-        if (s.kind === 'text') {
+    // NEW: group slot_manifest path
+    if (group && Array.isArray(group.slot_manifest) && group.slot_manifest.length > 0 && template.side_id) {
+      for (const entry of group.slot_manifest as SlotManifestEntry[]) {
+        if (entry.kind === 'text') {
           out.push({
             kind: 'text',
-            slot_id: s.slot_id,
-            side_id: place.side_id,
-            label: s.label,
-            placeholder: s.placeholder ?? s.default_text,
-            max_length: s.max_length,
+            slot_id: entry.object_id,
+            side_id: template.side_id,
+            label: entry.label,
+            placeholder: entry.placeholder,
+            max_length: entry.max_length,
+            source: 'group',
           });
         } else {
-          const im = s as CompositionImageSlot;
+          const im = entry as SlotManifestImageEntry;
+          const liveThumb = groupSlotThumbnail(im.object_id);
           out.push({
             kind: 'image',
-            slot_id: im.slot_id,
-            side_id: place.side_id,
+            slot_id: im.object_id,
+            side_id: template.side_id,
             label: im.label,
-            thumbnail_url: im.default_image_url || null,
-            // Adapt to legacy ImageSlot shape so SlotImageCropper can reuse
+            thumbnail_url: liveThumb,
             cropperSlot: {
-              slot_id: im.slot_id,
-              side_id: place.side_id,
+              slot_id: im.object_id,
+              side_id: template.side_id,
               label: im.label,
-              default_image_url: im.default_image_url,
-              aspect_ratio: im.aspect_ratio,
-              print_method_id: place.print_method_id ?? im.print_method_id ?? '',
+              default_image_url: liveThumb ?? '',
+              aspect_ratio: im.aspect_ratio ?? 1,
+              print_method_id: im.print_method_id ?? '',
               accepts: im.accepts,
               bg_removal_default: im.bg_removal_default,
             },
+            source: 'group',
           });
         }
       }
@@ -119,6 +141,7 @@ const QuickReplacePanel: React.FC<Props> = ({
         label: s.label,
         thumbnail_url: s.default_image_url || null,
         cropperSlot: s,
+        source: 'legacy',
       });
     }
     for (const s of template.text_slots ?? []) {
@@ -129,10 +152,12 @@ const QuickReplacePanel: React.FC<Props> = ({
         label: s.label,
         placeholder: s.placeholder,
         max_length: s.max_length,
+        source: 'legacy',
       });
     }
     return out;
-  }, [group, template.image_slots, template.text_slots, template.placement_map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group, template.image_slots, template.text_slots, template.side_id, canvasMap]);
 
   const groupedRows = useMemo(() => {
     const map: Record<string, SlotRow[]> = {};
@@ -147,7 +172,17 @@ const QuickReplacePanel: React.FC<Props> = ({
     product.configuration.find((s) => s.id === sideId)?.name || sideId;
 
   const handleImageReplaced = async (row: Extract<SlotRow, { kind: 'image' }>, url: string) => {
-    const ok = await replaceImageSlot(row.side_id, row.slot_id, url);
+    let ok = false;
+    if (row.source === 'group' && template.side_id) {
+      const canvas = canvasMap[template.side_id];
+      const fGroup = canvas ? findTemplateGroup(canvas) : null;
+      if (fGroup) {
+        ok = await replaceGroupImageSlot(fGroup, row.slot_id, url);
+        if (ok) incrementCanvasVersion();
+      }
+    } else {
+      ok = await replaceImageSlot(row.side_id, row.slot_id, url);
+    }
     if (ok) {
       trackDesignAction({
         action_type: 'slot_image_replace',
@@ -163,7 +198,17 @@ const QuickReplacePanel: React.FC<Props> = ({
   const commitText = (row: Extract<SlotRow, { kind: 'text' }>) => {
     const value = textValues[row.slot_id];
     if (value === undefined) return;
-    const ok = replaceTextSlot(row.side_id, row.slot_id, value);
+    let ok = false;
+    if (row.source === 'group' && template.side_id) {
+      const canvas = canvasMap[template.side_id];
+      const fGroup = canvas ? findTemplateGroup(canvas) : null;
+      if (fGroup) {
+        ok = replaceGroupTextSlot(fGroup, row.slot_id, value);
+        if (ok) incrementCanvasVersion();
+      }
+    } else {
+      ok = replaceTextSlot(row.side_id, row.slot_id, value);
+    }
     if (ok) {
       trackDesignAction({
         action_type: 'slot_text_replace',
@@ -255,11 +300,14 @@ const QuickReplacePanel: React.FC<Props> = ({
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{row.label}</p>
                           <p className="text-[11px] text-gray-400">
-                            {row.cropperSlot.accepts === 'logo' ? '로고' : '사진'} · 비율 {row.cropperSlot.aspect_ratio.toFixed(2)}
+                            {row.cropperSlot.accepts === 'logo' ? '로고' : '사진'}
+                            {row.cropperSlot.aspect_ratio
+                              ? ` · 비율 ${row.cropperSlot.aspect_ratio.toFixed(2)}`
+                              : ''}
                           </p>
                         </div>
                         <button
-                          onClick={() => setActiveImageSlot(row.cropperSlot)}
+                          onClick={() => setActiveImageSlot({ slot: row.cropperSlot, source: row.source })}
                           className="px-3 py-1.5 rounded-md bg-black text-white text-xs font-medium hover:bg-gray-800"
                         >
                           교체
@@ -309,19 +357,17 @@ const QuickReplacePanel: React.FC<Props> = ({
 
       {activeImageSlot && (
         <SlotImageCropper
-          slot={activeImageSlot}
+          slot={activeImageSlot.slot}
           isOpen={!!activeImageSlot}
           onClose={() => setActiveImageSlot(null)}
           onUploaded={(url) => {
-            const slot = activeImageSlot;
+            const slot = activeImageSlot.slot;
+            const source = activeImageSlot.source;
             setActiveImageSlot(null);
-            const matchingRow = rows.find(
-              (r) => r.kind === 'image' && r.slot_id === slot.slot_id,
-            );
+            const matchingRow = rows.find((r) => r.kind === 'image' && r.slot_id === slot.slot_id);
             if (matchingRow && matchingRow.kind === 'image') {
-              void handleImageReplaced(matchingRow, url);
+              void handleImageReplaced({ ...matchingRow, source }, url);
             }
-            void incrementCanvasVersion;
           }}
         />
       )}

@@ -406,9 +406,12 @@ export interface DesignTemplate {
   // Legacy slot manifests (used by single templates that don't belong to a group)
   image_slots: ImageSlot[];
   text_slots: TextSlot[];
-  // Placement of a group's composition slots on this product's canvas
-  // (only populated when template_group_id is set)
+  /** @deprecated Use side_id + transform. Will be removed once all templates migrate. */
   placement_map: PlacementMap;
+  /** Which side of the product this instance places the group on. */
+  side_id: string | null;
+  /** Group transform on the product canvas (normalized 0-1 within printArea). */
+  transform: GroupTransform | null;
   created_at: string;
   updated_at: string;
 }
@@ -418,6 +421,47 @@ export interface DesignTemplate {
  * design concept (e.g. "왼쪽 가슴 로고", "가족사진 정중앙"). Customers pick a
  * concept first and then choose which product to apply it to.
  */
+// ============================================================================
+// Slot Manifest — entries inside the group artwork that customers can replace.
+// Each entry references a Fabric object inside artwork_state by `object_id`.
+// ============================================================================
+export interface SlotManifestTextEntry {
+  object_id: string;          // Fabric object's data.object_id (admin-tagged)
+  kind: 'text';
+  label: string;
+  placeholder?: string;
+  max_length?: number;
+  lock_style: boolean;
+}
+
+export interface SlotManifestImageEntry {
+  object_id: string;
+  kind: 'image';
+  label: string;
+  aspect_ratio?: number;       // optional: enforce crop ratio (defaults to current object's ratio)
+  accepts: 'photo' | 'logo';
+  bg_removal_default?: boolean;
+  print_method_id?: string;
+}
+
+export type SlotManifestEntry = SlotManifestTextEntry | SlotManifestImageEntry;
+
+export interface ArtworkCanvasSize {
+  width: number;
+  height: number;
+}
+
+/** Group's transform when placed on a product canvas (normalized 0-1 within printArea). */
+export interface GroupTransform {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle?: number;
+  origin_x?: 'left' | 'center' | 'right';
+  origin_y?: 'top' | 'center' | 'bottom';
+}
+
 export interface TemplateGroup {
   id: string;
   title: string;
@@ -428,8 +472,14 @@ export interface TemplateGroup {
   is_active: boolean;
   is_featured: boolean;
   sort_order: number;
-  /** Reusable design composition (text/image slots) shared across all instances */
-  design_composition: DesignComposition;
+  /** Fabric.js canvas JSON for the group artwork (actual visual design). */
+  artwork_state: Record<string, any>;
+  /** Group's own canvas dimensions. */
+  artwork_canvas_size: ArtworkCanvasSize;
+  /** Tagged objects inside artwork that customers can replace. */
+  slot_manifest: SlotManifestEntry[];
+  /** @deprecated Use artwork_state + slot_manifest. */
+  design_composition?: DesignComposition;
   created_at: string;
   updated_at: string;
 }
