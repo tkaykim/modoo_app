@@ -200,8 +200,8 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* Featured Templates Section */}
-        <FeaturedTemplatesSection />
+        {/* Featured Templates Section — 템플릿 기능 미공개로 임시 숨김 */}
+        {/* <FeaturedTemplatesSection /> */}
 
         {/* Best Reviews Section */}
         <BestReviewsSection reviews={bestReviews} />

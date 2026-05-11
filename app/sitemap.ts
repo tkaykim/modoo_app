@@ -15,12 +15,7 @@ const STATIC_PATHS: MetadataRoute.Sitemap = [
   "/order/lookup",
   "/inquiries",
   "/cobuy",
-  "/templates",
-  "/templates/family",
-  "/templates/pet",
-  "/templates/group",
-  "/templates/logo",
-  "/templates/event",
+  // 템플릿 기능 미공개로 sitemap에서 임시 제외
 ].map((path) => ({
   url: new URL(path, getSiteUrl()).href,
   changeFrequency: "daily" as const,

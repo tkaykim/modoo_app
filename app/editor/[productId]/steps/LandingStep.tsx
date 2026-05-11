@@ -61,10 +61,10 @@ export default function LandingStep({
           </div>
         </div>
 
-        {/* Product templates quick-start */}
-        <div className="px-4 lg:px-0 lg:mt-4">
+        {/* Product templates quick-start — 템플릿 기능 미공개로 임시 숨김 */}
+        {/* <div className="px-4 lg:px-0 lg:mt-4">
           <ProductTemplatesStrip productId={product.id} />
-        </div>
+        </div> */}
 
         {/* Reviews */}
         <div className="px-4 lg:px-0">

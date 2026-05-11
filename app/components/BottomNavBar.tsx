@@ -42,14 +42,6 @@ export default function BottomNavBar() {
       ),
     },
     {
-      id: 'templates',
-      label: '템플릿',
-      href: '/templates',
-      icon: (
-        <LayoutTemplate size={20} />
-      ),
-    },
-    {
       id: 'designs',
       label: '내 디자인',
       href: '/home/designs',
