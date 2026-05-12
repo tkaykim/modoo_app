@@ -1215,6 +1215,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         />
       )}
 
+      {cropModal}
       {bgRemovalModal}
     </>
   );
