@@ -9,6 +9,7 @@ import AuthInitializer from "./components/AuthInitializer";
 import SupabaseStorageHeal from "./components/SupabaseStorageHeal";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
+import ErrorReporter from "./components/ErrorReporter";
 import { getSiteUrl } from "@/lib/site-url";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
@@ -94,6 +95,7 @@ export default function RootLayout({
             />
           </noscript>
         )}
+        <ErrorReporter />
         <SupabaseStorageHeal />
         <AuthInitializer />
         <NavigationListener />
