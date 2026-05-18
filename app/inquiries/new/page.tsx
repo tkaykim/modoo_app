@@ -276,8 +276,7 @@ function InquiryForm() {
         product_count: selectedProducts.length,
       });
 
-      alert('문의가 등록되었습니다.');
-      router.replace('/inquiries');
+      router.replace('/inquiries/new/success');
     } catch (error) {
       console.error('Error submitting inquiry:', error);
       trackGenerateLeadFail({ form_type: 'quote', reason: 'submit_error' });
