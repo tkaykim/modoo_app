@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendGmailEmail } from '@/lib/gmail';
+import { classifyNoise } from './noise-classifier';
 
 // ===========================================================================
 // Error email notifier with dedup + cooldown.
@@ -32,16 +33,32 @@ function getServiceClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-function buildDedupKey(message: string, url?: string): string {
-  // Hash by message + path (ignore query string) so the same bug across users
-  // collapses to one key.
+function normalizeStackTop(stack?: string): string {
+  if (!stack) return '';
+  // Take the first non-empty line and strip column/line numbers + query strings
+  // so the same call site collapses across users / page loads.
+  const firstLine = stack.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+  return firstLine
+    .replace(/\?[^):\s]*/g, '') // strip query strings inside URLs
+    .replace(/:\d+:\d+\)?$/g, '') // strip trailing :line:col
+    .replace(/:\d+\)?$/g, '') // strip trailing :line
+    .slice(0, 200);
+}
+
+function buildDedupKey(message: string, url?: string, stack?: string): string {
+  // Hash by message + path (ignore query string) + normalized stack top so the
+  // same bug across users collapses to one key, even when utm/fbclid changes.
   let pathOnly = '';
   try {
     pathOnly = url ? new URL(url, 'https://x').pathname : '';
   } catch {
     pathOnly = url ?? '';
   }
-  return createHash('sha256').update(`${message}::${pathOnly}`).digest('hex').slice(0, 32);
+  const stackTop = normalizeStackTop(stack);
+  return createHash('sha256')
+    .update(`${message}::${pathOnly}::${stackTop}`)
+    .digest('hex')
+    .slice(0, 32);
 }
 
 function isPaymentRelated(report: ErrorReport): boolean {
@@ -127,10 +144,15 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
     if (!report.message) return { emailed: false, reason: 'empty_message' };
 
     const isPayment = isPaymentRelated(report);
-    const dedupKey = buildDedupKey(report.message, report.url);
+    const noise = classifyNoise(report);
+    const dedupKey = buildDedupKey(report.message, report.url, report.stack);
     const supabase = getServiceClient();
 
     if (!supabase) {
+      // No DB: still suppress noise emails to avoid spamming the inbox.
+      if (noise.isNoise) {
+        return { emailed: false, reason: `noise(${noise.reason})` };
+      }
       console.error('[error-mail] Supabase service client unavailable, sending email without dedup');
       const ok = await sendGmailEmail({
         to: [{ email: RECIPIENT }],
@@ -152,9 +174,10 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
       .eq('dedup_key', dedupKey)
       .maybeSingle();
 
-    let shouldEmail = true;
-    let suppressReason: string | undefined;
+    let shouldEmail = !noise.isNoise;
+    let suppressReason: string | undefined = noise.isNoise ? `noise(${noise.reason})` : undefined;
     let occurrenceSinceLast = 1;
+    const nowIso = new Date().toISOString();
 
     if (existing) {
       const sameDay = existing.emails_sent_date === todayKst;
@@ -163,12 +186,14 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
       const secSinceLast = (nowMs - lastMs) / 1000;
       occurrenceSinceLast = (existing.occurrence_count ?? 0) + 1;
 
-      if (lastMs > 0 && secSinceLast < cooldownSec) {
-        shouldEmail = false;
-        suppressReason = `cooldown(${Math.round(cooldownSec - secSinceLast)}s)`;
-      } else if (sentToday >= DAILY_CAP) {
-        shouldEmail = false;
-        suppressReason = `daily_cap(${sentToday}/${DAILY_CAP})`;
+      if (shouldEmail) {
+        if (lastMs > 0 && secSinceLast < cooldownSec) {
+          shouldEmail = false;
+          suppressReason = `cooldown(${Math.round(cooldownSec - secSinceLast)}s)`;
+        } else if (sentToday >= DAILY_CAP) {
+          shouldEmail = false;
+          suppressReason = `daily_cap(${sentToday}/${DAILY_CAP})`;
+        }
       }
 
       await supabase
@@ -180,12 +205,15 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
           user_agent: report.userAgent,
           user_id: report.userId ?? null,
           is_payment: isPayment,
+          is_noise: noise.isNoise,
+          noise_reason: noise.reason ?? null,
+          last_seen_at: nowIso,
           occurrence_count: occurrenceSinceLast,
           context: report.context ?? null,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
           ...(shouldEmail
             ? {
-                last_emailed_at: new Date().toISOString(),
+                last_emailed_at: nowIso,
                 emails_sent_today: sameDay ? existing.emails_sent_today + 1 : 1,
                 emails_sent_date: todayKst,
                 occurrence_count: 0, // reset since-last counter after emailing
@@ -202,9 +230,13 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
         user_agent: report.userAgent,
         user_id: report.userId ?? null,
         is_payment: isPayment,
+        is_noise: noise.isNoise,
+        noise_reason: noise.reason ?? null,
+        first_seen_at: nowIso,
+        last_seen_at: nowIso,
         occurrence_count: 0,
-        last_emailed_at: new Date().toISOString(),
-        emails_sent_today: 1,
+        last_emailed_at: shouldEmail ? nowIso : null,
+        emails_sent_today: shouldEmail ? 1 : 0,
         emails_sent_date: todayKst,
         context: report.context ?? null,
       });
