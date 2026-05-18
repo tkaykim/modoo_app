@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/useAuthStore'
+import { AuthErrorKind } from '@/lib/auth-errors'
 import { Mail, Lock, User, Phone, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 const LOGIN_RETURN_TO_KEY = 'login:returnTo'
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<AuthErrorKind | null>(null)
   const [isSignUp, setIsSignUp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
@@ -39,6 +41,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError(null)
+    setErrorKind(null)
     const result = await signInWithOAuth('google', 'login')
     if (!result.success) {
       setError(result.error || '구글 로그인에 실패했습니다')
@@ -47,6 +50,7 @@ export default function LoginPage() {
 
   const handleKakaoLogin = async () => {
     setError(null)
+    setErrorKind(null)
     const result = await signInWithOAuth('kakao', 'login')
     if (!result.success) {
       setError(result.error || '카카오 로그인에 실패했습니다')
@@ -55,6 +59,7 @@ export default function LoginPage() {
 
   const handleGoogleSignup = async () => {
     setError(null)
+    setErrorKind(null)
     const result = await signInWithOAuth('google', 'signup')
     if (!result.success) {
       setError(result.error || '구글 회원가입에 실패했습니다')
@@ -63,6 +68,7 @@ export default function LoginPage() {
 
   const handleKakaoSignup = async () => {
     setError(null)
+    setErrorKind(null)
     const result = await signInWithOAuth('kakao', 'signup')
     if (!result.success) {
       setError(result.error || '카카오 회원가입에 실패했습니다')
@@ -86,6 +92,7 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setErrorKind(null)
 
     try {
       if (isSignUp) {
@@ -93,6 +100,7 @@ export default function LoginPage() {
 
         if (!result.success) {
           setError(result.error || '회원가입에 실패했습니다')
+          setErrorKind(result.errorKind ?? 'unknown')
           return
         }
 
@@ -125,6 +133,7 @@ export default function LoginPage() {
 
         if (!result.success) {
           setError(result.error || '로그인에 실패했습니다')
+          setErrorKind(result.errorKind ?? 'unknown')
           return
         }
 
@@ -157,6 +166,7 @@ export default function LoginPage() {
 
   const switchTab = (toSignUp: boolean) => {
     setError(null)
+    setErrorKind(null)
     setIsSignUp(toSignUp)
   }
 
@@ -270,13 +280,37 @@ export default function LoginPage() {
                   </div>
 
                   {error && !isSignUp && (
-                    <div className={`text-xs p-2.5 rounded-lg flex items-start gap-2 ${
+                    <div className={`text-xs p-2.5 rounded-lg flex flex-col gap-2 ${
                       error.includes('이메일을 확인')
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                         : 'bg-red-50 text-red-700 border border-red-100'
                     }`}>
-                      <span className="shrink-0 mt-0.5">{error.includes('이메일을 확인') ? '✓' : '!'}</span>
-                      <p>{error}</p>
+                      <div className="flex items-start gap-2">
+                        <span className="shrink-0 mt-0.5">{error.includes('이메일을 확인') ? '✓' : '!'}</span>
+                        <p className="leading-relaxed">{error}</p>
+                      </div>
+                      {errorKind === 'invalid_credentials' && (
+                        <div className="flex flex-wrap gap-2 pl-5">
+                          <button
+                            type="button"
+                            onClick={() => switchTab(true)}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-red-200 text-red-700 rounded hover:bg-red-100 transition"
+                          >
+                            회원가입 하러 가기
+                          </button>
+                          <Link
+                            href="/reset-password"
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-red-200 text-red-700 rounded hover:bg-red-100 transition"
+                          >
+                            비밀번호 찾기
+                          </Link>
+                        </div>
+                      )}
+                      {errorKind === 'email_not_confirmed' && (
+                        <p className="text-[11px] pl-5 text-red-600/80">
+                          인증 메일이 안 보이시면 스팸함도 확인해주세요.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -429,13 +463,26 @@ export default function LoginPage() {
                   </div>
 
                   {error && isSignUp && (
-                    <div className={`text-xs p-2.5 rounded-lg flex items-start gap-2 ${
+                    <div className={`text-xs p-2.5 rounded-lg flex flex-col gap-2 ${
                       error.includes('이메일을 확인')
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                         : 'bg-red-50 text-red-700 border border-red-100'
                     }`}>
-                      <span className="shrink-0 mt-0.5">{error.includes('이메일을 확인') ? '✓' : '!'}</span>
-                      <p>{error}</p>
+                      <div className="flex items-start gap-2">
+                        <span className="shrink-0 mt-0.5">{error.includes('이메일을 확인') ? '✓' : '!'}</span>
+                        <p className="leading-relaxed">{error}</p>
+                      </div>
+                      {errorKind === 'already_registered' && (
+                        <div className="pl-5">
+                          <button
+                            type="button"
+                            onClick={() => switchTab(false)}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-red-200 text-red-700 rounded hover:bg-red-100 transition"
+                          >
+                            로그인 하러 가기
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 

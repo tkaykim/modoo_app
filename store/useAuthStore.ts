@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase-client';
+import { translateAuthError, AuthErrorKind } from '@/lib/auth-errors';
+
+function toAuthFailure(rawMessage: string | undefined | null) {
+  const t = translateAuthError(rawMessage);
+  return { success: false as const, error: t.message, errorKind: t.kind };
+}
 
 export interface UserData {
   id: string;
@@ -33,19 +39,19 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
 
   // Login with email and password
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; errorKind?: AuthErrorKind }>;
 
   // Sign up with email and password
-  signUp: (email: string, password: string, name?: string, phone?: string) => Promise<{ success: boolean; error?: string; needsEmailConfirmation?: boolean }>;
+  signUp: (email: string, password: string, name?: string, phone?: string) => Promise<{ success: boolean; error?: string; errorKind?: AuthErrorKind; needsEmailConfirmation?: boolean }>;
 
   // Sign in with OAuth provider
-  signInWithOAuth: (provider: 'google' | 'kakao', mode?: 'login' | 'signup') => Promise<{ success: boolean; error?: string }>;
+  signInWithOAuth: (provider: 'google' | 'kakao', mode?: 'login' | 'signup') => Promise<{ success: boolean; error?: string; errorKind?: AuthErrorKind }>;
 
   // Request password reset email
-  resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
+  resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string; errorKind?: AuthErrorKind }>;
 
   // Update password (for authenticated users after reset link)
-  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string; errorKind?: AuthErrorKind }>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -141,7 +147,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (error) {
             set({ isLoading: false });
-            return { success: false, error: error.message };
+            return toAuthFailure(error.message);
           }
 
           if (data.user) {
@@ -173,10 +179,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           set({ isLoading: false });
-          return { success: false, error: 'Login failed' };
+          return toAuthFailure('Login failed');
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: (err as Error).message };
+          return toAuthFailure((err as Error).message);
         }
       },
 
@@ -209,7 +215,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (error) {
             set({ isLoading: false });
-            return { success: false, error: error.message };
+            return toAuthFailure(error.message);
           }
 
           if (data.user) {
@@ -240,10 +246,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           set({ isLoading: false });
-          return { success: false, error: 'Sign up failed' };
+          return toAuthFailure('Sign up failed');
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: (err as Error).message };
+          return toAuthFailure((err as Error).message);
         }
       },
 
@@ -276,13 +282,13 @@ export const useAuthStore = create<AuthState>()(
 
           if (error) {
             set({ isLoading: false });
-            return { success: false, error: error.message };
+            return toAuthFailure(error.message);
           }
 
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: (err as Error).message };
+          return toAuthFailure((err as Error).message);
         }
       },
 
@@ -298,13 +304,13 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
 
           if (error) {
-            return { success: false, error: error.message };
+            return toAuthFailure(error.message);
           }
 
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: (err as Error).message };
+          return toAuthFailure((err as Error).message);
         }
       },
 
@@ -318,13 +324,13 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
 
           if (error) {
-            return { success: false, error: error.message };
+            return toAuthFailure(error.message);
           }
 
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: (err as Error).message };
+          return toAuthFailure((err as Error).message);
         }
       },
     }),
