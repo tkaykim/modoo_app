@@ -88,6 +88,7 @@ function InquiryForm() {
   // Auth
   const [user, setUser] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Product selection
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
@@ -200,6 +201,10 @@ function InquiryForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Synchronous re-entrancy guard: React state updates are async, so rapid
+    // double-clicks (or Enter spam) can pass the disabled check before re-render.
+    if (isSubmittingRef.current) return;
+
     if (!title) { alert('제목을 선택해주세요.'); return; }
     if (!groupName.trim()) { alert('단체명을 입력해주세요.'); return; }
     if (!managerName.trim()) { alert('담당자명을 입력해주세요.'); return; }
@@ -207,6 +212,7 @@ function InquiryForm() {
     if (!password.trim()) { alert('비밀번호를 입력해주세요.'); return; }
     if (consent !== 'agree') { alert('개인정보 수집 및 이용에 동의해주세요.'); return; }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -277,6 +283,7 @@ function InquiryForm() {
       trackGenerateLeadFail({ form_type: 'quote', reason: 'submit_error' });
       alert('문의 등록 중 오류가 발생했습니다.');
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -594,9 +601,15 @@ function InquiryForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-8 py-3 text-sm bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              aria-busy={isSubmitting}
+              className="px-8 py-3 text-sm bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 min-w-[110px]"
             >
-              {isSubmitting ? '등록 중...' : '등록'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  등록 중...
+                </>
+              ) : '등록'}
             </button>
             <button
               type="button"
