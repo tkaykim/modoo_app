@@ -107,7 +107,7 @@ export default function QuantitySelectorModal({
       return;
     }
     if (!designName.trim()) {
-      alert('디자인 이름을 입력해주세요. (예: 청담고 응원티)');
+      alert('디자인 이름을 입력해주세요. (예: 청담고 응원티 — 사람 이름 대신 단체·이벤트명)');
       return;
     }
     setShowPurchaseChoice(true);
@@ -224,13 +224,13 @@ export default function QuantitySelectorModal({
                   디자인 이름 <span className="text-red-500">*</span>
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요
+                  공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요. (사람 이름 대신 단체·이벤트·용도)
                 </p>
                 <input
                   type="text"
                   value={designName}
                   onChange={(e) => setDesignName(e.target.value)}
-                  placeholder="예: 청담고 응원티, 김민수 생일"
+                  placeholder="예: 청담고 응원티, OO교회 단체티"
                   maxLength={40}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black transition"
                   disabled={isSaving}
