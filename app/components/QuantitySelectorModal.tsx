@@ -52,19 +52,12 @@ export default function QuantitySelectorModal({
     return getTotalQuantity() * pricePerItem;
   };
 
-  // Auto-generate design name when modal opens
+  // 기존에 저장된 디자인을 다시 여는 경우에만 prefill.
+  // 신규 디자인은 의도적으로 빈 칸으로 두어 사용자가 의미있는 이름을 짓도록 유도한다.
+  // (timestamp fallback은 공장·관리자가 주문을 구분할 수 없게 만들어 제거됨)
   useEffect(() => {
-    if (isOpen) {
-      if (defaultDesignName) {
-        setDesignName(defaultDesignName);
-      } else if (!designName) {
-        const now = new Date();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const min = String(now.getMinutes()).padStart(2, '0');
-        setDesignName(`디자인 ${mm}.${dd} ${hh}:${min}`);
-      }
+    if (isOpen && defaultDesignName) {
+      setDesignName(defaultDesignName);
     }
   }, [isOpen, defaultDesignName]);
 
@@ -114,7 +107,7 @@ export default function QuantitySelectorModal({
       return;
     }
     if (!designName.trim()) {
-      alert('디자인 이름을 입력해주세요.');
+      alert('디자인 이름을 입력해주세요. (예: 청담고 응원티)');
       return;
     }
     setShowPurchaseChoice(true);
@@ -227,14 +220,18 @@ export default function QuantitySelectorModal({
 
               {/* Design Name Input */}
               <div className="mt-4 mb-6">
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  디자인 이름
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  디자인 이름 <span className="text-red-500">*</span>
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요
+                </p>
                 <input
                   type="text"
                   value={designName}
                   onChange={(e) => setDesignName(e.target.value)}
-                  placeholder="예: 나만의 티셔츠"
+                  placeholder="예: 청담고 응원티, 김민수 생일"
+                  maxLength={40}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black transition"
                   disabled={isSaving}
                 />
