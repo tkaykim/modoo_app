@@ -207,6 +207,55 @@ export async function trackServerPurchase(input: ServerPurchaseInput): Promise<v
  * - modoo_utm 쿠키 → UTM (lib/gtm.ts의 captureUtmFromLocation이 30일 저장)
  * - _fbp / _fbc 쿠키 → Meta Pixel browser/click ID
  */
+/**
+ * orders 테이블에 저장할 utm 5필드를 추출한다.
+ * 쿠키 modoo_utm(30일 보존, lib/gtm.ts의 captureUtmFromLocation이 기록)에서 읽는다.
+ * 누락된 필드는 null. 결제 API에서 INSERT 객체에 spread하여 사용.
+ */
+export function getOrderUtmAttribution(request: Request): {
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  fbclid: string | null;
+} {
+  const empty = {
+    utm_source: null,
+    utm_medium: null,
+    utm_campaign: null,
+    utm_content: null,
+    fbclid: null,
+  };
+  try {
+    const cookieHeader = request.headers.get('cookie') || '';
+    let raw: string | undefined;
+    for (const part of cookieHeader.split(';')) {
+      const idx = part.indexOf('=');
+      if (idx === -1) continue;
+      const k = part.slice(0, idx).trim();
+      if (k === 'modoo_utm') {
+        raw = decodeURIComponent(part.slice(idx + 1).trim());
+        break;
+      }
+    }
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const pick = (k: string): string | null => {
+      const v = parsed[k];
+      return typeof v === 'string' && v.length > 0 ? v.slice(0, 500) : null;
+    };
+    return {
+      utm_source: pick('utm_source'),
+      utm_medium: pick('utm_medium'),
+      utm_campaign: pick('utm_campaign'),
+      utm_content: pick('utm_content'),
+      fbclid: pick('fbclid'),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 export function extractAttributionFromRequest(request: Request): {
   clientId?: string;
   fbp?: string;

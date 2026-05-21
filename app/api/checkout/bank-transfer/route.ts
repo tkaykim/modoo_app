@@ -9,6 +9,7 @@ import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
+import { getOrderUtmAttribution } from '@/lib/server-analytics';
 
 interface OrderData {
   id: string;
@@ -168,6 +169,8 @@ export async function POST(request: NextRequest) {
         // 파트너몰 경유 시 mall + 영업사원 자동 귀속. 쿠폰 블록(아래 ~L203)이 있으면 salesman_id를 덮어씀(쿠폰 우선).
         partner_mall_id: cartFirstMallId,
         salesman_id: mallSalesmanId,
+        // 광고 attribution (utm/fbclid) — 결제 시점 쿠키에서 캡처
+        ...getOrderUtmAttribution(request),
       })
       .select()
       .single();

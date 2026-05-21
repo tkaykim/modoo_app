@@ -8,6 +8,7 @@ import {
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
+import { getOrderUtmAttribution } from '@/lib/server-analytics';
 
 interface OrderData {
   id: string;
@@ -206,6 +207,8 @@ export async function POST(request: NextRequest) {
         order_status: 'payment_completed',
         order_category: 'cobuy', // Mark as CoBuy order
         cobuy_session_id: sessionId, // Bidirectional relationship with cobuy_sessions
+        // 광고 attribution (utm/fbclid) — 결제 시점 쿠키에서 캡처
+        ...getOrderUtmAttribution(request),
       })
       .select()
       .single();

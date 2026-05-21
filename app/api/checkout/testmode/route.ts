@@ -6,6 +6,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
+import { getOrderUtmAttribution } from '@/lib/server-analytics';
 
 // Type definitions for request body
 interface OrderData {
@@ -113,6 +114,8 @@ export async function POST(request: NextRequest) {
         // Customer note & attachments
         customer_note: orderData.customer_note || null,
         attachment_urls: orderData.attachment_urls || [],
+        // 광고 attribution (utm/fbclid) — 결제 시점 쿠키에서 캡처
+        ...getOrderUtmAttribution(request),
       })
       .select()
       .single();

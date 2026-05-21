@@ -217,6 +217,7 @@ export type UtmParams = {
   utm_campaign?: string;
   utm_term?: string;
   utm_content?: string;
+  fbclid?: string;
 };
 
 const UTM_KEYS: Array<keyof UtmParams> = [
@@ -225,6 +226,7 @@ const UTM_KEYS: Array<keyof UtmParams> = [
   'utm_campaign',
   'utm_term',
   'utm_content',
+  'fbclid',
 ];
 
 export const captureUtmFromLocation = (): UtmParams | null => {

@@ -7,7 +7,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
-import { trackServerPurchase, extractAttributionFromRequest } from '@/lib/server-analytics';
+import { trackServerPurchase, extractAttributionFromRequest, getOrderUtmAttribution } from '@/lib/server-analytics';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
@@ -237,6 +237,8 @@ export async function POST(request: NextRequest) {
         // 파트너몰 경유 시 mall + 영업사원 자동 귀속
         partner_mall_id: cartFirstMallId,
         salesman_id: mallSalesmanId,
+        // 광고 attribution (utm/fbclid) — 결제 시점 쿠키에서 캡처
+        ...getOrderUtmAttribution(request),
       })
       .select()
       .single();
