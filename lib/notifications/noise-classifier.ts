@@ -62,7 +62,11 @@ const RULES: Rule[] = [
       return (
         /chrome-extension:\/\//i.test(stack) ||
         /moz-extension:\/\//i.test(stack) ||
-        /safari-extension:\/\//i.test(stack)
+        /safari-extension:\/\//i.test(stack) ||
+        // iOS Safari masks injected scripts (password managers, content
+        // scripts, etc.) as `@webkit-masked-url://hidden/`. The original
+        // source is hidden by design, so we can't fix it — treat as noise.
+        /webkit-masked-url:\/\//i.test(stack)
       );
     },
   },
