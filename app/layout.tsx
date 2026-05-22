@@ -72,6 +72,13 @@ export default function RootLayout({
             }}
           />
         )}
+        {/* Microsoft Clarity — 행동 분석 (세션 리플레이/히트맵). 프로젝트 ID는 공개 식별자라 하드코딩. */}
+        <script
+          id="ms-clarity"
+          dangerouslySetInnerHTML={{
+            __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "wv6e81e2t2");`,
+          }}
+        />
       </head>
       <body className="antialiased">
         {GTM_ID && (
