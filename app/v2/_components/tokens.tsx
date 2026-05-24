@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 export const MODOO = {
   brand: "#0052CC",
@@ -591,16 +592,24 @@ export const Tee: React.FC<TeeProps> = ({
 
 interface TabBarProps {
   active?: "home" | "shop" | "editor" | "orders" | "me";
-  onChange?: (id: string) => void;
   brand?: string;
 }
 
+// 중앙 "디자인" 탭은 v1 mall로 보낸다 — 디자인 캔버스 진입은 상품 선택 이후 발생.
+// v2에는 통합 진입점이 없고, v1 mall이 "디자인 시작" UX의 정식 진입점.
+const TAB_HREFS: Record<NonNullable<TabBarProps["active"]>, string> = {
+  home: "/v2",
+  shop: "/v2/mall",
+  editor: "/v2/mall",
+  orders: "/v2/my-page",
+  me: "/v2/my-page",
+};
+
 export const TabBar: React.FC<TabBarProps> = ({
   active = "home",
-  onChange,
   brand = MODOO.brand,
 }) => {
-  const tabs: { id: TabBarProps["active"]; icon: IconName; label: string }[] = [
+  const tabs: { id: NonNullable<TabBarProps["active"]>; icon: IconName; label: string }[] = [
     { id: "home", icon: "home", label: "홈" },
     { id: "shop", icon: "grid", label: "상품" },
     { id: "editor", icon: "sparkle", label: "디자인" },
@@ -633,14 +642,11 @@ export const TabBar: React.FC<TabBarProps> = ({
         const isCenter = t.id === "editor";
         if (isCenter) {
           return (
-            <button
+            <Link
               key={t.id}
-              onClick={() => onChange && onChange(t.id!)}
+              href={TAB_HREFS[t.id]}
               style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
+                textDecoration: "none",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -666,23 +672,21 @@ export const TabBar: React.FC<TabBarProps> = ({
               <span style={{ fontSize: 10, fontWeight: 600, color: brand }}>
                 {t.label}
               </span>
-            </button>
+            </Link>
           );
         }
         return (
-          <button
+          <Link
             key={t.id}
-            onClick={() => onChange && onChange(t.id!)}
+            href={TAB_HREFS[t.id]}
             style={{
-              background: "none",
-              border: "none",
               padding: "6px 14px",
-              cursor: "pointer",
               flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 3,
+              textDecoration: "none",
             }}
           >
             <Icon
@@ -700,7 +704,7 @@ export const TabBar: React.FC<TabBarProps> = ({
             >
               {t.label}
             </span>
-          </button>
+          </Link>
         );
       })}
     </div>

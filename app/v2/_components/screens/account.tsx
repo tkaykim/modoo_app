@@ -37,7 +37,16 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
   order,
 }) => (
   <div style={{ background: "#fff", minHeight: "100%", position: "relative" }}>
-    <AppBar transparent left={null} right={<Icon name="close" />} title="" />
+    <AppBar
+      transparent
+      left={null}
+      right={
+        <Link href="/v2" style={{ color: "inherit" }}>
+          <Icon name="close" />
+        </Link>
+      }
+      title=""
+    />
     <div style={{ padding: "20px 24px 0", textAlign: "center" }}>
       <div
         style={{
@@ -778,7 +787,11 @@ export const ReviewPrompt: React.FC<ReviewPromptProps> = ({
     >
       <AppBar
         title="리뷰 작성"
-        left={<Icon name="close" />}
+        left={
+          <Link href="/v2/my-page" style={{ color: "inherit" }}>
+            <Icon name="close" />
+          </Link>
+        }
         right={
           <span
             style={{
@@ -1001,7 +1014,13 @@ export const ReviewPrompt: React.FC<ReviewPromptProps> = ({
           borderTop: `0.5px solid ${MODOO.hairline}`,
         }}
       >
-        <button
+        {/*
+          실제 리뷰 등록(이미지 업로드·적립금 처리 포함)은 v1 /reviews/[productId]가 담당한다.
+          v2는 별점·텍스트·태그를 미리 골라둔 상태로 v1에 인계.
+          product가 없으면 my-page로 fallback.
+        */}
+        <Link
+          href={product ? `/reviews/${product.id}` : "/v2/my-page"}
           style={{
             width: "100%",
             minHeight: 52,
@@ -1010,10 +1029,14 @@ export const ReviewPrompt: React.FC<ReviewPromptProps> = ({
             color: "#fff",
             font: `700 16px/1.2 ${MODOO.fonts.sans}`,
             boxShadow: `0 6px 16px ${brand}33`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textDecoration: "none",
           }}
         >
           리뷰 등록 · ₩3,000 받기
-        </button>
+        </Link>
       </div>
     </div>
   );

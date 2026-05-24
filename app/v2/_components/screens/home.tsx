@@ -649,7 +649,9 @@ export const HomeMinimal: React.FC<BrandProp> = ({ brand = MODOO.brand }) => (
       </div>
     </div>
     <div style={{ padding: "20px 24px 0" }}>
-      <CTA color={MODOO.ink}>디자인 시작하기</CTA>
+      <Link href="/v2/mall" style={{ textDecoration: "none", display: "block" }}>
+        <CTA color={MODOO.ink}>디자인 시작하기</CTA>
+      </Link>
     </div>
     <div style={{ height: 110 }} />
     <TabBar active="home" brand={brand} />
@@ -1164,7 +1166,9 @@ export const HomeEditorial: React.FC<BrandProp> = ({
       ))}
     </div>
     <div style={{ padding: "24px 22px 0" }}>
-      <CTA color={MODOO.ink}>이번 호 보기 · 디자인 시작</CTA>
+      <Link href="/v2/mall" style={{ textDecoration: "none", display: "block" }}>
+        <CTA color={MODOO.ink}>이번 호 보기 · 디자인 시작</CTA>
+      </Link>
     </div>
     <div style={{ height: 110 }} />
     <TabBar active="home" brand={brand} />
@@ -1912,19 +1916,26 @@ export const Onboarding: React.FC<BrandProp> = ({ brand = MODOO.brand }) => (
         padding: "0 20px 30px",
       }}
     >
-      <CTA color={brand}>3초 만에 시작하기</CTA>
-      <button
+      <Link href="/v2/mall" style={{ textDecoration: "none", display: "block" }}>
+        <CTA color={brand}>3초 만에 시작하기</CTA>
+      </Link>
+      {/* 로그인은 v1 /login (middleware isV1Only)으로 위임 */}
+      <Link
+        href="/login"
         style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           width: "100%",
           height: 48,
           marginTop: 8,
           font: `600 13px/1 ${MODOO.fonts.sans}`,
           color: MODOO.muted,
-          background: "transparent",
+          textDecoration: "none",
         }}
       >
         로그인 / 회원가입
-      </button>
+      </Link>
     </div>
   </div>
 );

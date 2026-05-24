@@ -366,12 +366,18 @@ export const Cart: React.FC<BrandProp> = ({ brand = MODOO.brand }) => {
 };
 
 export const Checkout: React.FC<BrandProp> = ({ brand = MODOO.brand }) => {
+  const router = useRouter();
   const items = useCartStore((s) => s.items);
   const totalQty = useCartStore((s) => s.getTotalQuantity());
   const subtotal = useCartStore((s) => s.getTotalPrice());
   const [hydrated, setHydrated] = React.useState(false);
   React.useEffect(() => setHydrated(true), []);
   const sizeCount = new Set(items.map((i) => i.size)).size;
+  // 실제 결제 위젯(Toss, 주소록, 쿠폰 등)은 v1 /checkout이 담당.
+  // middleware.ts의 isV1Only에 /checkout 포함 → v2 bucket 사용자도 v1 결제 페이지가 렌더된다.
+  const goToRealCheckout = React.useCallback(() => {
+    router.push("/checkout");
+  }, [router]);
   return (
   <div
     style={{
@@ -660,7 +666,9 @@ export const Checkout: React.FC<BrandProp> = ({ brand = MODOO.brand }) => {
         borderTop: `0.5px solid ${MODOO.hairline}`,
       }}
     >
-      <CTA color={brand}>₩{subtotal.toLocaleString()} 결제하기</CTA>
+      <CTA color={brand} onClick={goToRealCheckout}>
+        ₩{subtotal.toLocaleString()} 결제하기
+      </CTA>
     </div>
   </div>
   );

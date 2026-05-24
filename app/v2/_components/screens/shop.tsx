@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MODOO, Icon, Tee, TabBar, AppBar, Chip } from "../tokens";
+import { useCartStore } from "@/store/useCartStore";
 import type {
   V2CatalogProduct,
   V2Category,
@@ -283,6 +285,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   brand = MODOO.brand,
   product,
 }) => {
+  const router = useRouter();
+  const addItem = useCartStore((s) => s.addItem);
   const minTier = product.discountTiers[0];
   const discounted = minTier && minTier.discount_rate > 0
     ? Math.round(product.basePrice * (1 - minTier.discount_rate / 100))
@@ -302,6 +306,29 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         { label: "L", size_code: "L" },
         { label: "XL", size_code: "XL" },
       ];
+
+  const [selectedColorIdx, setSelectedColorIdx] = React.useState(0);
+  const [selectedSizeIdx, setSelectedSizeIdx] = React.useState(0);
+  const selectedColor = colors[selectedColorIdx] ?? colors[0];
+  const selectedSize = sizes[selectedSizeIdx] ?? sizes[0];
+
+  const addBlankToCart = React.useCallback(() => {
+    // 디자인 없이 "장바구니에 우선 담기" — 수량은 결제 단계에서 사이즈별로 입력.
+    // canvasState는 빈 객체 (디자인은 v1 editor 또는 추후 v2 editor에서 추가).
+    addItem({
+      productId: product.id,
+      productTitle: product.title,
+      productColor: selectedColor.hex,
+      productColorName: selectedColor.name,
+      productColorCode: selectedColor.hex,
+      size: selectedSize.size_code,
+      quantity: 1,
+      pricePerItem: finalPrice,
+      canvasState: {},
+      thumbnailUrl: product.primaryImage ?? undefined,
+    });
+    router.push("/v2/cart");
+  }, [addItem, product, selectedColor, selectedSize, finalPrice, router]);
 
   return (
     <div
@@ -596,21 +623,25 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             }}
           >
             {colors.map((c, i) => (
-              <div
+              <button
                 key={c.id}
                 title={c.name}
+                onClick={() => setSelectedColorIdx(i)}
+                aria-pressed={i === selectedColorIdx}
                 style={{
                   width: 36,
                   height: 36,
                   borderRadius: 18,
                   background: c.hex,
+                  padding: 0,
                   position: "relative",
                   border:
                     c.hex.toUpperCase() === "#FFFFFF"
                       ? `1px solid ${MODOO.hairline}`
                       : "none",
-                  outline: i === 0 ? `2px solid ${MODOO.ink}` : "none",
+                  outline: i === selectedColorIdx ? `2px solid ${MODOO.ink}` : "none",
                   outlineOffset: 2,
+                  cursor: "pointer",
                 }}
               />
             ))}
@@ -626,29 +657,32 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               flexWrap: "wrap",
             }}
           >
-            {sizes.map((s, i) => (
-              <div
-                key={s.size_code}
-                style={{
-                  minWidth: 44,
-                  height: 36,
-                  padding: "0 10px",
-                  borderRadius: 8,
-                  background: false ? MODOO.ink : "#fff",
-                  color: false ? "#fff" : MODOO.body,
-                  border:
-                    false
-                      ? "none"
-                      : `1px solid ${MODOO.hairline}`,
-                  font: `${false ? 700 : 500} 13px/1 ${MODOO.fonts.sans}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {s.label}
-              </div>
-            ))}
+            {sizes.map((s, i) => {
+              const sel = i === selectedSizeIdx;
+              return (
+                <button
+                  key={s.size_code}
+                  onClick={() => setSelectedSizeIdx(i)}
+                  aria-pressed={sel}
+                  style={{
+                    minWidth: 44,
+                    height: 36,
+                    padding: "0 10px",
+                    borderRadius: 8,
+                    background: sel ? MODOO.ink : "#fff",
+                    color: sel ? "#fff" : MODOO.body,
+                    border: sel ? "none" : `1px solid ${MODOO.hairline}`,
+                    font: `${sel ? 700 : 500} 13px/1 ${MODOO.fonts.sans}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
           <div
             style={{
@@ -736,8 +770,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         >
           <Icon name="heart" size={22} />
         </button>
-        <Link
-          href="/v2/cart"
+        <button
+          onClick={addBlankToCart}
           style={{
             flex: 1,
             height: 52,
@@ -749,11 +783,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            textDecoration: "none",
+            cursor: "pointer",
           }}
         >
           장바구니
-        </Link>
+        </button>
         <Link
           href={`/v2/editor/${product.id}`}
           style={{
