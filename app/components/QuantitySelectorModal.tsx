@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { SizeOption, CartItem } from '@/types/types';
 import { trackQuantityModalDismiss } from '@/lib/gtm-events';
@@ -43,6 +43,10 @@ export default function QuantitySelectorModal({
   const [showPurchaseChoice, setShowPurchaseChoice] = useState(false);
   const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
   const [showSizeChart, setShowSizeChart] = useState(false);
+  // 디자인명 미입력 안내: input을 빨갛게 강조 + 흔들기. 사용자가 "구매하기"를
+  // 눌렀는데 왜 안 되는지 모르고 rage click → 이탈하는 케이스 차단.
+  const [designNameError, setDesignNameError] = useState(false);
+  const designNameInputRef = useRef<HTMLInputElement>(null);
 
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
@@ -107,11 +111,27 @@ export default function QuantitySelectorModal({
       return;
     }
     if (!designName.trim()) {
-      alert('디자인 이름을 입력해주세요. (예: 청담고 응원티 — 사람 이름 대신 단체·이벤트명)');
+      // disabled로 막지 않고 시각적으로 즉시 안내한다.
+      // 1) 빨간 강조 + 흔들기 (700ms)
+      // 2) input으로 스크롤 + 포커스
+      setDesignNameError(true);
+      try {
+        designNameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch { /* 구형 브라우저 fallback */ }
+      // focus는 살짝 늦춰서 스크롤 애니메이션과 자연스럽게 겹치게
+      setTimeout(() => designNameInputRef.current?.focus(), 200);
+      setTimeout(() => setDesignNameError(false), 1800);
       return;
     }
     setShowPurchaseChoice(true);
   };
+
+  // 디자인명을 다시 입력하기 시작하면 에러 강조 즉시 해제
+  useEffect(() => {
+    if (designName.trim() && designNameError) {
+      setDesignNameError(false);
+    }
+  }, [designName, designNameError]);
 
   const handlePurchaseChoice = async (type: 'direct' | 'cart') => {
     setShowPurchaseChoice(false);
@@ -227,14 +247,25 @@ export default function QuantitySelectorModal({
                   공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요. (사람 이름 대신 단체·이벤트·용도)
                 </p>
                 <input
+                  ref={designNameInputRef}
                   type="text"
                   value={designName}
                   onChange={(e) => setDesignName(e.target.value)}
                   placeholder="예: 청담고 응원티, OO교회 단체티"
                   maxLength={40}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black transition"
+                  aria-invalid={designNameError || undefined}
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none transition ${
+                    designNameError
+                      ? 'border-red-500 ring-2 ring-red-200 animate-[shake_0.5s_ease-in-out] bg-red-50'
+                      : 'border-gray-300 focus:border-black'
+                  }`}
                   disabled={isSaving}
                 />
+                {designNameError && (
+                  <p className="text-xs text-red-600 mt-2 font-medium" role="alert">
+                    👆 디자인 이름을 먼저 입력해주세요. (예: 청담고 응원티)
+                  </p>
+                )}
               </div>
 
               {/* Size Options */}
@@ -358,10 +389,12 @@ export default function QuantitySelectorModal({
               </div>
             </div>
 
+            {/* 디자인명 미입력 시에도 클릭은 가능. 누르면 input 강조·스크롤로 안내한다. */}
             <button
               onClick={handleShowPurchaseChoice}
-              disabled={isSaving || !designName.trim()}
+              disabled={isSaving}
               className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              aria-describedby={designNameError ? 'design-name-error' : undefined}
             >
               {isSaving ? '처리 중...' : '구매하기'}
             </button>
