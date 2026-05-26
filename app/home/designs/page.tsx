@@ -239,8 +239,20 @@ export default function DesignsPage() {
     return designTitle.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
+  const handleSaveToCart = async (
+    designName: string,
+    selectedItems: CartItem[],
+    purchaseType: 'direct' | 'cart',
+    /** QuantitySelectorModal이 freeze한 단가. 없으면 selectedDesign 스냅샷 사용. */
+    frozenPricePerItem?: number,
+  ) => {
     if (!selectedDesign) return;
+
+    // 카트에 저장할 단가: 모달 freeze 우선 → 디자인 스냅샷 fallback.
+    // (둘이 일치하는 게 정상이지만, 정책상 모달 표시값을 진실의 잣대로 둠.)
+    const effectivePricePerItem = (typeof frozenPricePerItem === 'number' && frozenPricePerItem > 0)
+      ? frozenPricePerItem
+      : selectedDesign.price_per_item;
 
     setIsSaving(true);
     try {
@@ -272,7 +284,7 @@ export default function DesignsPage() {
           productColorName: colorName,
           size: item.size,
           quantity: item.quantity,
-          pricePerItem: selectedDesign.price_per_item, // Use base price for now
+          pricePerItem: effectivePricePerItem,
           canvasState: fullDesign.canvas_state,
           thumbnailUrl: selectedDesign.preview_url || undefined,
           savedDesignId: selectedDesign.id, // Reuse existing design
@@ -292,7 +304,7 @@ export default function DesignsPage() {
             productColorName: colorName,
             size: item.size,
             quantity: item.quantity,
-            pricePerItem: selectedDesign.price_per_item,
+            pricePerItem: effectivePricePerItem,
             canvasState: fullDesign.canvas_state,
             thumbnailUrl: selectedDesign.preview_url || undefined,
             savedDesignId: selectedDesign.id,
