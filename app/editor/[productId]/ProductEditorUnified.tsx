@@ -309,7 +309,17 @@ export default function ProductEditorUnified({
   };
 
   // ─── Save to cart ────────────────────────────────────────────────
-  const handleSaveToCart = async (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => {
+  const handleSaveToCart = async (
+    designName: string,
+    selectedItems: CartItem[],
+    purchaseType: 'direct' | 'cart',
+    /** 모달이 열린 시점의 단가 — freeze된 값. 누락 시 라이브 pricePerItem 사용. */
+    frozenPricePerItem?: number,
+  ) => {
+    // 모달이 freeze한 단가를 우선 사용. 라이브 재계산으로 인한 모달↔카트 불일치 차단.
+    const effectivePricePerItem = typeof frozenPricePerItem === 'number' && frozenPricePerItem > 0
+      ? frozenPricePerItem
+      : pricePerItem;
     // 단체몰에서 진입한 경우 단체몰의 색상/표시명/소속을 덮어쓴다.
     // (productColors 조회 결과보다 단체몰 메타가 우선)
     const mallProductTitle = partnerMallBuyData?.displayName || product.title;
@@ -340,7 +350,7 @@ export default function ProductEditorUnified({
           productColorCode: colorCode,
           size: item.size,
           quantity: item.quantity,
-          pricePerItem,
+          pricePerItem: effectivePricePerItem,
           canvasState,
           thumbnailUrl: thumbnail,
           savedDesignId: guestDesignId,
@@ -367,14 +377,14 @@ export default function ProductEditorUnified({
 
       {
         const totalQuantity = selectedItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
-        const totalValue = pricePerItem * totalQuantity;
+        const totalValue = effectivePricePerItem * totalQuantity;
         const items = selectedItems.map((it) => ({
           item_id: product.id,
           item_name: product.title,
           item_brand: product.manufacturer_name ?? undefined,
           item_category: product.category ?? undefined,
           item_variant: it.size,
-          price: pricePerItem,
+          price: effectivePricePerItem,
           quantity: it.quantity,
           design_id: guestDesignId,
           design_fee: pricingData.totalAdditionalPrice,
@@ -419,7 +429,7 @@ export default function ProductEditorUnified({
           productColorCode: colorCode,
           size: item.size,
           quantity: item.quantity,
-          pricePerItem,
+          pricePerItem: effectivePricePerItem,
           canvasState,
           thumbnailUrl: thumbnail,
           savedDesignId: sharedDesignId,
@@ -449,7 +459,7 @@ export default function ProductEditorUnified({
           productColorCode: colorCode,
           size: item.size,
           quantity: item.quantity,
-          pricePerItem,
+          pricePerItem: effectivePricePerItem,
           canvasState,
           thumbnailUrl: thumbnail,
           savedDesignId: sharedDesignId,
@@ -468,14 +478,14 @@ export default function ProductEditorUnified({
 
       {
         const totalQuantity = selectedItems.reduce((sum, it) => sum + (it.quantity || 0), 0);
-        const totalValue = pricePerItem * totalQuantity;
+        const totalValue = effectivePricePerItem * totalQuantity;
         const items = selectedItems.map((it) => ({
           item_id: product.id,
           item_name: product.title,
           item_brand: product.manufacturer_name ?? undefined,
           item_category: product.category ?? undefined,
           item_variant: it.size,
-          price: pricePerItem,
+          price: effectivePricePerItem,
           quantity: it.quantity,
           design_id: sharedDesignId,
           design_fee: pricingData.totalAdditionalPrice,
@@ -989,7 +999,17 @@ export default function ProductEditorUnified({
     calculatePricing();
   }, [canvasMap, product.configuration, canvasVersion]);
 
-  const pricePerItem = product.base_price + pricingData.totalAdditionalPrice;
+  // 라이브 계산 가격 (캔버스 변화에 따라 실시간 갱신)
+  const livePricePerItem = product.base_price + pricingData.totalAdditionalPrice;
+  // 카트 재편집 진입 시 freeze: 카트에 담을 당시의 단가를 그대로 표시.
+  // 측정 알고리즘 변경(예: 캘리브 도입)으로 인한 가격 변동을 손님이 겪지 않도록 보장.
+  // 사용자가 디자인을 실제로 수정하면 "다시 카트에 담기" 흐름에서 신규 가격으로 업데이트됨.
+  const frozenCartPrice = cartItemId
+    ? (cartStoreItems.find(it => it.id === cartItemId)?.pricePerItem ?? null)
+    : null;
+  const pricePerItem = (frozenCartPrice !== null && frozenCartPrice > 0)
+    ? frozenCartPrice
+    : livePricePerItem;
   const formattedPrice = product.base_price.toLocaleString('ko-KR');
 
   // ─── Render ──────────────────────────────────────────────────────

@@ -9,7 +9,11 @@ import { trackQuantityModalDismiss } from '@/lib/gtm-events';
 interface QuantitySelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart') => Promise<void>;
+  /**
+   * @param frozenPricePerItem 모달이 열린 시점에 사용자에게 보였던 단가. 부모는
+   *   이 값으로 카트/주문에 저장해야 한다. 누락 시 부모의 라이브 값이 쓰임.
+   */
+  onConfirm: (designName: string, selectedItems: CartItem[], purchaseType: 'direct' | 'cart', frozenPricePerItem?: number) => Promise<void>;
   sizeOptions: SizeOption[];
   pricePerItem: number;
   isSaving?: boolean;
@@ -44,12 +48,23 @@ export default function QuantitySelectorModal({
   const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
   const [showSizeChart, setShowSizeChart] = useState(false);
 
+  // 모달 오픈 시점의 단가를 freeze. 모달이 열려 있는 동안 캔버스가 reflow되거나
+  // pricePerItem prop이 변경되어도 사용자에게 보이는 가격과 실제 카트 저장 가격이
+  // 일치하도록 보장. 모달이 닫힐 때 자동 갱신 (다음 오픈 시점 값으로).
+  const [frozenPricePerItem, setFrozenPricePerItem] = useState<number>(pricePerItem);
+  useEffect(() => {
+    if (isOpen) {
+      setFrozenPricePerItem(pricePerItem);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
   };
 
   const getTotalPrice = () => {
-    return getTotalQuantity() * pricePerItem;
+    return getTotalQuantity() * frozenPricePerItem;
   };
 
   // 기존에 저장된 디자인을 다시 여는 경우에만 prefill.
@@ -122,7 +137,7 @@ export default function QuantitySelectorModal({
       quantity
     }));
 
-    await onConfirm(designName, selectedItems, type);
+    await onConfirm(designName, selectedItems, type, frozenPricePerItem);
 
     if (type === 'direct') {
       const directIds = sessionStorage.getItem('directCheckoutItemIds');
@@ -344,7 +359,7 @@ export default function QuantitySelectorModal({
             <div className="p-3 bg-gray-50 rounded-lg mb-3">
               <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
                 <span className="text-gray-600">개당 가격 (디자인 포함)</span>
-                <span className="font-medium">{Math.round(pricePerItem).toLocaleString('ko-KR')}원</span>
+                <span className="font-medium">{Math.round(frozenPricePerItem).toLocaleString('ko-KR')}원</span>
               </div>
 
               <div className="flex items-center justify-between text-sm mb-1">

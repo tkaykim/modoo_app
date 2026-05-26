@@ -1,7 +1,9 @@
 import * as fabric from 'fabric';
 import { PrintMethod, PrintSize } from '@/types/types';
 import { countObjectColors } from '@/lib/colorExtractor';
-import { getPrintPricingConfig } from '@/lib/printPricingConfig';
+import { getPrintPricingConfig, getPrintMethodIdByKey } from '@/lib/printPricingConfig';
+import { getCustomerPricingForPrintMethodId } from '@/lib/customerPricingFetch';
+import { pickUnitPriceForArtwork } from '@/lib/customerPricingMatcher';
 
 // Size thresholds in mm
 const SIZE_THRESHOLDS = {
@@ -203,16 +205,49 @@ export async function calculateSidePricing(
   // All objects use DTF — calculate combined bounding box for the entire side
   const combinedDimensions = calculateCombinedBoundingBox(userObjects, pixelToMmRatio);
   const combinedPrintSize = determinePrintSize(combinedDimensions.width, combinedDimensions.height);
-  const groupPrice = calculateTransferPrice('dtf', combinedPrintSize);
+
+  // 신규: customer_print_method_pricing DB 룩업 (회전 인식 매칭)
+  //   - 매칭 성공 → 그 행의 unit_price 사용
+  //   - 매칭 실패 (A3 초과 등) → A3 행 강제 fallback (대표님 정책: 절대 차단 금지)
+  //   - DB 페치 실패 / DTF id 미상 → 기존 하드코드 (calculateTransferPrice) 최종 안전망
+  const dtfMethodId = getPrintMethodIdByKey('dtf');
+  let groupPrice = 0;
+  if (dtfMethodId) {
+    try {
+      const rows = await getCustomerPricingForPrintMethodId(dtfMethodId);
+      if (rows.length > 0) {
+        const widthCm = combinedDimensions.width / 10;
+        const heightCm = combinedDimensions.height / 10;
+        const picked = pickUnitPriceForArtwork(rows, widthCm, heightCm);
+        if (picked) {
+          groupPrice = picked.unitPrice;
+        }
+      }
+    } catch (e) {
+      console.warn('[canvasPricing] customer pricing lookup failed, falling back to legacy', e);
+    }
+  }
+  if (groupPrice <= 0) {
+    // 최종 안전망: 기존 print_methods.pricing JSON 캐시 (DEFAULT_PRINT_PRICING)
+    groupPrice = calculateTransferPrice('dtf', combinedPrintSize);
+  }
 
   const objectPricings: ObjectPricing[] = [];
+  // 부동소수점 0원 어긋남 방지: 한 객체당 가격을 미리 round하고
+  // 마지막 객체에 잔여 round 차이를 흡수시킨다 (합계는 groupPrice와 정확히 일치).
+  const perObjectFloor = Math.floor(groupPrice / Math.max(1, userObjects.length));
+  let allocated = 0;
 
-  for (const obj of userObjects) {
+  for (let i = 0; i < userObjects.length; i++) {
+    const obj = userObjects[i];
     // @ts-expect-error - Checking custom data property
     const objectId = obj.data?.objectId || `obj-${Math.random().toString(36).substring(2, 11)}`;
     const { width, height } = calculateObjectDimensionsMm(obj, pixelToMmRatio);
     const colorCount = await countObjectColors(obj);
     const individualPrintSize = determinePrintSize(width, height);
+    const isLast = i === userObjects.length - 1;
+    const objPrice = isLast ? groupPrice - allocated : perObjectFloor;
+    allocated += objPrice;
 
     objectPricings.push({
       objectId,
@@ -221,7 +256,7 @@ export async function calculateSidePricing(
       printSize: individualPrintSize,
       colorCount,
       dimensionsMm: { width, height },
-      price: groupPrice / userObjects.length,
+      price: objPrice,
     });
   }
 

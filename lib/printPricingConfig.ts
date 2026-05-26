@@ -84,6 +84,8 @@ export const DEFAULT_PRINT_PRICING: PrintPricingConfig = {
 };
 
 let _cachedConfig: PrintPricingConfig | null = null;
+// print_methods.key → print_methods.id 매핑. customer_print_method_pricing 룩업에 필요.
+const _idByKey = new Map<string, string>();
 
 /**
  * Set pricing config from database print method records.
@@ -91,7 +93,11 @@ let _cachedConfig: PrintPricingConfig | null = null;
  */
 export function setPrintPricingConfig(methods: PrintMethodRecord[]): void {
   const config = { ...DEFAULT_PRINT_PRICING };
+  _idByKey.clear();
   for (const m of methods) {
+    if (m.key && m.id) {
+      _idByKey.set(m.key, m.id);
+    }
     if (!m.pricing || !m.key) continue;
     if (m.key === 'dtf' || m.key === 'dtg') {
       config[m.key] = { method: m.key, sizes: m.pricing as unknown as TransferPricing['sizes'] };
@@ -101,6 +107,14 @@ export function setPrintPricingConfig(methods: PrintMethodRecord[]): void {
     }
   }
   _cachedConfig = config;
+}
+
+/**
+ * print_method key (예: 'dtf') 로 DB id 조회. setPrintPricingConfig가
+ * 이미 호출됐어야 한다. 등록되지 않은 key는 null.
+ */
+export function getPrintMethodIdByKey(key: string): string | null {
+  return _idByKey.get(key) ?? null;
 }
 
 /**
