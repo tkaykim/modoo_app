@@ -216,14 +216,12 @@ function InquiryForm() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      const { data: inquiry, error: inquiryError } = await supabase
-        .from('inquiries')
-        .insert({
-          user_id: user?.id ?? null,
+      const res = await fetch('/api/inquiries/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: title.trim(),
           content: content.trim() || '',
-          status: 'pending',
           group_name: groupName.trim(),
           manager_name: managerName.trim(),
           phone: phone.trim(),
@@ -233,24 +231,16 @@ function InquiryForm() {
           fabric_color: fabricColor.trim() || null,
           password: password.trim(),
           file_urls: uploadedFiles.map(f => f.url),
-        })
-        .select()
-        .single();
+          product_ids: selectedProducts.map(p => p.id),
+        }),
+      });
 
-      if (inquiryError) throw inquiryError;
-
-      if (selectedProducts.length > 0) {
-        const inquiryProducts = selectedProducts.map(product => ({
-          inquiry_id: inquiry.id,
-          product_id: product.id,
-        }));
-        const { error: productsError } = await supabase
-          .from('inquiry_products')
-          .insert(inquiryProducts);
-        if (productsError) throw productsError;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'create_failed');
       }
 
-      // Send email notification to admin (non-blocking)
+      // Email notification (non-blocking)
       fetch('/api/inquiries/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -267,7 +257,7 @@ function InquiryForm() {
           fileCount: uploadedFiles.length,
           productNames: selectedProducts.map(p => p.title),
         }),
-      }).catch(() => {}); // email failure should not affect the user
+      }).catch(() => {});
 
       trackGenerateLead({
         form_type: 'quote',
@@ -276,12 +266,14 @@ function InquiryForm() {
         product_count: selectedProducts.length,
       });
 
+      // Keep the submit lock engaged on success — the page is unmounting and
+      // releasing it before navigation completes lets users double-submit.
       router.replace('/inquiries/new/success');
+      return;
     } catch (error) {
       console.error('Error submitting inquiry:', error);
       trackGenerateLeadFail({ form_type: 'quote', reason: 'submit_error' });
       alert('문의 등록 중 오류가 발생했습니다.');
-    } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
