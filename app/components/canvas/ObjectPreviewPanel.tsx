@@ -1,10 +1,13 @@
 'use client'
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import * as fabric from 'fabric';
+import { useSearchParams } from 'next/navigation';
 import { useCanvasStore } from '@/store/useCanvasStore';
-import { ProductSide } from '@/types/types';
-import { Image as ImageIcon, Type, Square } from 'lucide-react';
+import { ProductSide, PrintMethod } from '@/types/types';
+import { Image as ImageIcon, Type, Square, Printer } from 'lucide-react';
+import { getPrintMethodLabel } from '@/lib/printPricingConfig';
+import PrintMethodPickerSheet from './PrintMethodPickerSheet';
 
 interface ObjectPreviewPanelProps {
   sides: ProductSide[];
@@ -18,10 +21,18 @@ interface CanvasObjectInfo {
   widthMm: number;
   heightMm: number;
   preview: string;
+  printMethod: PrintMethod;
 }
 
 const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
-  const { canvasMap, canvasVersion } = useCanvasStore();
+  const { canvasMap, canvasVersion, setObjectPrintMethod } = useCanvasStore();
+
+  // ?print-picker=1 진입 시에만 sheet UI 노출. prod URL엔 안 붙음 → 손님은 라벨만 봄.
+  // Phase 2에서 쿼리 게이트 제거 시 자연스럽게 prod 공개.
+  const searchParams = useSearchParams();
+  const pickerEnabled = searchParams?.get('print-picker') === '1';
+
+  const [pickerForObjectId, setPickerForObjectId] = useState<string | null>(null);
 
   // Extract all user objects from all canvases
   const allObjects = useMemo(() => {
@@ -84,6 +95,13 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
           // Preview generation failed
         }
 
+        // @ts-expect-error - Accessing custom data property
+        const rawMethod = obj.data?.printMethod as string | undefined;
+        // 기존 객체에 printMethod 없으면 dtf 폴백 (prod 카트/주문 호환).
+        const printMethod: PrintMethod = (rawMethod === 'dtf' || rawMethod === 'dtg' ||
+          rawMethod === 'screen_printing' || rawMethod === 'embroidery' ||
+          rawMethod === 'applique') ? rawMethod : 'dtf';
+
         objects.push({
           objectId,
           type: obj.type || 'unknown',
@@ -92,6 +110,7 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
           widthMm,
           heightMm,
           preview,
+          printMethod,
         });
       });
     });
@@ -166,6 +185,23 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
                   <span className="font-medium">높이:</span>
                   <span>{objInfo.heightMm.toFixed(1)}mm</span>
                 </div>
+                {/* 인쇄방식 라벨 — prod 손님에게 항상 보이는 정보성 표시. */}
+                <div className="flex items-center gap-2 pt-0.5">
+                  <Printer className="w-3 h-3 text-gray-500" />
+                  <span className="font-medium">인쇄:</span>
+                  <span className="text-gray-800 font-medium">
+                    {getPrintMethodLabel(objInfo.printMethod)}
+                  </span>
+                  {/* "변경" 버튼은 ?print-picker=1 쿼리 진입 시에만. prod URL엔 안 붙어서 손님 미노출. */}
+                  {pickerEnabled && (
+                    <button
+                      onClick={() => setPickerForObjectId(objInfo.objectId)}
+                      className="ml-auto text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                    >
+                      변경
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -178,6 +214,25 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
           총 <span className="font-semibold text-gray-800">{allObjects.length}개</span>의 인쇄 요소
         </p>
       </div>
+
+      {/* PrintMethodPickerSheet — 쿼리 게이트 뒤에서만 마운트. prod 코드에 포함되지만
+          ?print-picker=1 없이는 절대 노출 안 됨. */}
+      {pickerEnabled && pickerForObjectId && (() => {
+        const target = allObjects.find(o => o.objectId === pickerForObjectId);
+        if (!target) return null;
+        return (
+          <PrintMethodPickerSheet
+            isOpen={true}
+            currentMethod={target.printMethod}
+            objectLabel={`${getObjectTypeName(target.type)} · ${target.sideName}`}
+            onSelect={(method) => {
+              setObjectPrintMethod(target.objectId, method);
+              setPickerForObjectId(null);
+            }}
+            onClose={() => setPickerForObjectId(null)}
+          />
+        );
+      })()}
     </div>
   );
 };

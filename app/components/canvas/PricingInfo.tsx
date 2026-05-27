@@ -1,8 +1,10 @@
 'use client'
 import { useCanvasStore } from "@/store/useCanvasStore";
-import { ProductSide } from "@/types/types";
+import { ProductSide, PrintMethod } from "@/types/types";
 import { calculateAllSidesPricing, PricingSummary, ObjectPricing } from "@/app/utils/canvasPricing";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import PrintMethodPickerSheet from "./PrintMethodPickerSheet";
 
 interface PricingInfoProps {
   basePrice: number;
@@ -26,9 +28,14 @@ const PRINT_SIZE_NAMES: Record<string, string> = {
 };
 
 export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
-  const { canvasMap, canvasVersion } = useCanvasStore();
+  const { canvasMap, canvasVersion, setObjectPrintMethod } = useCanvasStore();
   const [pricingData, setPricingData] = useState<PricingSummary | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+
+  // ?print-picker=1 쿼리 진입 시에만 "변경" 버튼 + sheet 마운트. prod URL엔 안 붙음.
+  const searchParams = useSearchParams();
+  const pickerEnabled = searchParams?.get('print-picker') === '1';
+  const [pickerForObjectId, setPickerForObjectId] = useState<string | null>(null);
 
   // Calculate pricing dynamically whenever canvases change
   useEffect(() => {
@@ -94,10 +101,21 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
               <div key={objPricing.objectId} className="flex flex-col gap-0.5 text-xs pl-2">
                 {/* Object Info Line */}
                 <div className="flex justify-between items-center">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-gray-600">
-                      오브젝트 {idx + 1}: {PRINT_METHOD_NAMES[objPricing.printMethod]} ({PRINT_SIZE_NAMES[objPricing.printSize]})
-                    </span>
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-600">
+                        오브젝트 {idx + 1}: {PRINT_METHOD_NAMES[objPricing.printMethod]} ({PRINT_SIZE_NAMES[objPricing.printSize]})
+                      </span>
+                      {/* "변경" 버튼은 ?print-picker=1 쿼리 진입 시에만. prod URL엔 안 붙음. */}
+                      {pickerEnabled && (
+                        <button
+                          onClick={() => setPickerForObjectId(objPricing.objectId)}
+                          className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                        >
+                          변경
+                        </button>
+                      )}
+                    </div>
                     <span className="text-gray-500 text-[10px]">
                       크기: {objPricing.dimensionsMm.width.toFixed(0)}mm × {objPricing.dimensionsMm.height.toFixed(0)}mm
                       {' • '}
@@ -135,6 +153,31 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
           {isCalculating && ' • 계산 중...'}
         </p>
       </div>
+
+      {/* PrintMethodPickerSheet — 쿼리 게이트 뒤에서만 마운트. prod 코드에 포함되지만
+          ?print-picker=1 없이는 절대 노출 안 됨. */}
+      {pickerEnabled && pickerForObjectId && (() => {
+        // 모든 면에서 해당 objectId 찾기
+        let target: ObjectPricing | null = null;
+        let targetSideName = '';
+        for (const sp of pricingData.sidePricing) {
+          const found = sp.objects.find(o => o.objectId === pickerForObjectId);
+          if (found) { target = found; targetSideName = sp.sideName; break; }
+        }
+        if (!target) return null;
+        return (
+          <PrintMethodPickerSheet
+            isOpen={true}
+            currentMethod={target.printMethod as PrintMethod}
+            objectLabel={`오브젝트 · ${targetSideName}`}
+            onSelect={(method) => {
+              setObjectPrintMethod(pickerForObjectId, method);
+              setPickerForObjectId(null);
+            }}
+            onClose={() => setPickerForObjectId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
