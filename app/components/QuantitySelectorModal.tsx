@@ -65,6 +65,14 @@ export default function QuantitySelectorModal({
     }
   }, [isOpen, defaultDesignName]);
 
+  // 디자인명을 다시 입력하기 시작하면 에러 강조 즉시 해제.
+  // ⚠️ Hook은 반드시 early return(`if (!isOpen) return null`) 이전에 호출되어야 한다.
+  useEffect(() => {
+    if (designName.trim() && designNameError) {
+      setDesignNameError(false);
+    }
+  }, [designName, designNameError]);
+
   if (!isOpen) return null;
 
   const handleQuantityChange = (sizeId: string, change: number) => {
@@ -125,13 +133,6 @@ export default function QuantitySelectorModal({
     }
     setShowPurchaseChoice(true);
   };
-
-  // 디자인명을 다시 입력하기 시작하면 에러 강조 즉시 해제
-  useEffect(() => {
-    if (designName.trim() && designNameError) {
-      setDesignNameError(false);
-    }
-  }, [designName, designNameError]);
 
   const handlePurchaseChoice = async (type: 'direct' | 'cart') => {
     setShowPurchaseChoice(false);
