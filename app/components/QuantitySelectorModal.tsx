@@ -385,8 +385,9 @@ export default function QuantitySelectorModal({
           )}
         </div>
 
-        {/* Fixed Bottom Bar - Price Summary & Confirm */}
-        {!showSuccess && getTotalQuantity() > 0 && (
+        {/* Fixed Bottom Bar - 항상 표시. 수량 0→1로 늘어날 때 bar가 튀어오르면서
+            +/- 버튼 위치가 점프하는 layout shift 차단 (사용자 rage 클릭 유발). */}
+        {!showSuccess && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 shrink-0">
             <div className="p-3 bg-gray-50 rounded-lg mb-3">
               <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
@@ -396,16 +397,20 @@ export default function QuantitySelectorModal({
 
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="text-gray-600">총 수량</span>
-                <span className="font-medium">{getTotalQuantity()}개</span>
+                <span className={`font-medium ${getTotalQuantity() === 0 ? 'text-gray-400' : ''}`}>
+                  {getTotalQuantity()}개
+                </span>
               </div>
 
               <div className="flex items-center justify-between pt-1 border-t border-gray-200">
                 <span className="font-bold">총 금액</span>
-                <span className="text-lg font-bold">{Math.round(getTotalPrice()).toLocaleString('ko-KR')}원</span>
+                <span className={`text-lg font-bold ${getTotalQuantity() === 0 ? 'text-gray-400' : ''}`}>
+                  {Math.round(getTotalPrice()).toLocaleString('ko-KR')}원
+                </span>
               </div>
             </div>
 
-            {/* 디자인명 미입력 시에도 클릭은 가능. 누르면 input 강조·스크롤로 안내한다. */}
+            {/* 수량 0이어도, 디자인명 미입력이어도 클릭은 가능. 누르면 alert/시각 안내. */}
             <button
               onClick={handleShowPurchaseChoice}
               disabled={isSaving}
