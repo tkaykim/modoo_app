@@ -94,7 +94,38 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     }
     fetchProductCalibrations(productId).then((map) => {
       if (cancelled) return;
-      const cal = map.get(side.id);
+
+      // Fallback chain (prod-safe): 자기 면 캘리 누락 시 같은 제품의 다른 면을
+      // 차용한다. 같은 mockup 촬영이라 카메라 거리·줌이 비슷하므로 옛
+      // productWidthMm/scaledImageWidth fallback보다 훨씬 정확.
+      //
+      //   A. 자기 면(side.id)
+      //   B. 짝 type (front↔back, left↔right, sleeve-l↔sleeve-r, side-l↔side-r)
+      //   C. 같은 제품의 아무 활성 캘리
+      //   D. 0 반환 → canvasPricing이 productWidthMm fallback 경로로 떨어짐
+      //
+      // 어디서도 throw 안 함. 가격 산정은 어떻게든 진행됨.
+      let cal = map.get(side.id);
+      if (!cal || cal.nativeMmPerPx <= 0) {
+        const PARTNER: Record<string, string> = {
+          front: 'back', back: 'front',
+          left: 'right', right: 'left',
+          'sleeve-left': 'sleeve-right', 'sleeve-right': 'sleeve-left',
+          'side-left': 'side-right', 'side-right': 'side-left',
+        };
+        const partnerSideId = PARTNER[side.id];
+        if (partnerSideId) {
+          const partner = map.get(partnerSideId);
+          if (partner && partner.nativeMmPerPx > 0) cal = partner;
+        }
+        if (!cal || cal.nativeMmPerPx <= 0) {
+          // 마지막 차선: 같은 제품의 아무 활성 캘리 (보통 0~3개 행만 있음)
+          for (const c of map.values()) {
+            if (c.nativeMmPerPx > 0) { cal = c; break; }
+          }
+        }
+      }
+
       calibrationNativeMmPerPxRef.current = cal?.nativeMmPerPx ?? 0;
       // Re-render so any in-flight scale-box / measurement reflects the new ratio.
       const canvas = canvasRef.current;
