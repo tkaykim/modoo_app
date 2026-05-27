@@ -35,7 +35,7 @@ import { createClient } from "@/lib/supabase-client";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginPromptModal from "@/app/components/LoginPromptModal";
 import GuestDesignRecallModal from "@/app/components/GuestDesignRecallModal";
-import { getGuestDesign, removeGuestDesign, saveGuestDesign, type GuestDesign } from "@/lib/guestDesignStorage";
+import { getGuestDesign, removeGuestDesign, saveGuestDesign, createGuestDesignAutosaver, type GuestDesign } from "@/lib/guestDesignStorage";
 import { setPrintPricingConfig } from "@/lib/printPricingConfig";
 import LandingStep from "./steps/LandingStep";
 import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
@@ -920,6 +920,84 @@ export default function ProductEditorUnified({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ─── 비로그인 자동저장 ────────────────────────────────────────────
+  // 디자인 작업 중간에 페이지 떠나거나 뒤로가기 해도 localStorage에 마지막
+  // 상태를 보존해서 GuestDesignRecallModal로 복원 가능하도록.
+  //
+  // 트리거: canvasVersion 변경(객체 추가/이동/삭제·색상·인쇄방식 등) → 1초 debounce 후 저장
+  // 강제 flush: visibilitychange→hidden, beforeunload, unmount cleanup
+  //
+  // 로그인 사용자는 카트/디자인 DB를 쓰므로 자동저장 X (기존 정책).
+  // 카트/단체몰/템플릿 진입(isSpecialMode)도 그쪽 흐름이 별도 관리하므로 제외.
+  const autosaverRef = useRef<ReturnType<typeof createGuestDesignAutosaver> | null>(null);
+  useEffect(() => {
+    if (isAuthenticated || isSpecialMode) {
+      // 자동저장 비대상. 이전에 만들어진 autosaver는 정리만.
+      autosaverRef.current?.cancel();
+      autosaverRef.current = null;
+      return;
+    }
+
+    if (!autosaverRef.current) {
+      autosaverRef.current = createGuestDesignAutosaver(1000);
+    }
+    const saver = autosaverRef.current;
+
+    // 디자인이 비어 있는 초기 상태에서는 저장 skip (사용자 흔적 0).
+    const hasAnyUserObject = product.configuration.some((side) => {
+      const c = canvasMap[side.id];
+      if (!c) return false;
+      return c.getObjects().some((obj) => {
+        if (obj.excludeFromExport) return false;
+        const d = obj.get('data') as { id?: string } | undefined;
+        return d?.id !== 'background-product-image' && d?.id !== 'center-line';
+      });
+    });
+
+    if (!hasAnyUserObject) {
+      // 객체 없으면 이전에 잡혀있는 저장만 cancel (사용자가 모든 객체 삭제한 케이스)
+      saver.cancel();
+      return;
+    }
+
+    saver.schedule(() => {
+      try {
+        const canvasState = saveAllCanvasState();
+        if (!canvasState || Object.keys(canvasState).length === 0) return null;
+        return {
+          productId: product.id,
+          productColor,
+          canvasState,
+          customFonts: useFontStore.getState().customFonts,
+        };
+      } catch {
+        return null;
+      }
+    });
+  }, [canvasVersion, productColor, isAuthenticated, isSpecialMode, product.id, product.configuration, canvasMap, saveAllCanvasState]);
+
+  // 페이지 떠남 직전 즉시 flush. visibilitychange가 brower back/탭전환/앱전환을
+  // 가장 광범위하게 잡고, beforeunload는 새로고침·창닫기 백업.
+  useEffect(() => {
+    if (isAuthenticated || isSpecialMode) return;
+
+    const flushNow = () => {
+      autosaverRef.current?.flush();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushNow();
+    };
+
+    window.addEventListener('beforeunload', flushNow);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', flushNow);
+      document.removeEventListener('visibilitychange', onVisibility);
+      // 컴포넌트 unmount 시점에도 한 번 더 flush (라우터 navigation 케이스 대비)
+      flushNow();
+    };
+  }, [isAuthenticated, isSpecialMode]);
 
   // GTM: view_item + editor_open (mount once, StrictMode-safe)
   const gtmMountedRef = useRef(false);
