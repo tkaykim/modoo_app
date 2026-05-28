@@ -1048,8 +1048,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       {/* Mobile bottom tool dock — 흩어진 플로팅 버튼을 한 줄로 통합.
           텍스트 편집 중(텍스트 선택)일 땐 TextStylePanel이 떠서 dock은 숨김. */}
       {!(selectedObject && (selectedObject.type === "i-text" || selectedObject.type === "text" || isCurvedText(selectedObject))) && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1rem)] overflow-x-auto">
-          <div className="flex items-stretch gap-0.5 bg-white rounded-2xl shadow-xl border border-gray-200 px-1.5 py-1.5">
+        <div className="fixed bottom-0 inset-x-0 z-30 h-16 bg-white border-t border-gray-200">
+          <div className="h-full flex items-stretch justify-around gap-0.5 px-1 overflow-x-auto">
             <button onClick={() => addText()} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
               <TextCursor className="size-5 text-gray-700" />
               <span className="text-[10px] font-medium text-gray-600">텍스트</span>

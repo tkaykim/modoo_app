@@ -1299,7 +1299,7 @@ export default function ProductEditorUnified({
 
         {/* Bottom bar (hidden in quick-replace mode) */}
         {!quickReplaceTemplate && (
-        <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
+        <div className={`w-full fixed left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20 ${selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'text' || isCurvedText(selectedObject)) ? 'bottom-0' : 'bottom-16'}`}>
           {/* Background removal checkbox - shown when image object is selected */}
           {selectedObject && selectedObject.type === 'image' && (
             <label className="flex items-center gap-2 mb-2 cursor-pointer">
