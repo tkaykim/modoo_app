@@ -64,6 +64,9 @@ interface CanvasState {
   setAnchorPanelOpen: (open: boolean) => void;
   hoveredAnchorId: string | null;
   setHoveredAnchorId: (id: string | null) => void;
+  // Layers & print method panel (shared so the mobile tool dock can toggle it).
+  layersPanelOpen: boolean;
+  setLayersPanelOpen: (open: boolean) => void;
 
   // Image loading tracking
   imageLoadedMap: Record<string, boolean>;
@@ -117,6 +120,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setAnchorPanelOpen: (open) => set({ anchorPanelOpen: open, ...(open ? {} : { hoveredAnchorId: null }) }),
   hoveredAnchorId: null,
   setHoveredAnchorId: (id) => set({ hoveredAnchorId: id }),
+
+  layersPanelOpen: false,
+  setLayersPanelOpen: (open) => set({ layersPanelOpen: open }),
 
   // Zoom methods
   getZoomLevel: (sideId) => {

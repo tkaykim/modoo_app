@@ -102,6 +102,8 @@ export default function ProductEditorUnified({
     anchorPanelOpen,
     setAnchorPanelOpen,
     setHoveredAnchorId,
+    layersPanelOpen,
+    setLayersPanelOpen,
   } = useCanvasStore();
 
   const { addItem: addToCart, items: cartStoreItems } = useCartStore();
@@ -118,8 +120,7 @@ export default function ProductEditorUnified({
   const [retouchRequested, setRetouchRequested] = useState(false);
   const [showRetouchModal, setShowRetouchModal] = useState(false);
   const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
-  // 실험 패널 토글
-  const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
+  // 실험 패널 토글 — layersPanelOpen은 스토어 공유(모바일 툴 독에서 토글).
 
   // 자주쓰는위치(앵커) — 데스크톱 우측 aside에 도킹. 데이터·지오메트리·픽 핸들러.
   const [sideAnchorsForPanel, setSideAnchorsForPanel] = useState<AnchorPreset[]>([]);
@@ -1379,23 +1380,13 @@ export default function ProductEditorUnified({
           productId={product.id}
         />
 
-        {/* 실험 — Layers × PrintMethod (?layers-lab=1 쿼리 게이트, mobile) */}
+        {/* Layers × PrintMethod 패널 (?layers-lab=1, mobile). FAB는 Toolbar 하단 툴 독으로 이동. */}
         {layersLabEnabled && (
-          <>
-            <button
-              onClick={() => setIsLayersPanelOpen(true)}
-              className="fixed bottom-36 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
-              aria-label="레이어 & 인쇄방식 패널 열기"
-            >
-              <LayersIcon className="w-5 h-5" />
-              <span className="text-sm font-semibold pr-1">레이어 & 인쇄</span>
-            </button>
-            <LayersPrintPanel
-              isOpen={isLayersPanelOpen}
-              onClose={() => setIsLayersPanelOpen(false)}
-              sides={product.configuration}
-            />
-          </>
+          <LayersPrintPanel
+            isOpen={layersPanelOpen}
+            onClose={() => setLayersPanelOpen(false)}
+            sides={product.configuration}
+          />
         )}
 
         <LoginPromptModal
@@ -1738,7 +1729,7 @@ export default function ProductEditorUnified({
       {layersLabEnabled && (
         <>
           <button
-            onClick={() => setIsLayersPanelOpen(true)}
+            onClick={() => setLayersPanelOpen(true)}
             className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
             aria-label="레이어 & 인쇄방식 패널 열기"
           >
@@ -1746,8 +1737,8 @@ export default function ProductEditorUnified({
             <span className="text-sm font-semibold pr-1">레이어 & 인쇄</span>
           </button>
           <LayersPrintPanel
-            isOpen={isLayersPanelOpen}
-            onClose={() => setIsLayersPanelOpen(false)}
+            isOpen={layersPanelOpen}
+            onClose={() => setLayersPanelOpen(false)}
             sides={product.configuration}
           />
         </>
