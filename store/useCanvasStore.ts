@@ -58,6 +58,13 @@ interface CanvasState {
   canvasVersion: number;
   incrementCanvasVersion: () => void;
 
+  // Anchor preset panel UI state (shared so desktop can dock it into the right
+  // sidebar while the toolbar button toggles it and draws on-canvas previews).
+  anchorPanelOpen: boolean;
+  setAnchorPanelOpen: (open: boolean) => void;
+  hoveredAnchorId: string | null;
+  setHoveredAnchorId: (id: string | null) => void;
+
   // Image loading tracking
   imageLoadedMap: Record<string, boolean>;
   markImageLoaded: (id: string) => void;
@@ -105,6 +112,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setProductColor: (color) => set({ productColor: color }),
   setSelectedProductColor: (value) => set({ selectedProductColor: value }),
   incrementCanvasVersion: () => set((state) => ({ canvasVersion: state.canvasVersion + 1 })),
+
+  anchorPanelOpen: false,
+  setAnchorPanelOpen: (open) => set({ anchorPanelOpen: open, ...(open ? {} : { hoveredAnchorId: null }) }),
+  hoveredAnchorId: null,
+  setHoveredAnchorId: (id) => set({ hoveredAnchorId: id }),
 
   // Zoom methods
   getZoomLevel: (sideId) => {

@@ -8,7 +8,11 @@ import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
-import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check, Layers as LayersIcon } from "lucide-react";
+import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check, Layers as LayersIcon, MapPin } from "lucide-react";
+import AnchorPresetPanel from '@/app/components/canvas/AnchorPresetPanel';
+import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
+import { snapArtworkToAnchor } from '@/lib/anchorSnap';
+import type { AnchorPreset } from '@/lib/anchorPresets';
 import { useState, useEffect, useRef } from "react";
 import {
   trackViewItem,
@@ -95,6 +99,9 @@ export default function ProductEditorUnified({
     incrementCanvasVersion,
     activeSideId,
     resetCanvasState,
+    anchorPanelOpen,
+    setAnchorPanelOpen,
+    setHoveredAnchorId,
   } = useCanvasStore();
 
   const { addItem: addToCart, items: cartStoreItems } = useCartStore();
@@ -113,6 +120,66 @@ export default function ProductEditorUnified({
   const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
   // 실험 패널 토글
   const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
+
+  // 자주쓰는위치(앵커) — 데스크톱 우측 aside에 도킹. 데이터·지오메트리·픽 핸들러.
+  const [sideAnchorsForPanel, setSideAnchorsForPanel] = useState<AnchorPreset[]>([]);
+  const [nativeMmPerPxForPanel, setNativeMmPerPxForPanel] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    if (!product.id || !activeSideId) {
+      setSideAnchorsForPanel([]);
+      setNativeMmPerPxForPanel(0);
+      return;
+    }
+    fetchProductCalibrations(product.id).then((map) => {
+      if (cancelled) return;
+      const cal = map.get(activeSideId);
+      setSideAnchorsForPanel(cal?.anchors ?? []);
+      setNativeMmPerPxForPanel(cal?.nativeMmPerPx ?? 0);
+    }).catch(() => {
+      if (!cancelled) { setSideAnchorsForPanel([]); setNativeMmPerPxForPanel(0); }
+    });
+    return () => { cancelled = true; };
+  }, [product.id, activeSideId]);
+
+  const resolveAnchorGeometry = (): { mmPerPx: number; mockupLeft: number; mockupTop: number } | null => {
+    const canvas = canvasMap[activeSideId];
+    if (!canvas) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = canvas as any;
+    const sw = c.scaledImageWidth as number | undefined;
+    const ow = c.originalImageWidth as number | undefined;
+    const mockupLeft = (c.mockupCanvasLeft as number | undefined) ?? 0;
+    const mockupTop = (c.mockupCanvasTop as number | undefined) ?? 0;
+    if (nativeMmPerPxForPanel > 0 && sw && ow) {
+      const r = calibrationToCanvasMmPerPx({ nativeMmPerPx: nativeMmPerPxForPanel, scaledImageWidth: sw, originalImageWidth: ow });
+      if (r) return { mmPerPx: r, mockupLeft, mockupTop };
+    }
+    const realW = (c.realWorldProductWidth as number | undefined) ?? 0;
+    if (sw && sw > 0 && realW > 0) return { mmPerPx: realW / sw, mockupLeft, mockupTop };
+    return null;
+  };
+
+  const handlePickAnchorSidebar = (anchor: AnchorPreset) => {
+    const canvas = canvasMap[activeSideId];
+    if (!canvas) return;
+    const target = canvas.getActiveObject();
+    if (!target) return;
+    const geo = resolveAnchorGeometry();
+    if (!geo) return;
+    const ok = snapArtworkToAnchor({
+      obj: target,
+      anchor,
+      canvasMmPerPx: geo.mmPerPx,
+      mockupCanvasLeft: geo.mockupLeft,
+      mockupCanvasTop: geo.mockupTop,
+    });
+    if (ok) {
+      canvas.requestRenderAll();
+      incrementCanvasVersion();
+      setAnchorPanelOpen(false);
+    }
+  };
 
   const productConfig: ProductConfig = {
     productId: product.id,
@@ -1512,6 +1579,33 @@ export default function ProductEditorUnified({
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                   <TextStylePanel selectedObject={selectedObject as fabric.IText | fabric.Text} layout="sidebar" />
+                </div>
+              </>
+            ) : anchorPanelOpen ? (
+              <>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                    <MapPin className="size-4 text-gray-500" />
+                    자주 쓰는 위치
+                  </h3>
+                  <button
+                    onClick={() => setAnchorPanelOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    title="닫기"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <AnchorPresetPanel
+                    open
+                    variant="sidebar"
+                    anchors={sideAnchorsForPanel}
+                    hasSelectedArtwork={!!selectedObject}
+                    onPick={handlePickAnchorSidebar}
+                    onHoverAnchor={(a) => setHoveredAnchorId(a?.id ?? null)}
+                    onClose={() => setAnchorPanelOpen(false)}
+                  />
                 </div>
               </>
             ) : (

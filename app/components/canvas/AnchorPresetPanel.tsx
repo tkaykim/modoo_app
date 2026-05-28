@@ -14,7 +14,7 @@ interface AnchorPresetPanelProps {
   onPick: (anchor: AnchorPreset) => void;
   /** 행 호버 시 해당 앵커만 캔버스에 미리보기(라벨 포함). 벗어나면 null. */
   onHoverAnchor?: (anchor: AnchorPreset | null) => void;
-  variant?: 'mobile' | 'desktop';
+  variant?: 'mobile' | 'desktop' | 'sidebar';
 }
 
 const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
@@ -72,6 +72,12 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
       )}
     </>
   );
+
+  // 데스크톱: 우측 사이드바(aside)에 도킹. 헤더/스크롤 컨테이너는 부모가 제공하므로
+  // 리스트 본문만 반환한다.
+  if (variant === 'sidebar') {
+    return list;
+  }
 
   if (isMobile) {
     return (

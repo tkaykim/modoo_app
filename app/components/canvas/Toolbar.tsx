@@ -37,7 +37,7 @@ interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions }) => {
-  const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel } = useCanvasStore();
+  const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel, anchorPanelOpen, setAnchorPanelOpen, hoveredAnchorId, setHoveredAnchorId } = useCanvasStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
@@ -70,11 +70,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const [cropOpen, setCropOpen] = useState(false);
   // const canvas = getActiveCanvas();
 
-  // Anchor preset panel state.
-  const [isAnchorPanelOpen, setIsAnchorPanelOpen] = useState(false);
-  // 호버한 앵커 1개만 캔버스에 라벨까지 미리보기. 미호버 시 박스만(라벨 X) → 겹침 방지.
-  const [hoveredAnchor, setHoveredAnchor] = useState<AnchorPreset | null>(null);
+  // Anchor preset panel state는 스토어에서 공유(데스크톱은 우측 aside에 도킹).
   const [sideAnchors, setSideAnchors] = useState<AnchorPreset[]>([]);
+  // 호버한 앵커 1개만 캔버스에 라벨까지 미리보기. 미호버 시 박스만(라벨 X) → 겹침 방지.
+  const hoveredAnchor = hoveredAnchorId ? (sideAnchors.find((a) => a.id === hoveredAnchorId) ?? null) : null;
   // Fetched native (original-mockup-px) mm-per-px for the active side. Used directly
   // (instead of reading canvas property) so panel/snap/preview don't race with
   // SingleSideCanvas calibration effect.
@@ -138,7 +137,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   useEffect(() => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
-    if (isAnchorPanelOpen && sideAnchors.length > 0) {
+    if (anchorPanelOpen && sideAnchors.length > 0) {
       const geo = resolveCanvasGeometry();
       if (geo) {
         // 호버한 앵커가 있으면 그것만(라벨 포함), 아니면 전체를 박스만(라벨 X)으로.
@@ -156,7 +155,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       clearAnchorPreviews(canvas);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAnchorPanelOpen, hoveredAnchor, sideAnchors, activeSideId, nativeMmPerPxForSide]);
+  }, [anchorPanelOpen, hoveredAnchor, sideAnchors, activeSideId, nativeMmPerPxForSide]);
 
   const handlePickAnchor = (anchor: AnchorPreset) => {
     const canvas = getActiveCanvas();
@@ -175,7 +174,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     if (ok) {
       canvas.requestRenderAll();
       incrementCanvasVersion();
-      setIsAnchorPanelOpen(false);
+      setAnchorPanelOpen(false);
     }
   };
 
@@ -827,7 +826,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             )}
             {hasAnchors && (
               <button
-                onClick={() => setIsAnchorPanelOpen(true)}
+                onClick={() => setAnchorPanelOpen(true)}
                 className="flex flex-col items-center gap-1.5 group"
                 title="자주 쓰는 위치"
               >
@@ -840,15 +839,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           </div>
         </div>
 
-        <AnchorPresetPanel
-          open={isAnchorPanelOpen}
-          onClose={() => { setHoveredAnchor(null); setIsAnchorPanelOpen(false); }}
-          anchors={sideAnchors}
-          hasSelectedArtwork={hasSelectedArtwork}
-          onPick={handlePickAnchor}
-          onHoverAnchor={setHoveredAnchor}
-          variant="desktop"
-        />
+        {/* 데스크톱 자주쓰는위치 패널은 우측 aside(ProductEditorUnified)에 도킹됨. */}
 
         {/* Loading Modal for file conversion */}
         <LoadingModal
@@ -1134,7 +1125,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       {!isDesktop && hasAnchors && selectedObject && (
         <button
           type="button"
-          onClick={() => setIsAnchorPanelOpen(true)}
+          onClick={() => setAnchorPanelOpen(true)}
           className="fixed bottom-36 left-6 z-50 bg-white shadow-xl rounded-full px-4 py-3 flex items-center gap-2 hover:bg-gray-50 transition border border-gray-200"
           title="자주 쓰는 위치"
         >
@@ -1146,12 +1137,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       {/* Anchor preset panel (mobile bottom sheet) */}
       {!isDesktop && (
         <AnchorPresetPanel
-          open={isAnchorPanelOpen}
-          onClose={() => { setHoveredAnchor(null); setIsAnchorPanelOpen(false); }}
+          open={anchorPanelOpen}
+          onClose={() => setAnchorPanelOpen(false)}
           anchors={sideAnchors}
           hasSelectedArtwork={hasSelectedArtwork}
           onPick={handlePickAnchor}
-          onHoverAnchor={setHoveredAnchor}
+          onHoverAnchor={(a) => setHoveredAnchorId(a?.id ?? null)}
           variant="mobile"
         />
       )}
