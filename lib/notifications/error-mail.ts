@@ -165,85 +165,41 @@ export async function reportError(report: ErrorReport): Promise<{ emailed: boole
 
     const todayKst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const cooldownSec = isPayment ? COOLDOWN_PAYMENT_SEC : COOLDOWN_NORMAL_SEC;
-    const nowMs = Date.now();
 
-    // Upsert: increment occurrence_count regardless of whether we send.
-    const { data: existing } = await supabase
-      .from('error_logs')
-      .select('id, last_emailed_at, emails_sent_today, emails_sent_date, occurrence_count')
-      .eq('dedup_key', dedupKey)
-      .maybeSingle();
+    // Atomic claim: the upsert + cooldown/cap decision happens in a single
+    // row-locked DB function. This prevents duplicate emails when the SAME
+    // error is reported concurrently from multiple capture paths (React error
+    // boundary + window.onerror both fire for one thrown error). Without the
+    // lock, both calls read "no recent email" and both send → 2 emails per
+    // error. With it, only one call wins should_email=true.
+    const { data: claim, error: claimErr } = await supabase.rpc('claim_error_report', {
+      p_dedup_key: dedupKey,
+      p_message: report.message,
+      p_stack: report.stack ?? null,
+      p_url: report.url ?? null,
+      p_user_agent: report.userAgent ?? null,
+      p_user_id: report.userId ?? null,
+      p_is_payment: isPayment,
+      p_is_noise: noise.isNoise,
+      p_noise_reason: noise.reason ?? null,
+      p_context: report.context ?? null,
+      p_cooldown_sec: cooldownSec,
+      p_daily_cap: DAILY_CAP,
+      p_today_kst: todayKst,
+    });
 
-    let shouldEmail = !noise.isNoise;
-    let suppressReason: string | undefined = noise.isNoise ? `noise(${noise.reason})` : undefined;
-    let occurrenceSinceLast = 1;
-    const nowIso = new Date().toISOString();
-
-    if (existing) {
-      const sameDay = existing.emails_sent_date === todayKst;
-      const sentToday = sameDay ? existing.emails_sent_today : 0;
-      const lastMs = existing.last_emailed_at ? new Date(existing.last_emailed_at).getTime() : 0;
-      const secSinceLast = (nowMs - lastMs) / 1000;
-      occurrenceSinceLast = (existing.occurrence_count ?? 0) + 1;
-
-      if (shouldEmail) {
-        if (lastMs > 0 && secSinceLast < cooldownSec) {
-          shouldEmail = false;
-          suppressReason = `cooldown(${Math.round(cooldownSec - secSinceLast)}s)`;
-        } else if (sentToday >= DAILY_CAP) {
-          shouldEmail = false;
-          suppressReason = `daily_cap(${sentToday}/${DAILY_CAP})`;
-        }
-      }
-
-      await supabase
-        .from('error_logs')
-        .update({
-          message: report.message,
-          stack: report.stack,
-          url: report.url,
-          user_agent: report.userAgent,
-          user_id: report.userId ?? null,
-          is_payment: isPayment,
-          is_noise: noise.isNoise,
-          noise_reason: noise.reason ?? null,
-          last_seen_at: nowIso,
-          occurrence_count: occurrenceSinceLast,
-          context: report.context ?? null,
-          updated_at: nowIso,
-          ...(shouldEmail
-            ? {
-                last_emailed_at: nowIso,
-                emails_sent_today: sameDay ? existing.emails_sent_today + 1 : 1,
-                emails_sent_date: todayKst,
-                occurrence_count: 0, // reset since-last counter after emailing
-              }
-            : {}),
-        })
-        .eq('id', existing.id);
-    } else {
-      await supabase.from('error_logs').insert({
-        dedup_key: dedupKey,
-        message: report.message,
-        stack: report.stack,
-        url: report.url,
-        user_agent: report.userAgent,
-        user_id: report.userId ?? null,
-        is_payment: isPayment,
-        is_noise: noise.isNoise,
-        noise_reason: noise.reason ?? null,
-        first_seen_at: nowIso,
-        last_seen_at: nowIso,
-        occurrence_count: 0,
-        last_emailed_at: shouldEmail ? nowIso : null,
-        emails_sent_today: shouldEmail ? 1 : 0,
-        emails_sent_date: todayKst,
-        context: report.context ?? null,
-      });
-      occurrenceSinceLast = 1;
+    if (claimErr) {
+      console.error('[error-mail] claim_error_report failed:', claimErr);
+      return { emailed: false, reason: 'claim_failed' };
     }
 
-    if (!shouldEmail) return { emailed: false, reason: suppressReason };
+    const row = Array.isArray(claim) ? claim[0] : claim;
+    const shouldEmail: boolean = !!row?.should_email;
+    const occurrenceSinceLast: number = row?.occurrence_since_last ?? 1;
+
+    if (!shouldEmail) {
+      return { emailed: false, reason: noise.isNoise ? `noise(${noise.reason})` : 'cooldown_or_cap' };
+    }
 
     const ok = await sendGmailEmail({
       to: [{ email: RECIPIENT }],
