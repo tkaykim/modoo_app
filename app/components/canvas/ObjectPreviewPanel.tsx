@@ -177,14 +177,7 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
               </div>
 
               <div className="text-xs text-gray-600 space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">너비:</span>
-                  <span>{objInfo.widthMm.toFixed(1)}mm</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">높이:</span>
-                  <span>{objInfo.heightMm.toFixed(1)}mm</span>
-                </div>
+                {/* 실측 크기(너비/높이 mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
                 {/* 인쇄방식 라벨 — prod 손님에게 항상 보이는 정보성 표시. */}
                 <div className="flex items-center gap-2 pt-0.5">
                   <Printer className="w-3 h-3 text-gray-500" />
