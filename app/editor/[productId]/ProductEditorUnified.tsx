@@ -68,9 +68,10 @@ export default function ProductEditorUnified({
   const partnerMallAdd = searchParams.get('partnerMallAdd');
   const partnerMallBuy = searchParams.get('partnerMallBuy');
   const templateIdParam = searchParams.get('templateId');
-  const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam;
   // 실험: ?layers-lab=1 진입 시에만 LayersPrintPanel 마운트. prod URL엔 안 붙음 → 손님 무영향.
   const layersLabEnabled = searchParams?.get('layers-lab') === '1';
+  // layers-lab 진입은 landing 거치지 않고 바로 editor로 보내서 패널 즉시 확인 가능하게.
+  const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam || layersLabEnabled;
 
   const [currentStep, setCurrentStep] = useState<EditorStep>(
     isSpecialMode ? 'editor' : 'landing'
@@ -1310,6 +1311,25 @@ export default function ProductEditorUnified({
           sizingChartImage={product.sizing_chart_image}
           productId={product.id}
         />
+
+        {/* 실험 — Layers × PrintMethod (?layers-lab=1 쿼리 게이트, mobile) */}
+        {layersLabEnabled && (
+          <>
+            <button
+              onClick={() => setIsLayersPanelOpen(true)}
+              className="fixed bottom-20 right-4 z-[95] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+              aria-label="레이어 & 인쇄방식 패널 열기"
+            >
+              <LayersIcon className="w-5 h-5" />
+              <span className="text-sm font-semibold pr-1">레이어 & 인쇄</span>
+            </button>
+            <LayersPrintPanel
+              isOpen={isLayersPanelOpen}
+              onClose={() => setIsLayersPanelOpen(false)}
+              sides={product.configuration}
+            />
+          </>
+        )}
 
         <LoginPromptModal
           isOpen={isLoginPromptOpen}
