@@ -8,7 +8,7 @@ import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
-import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check } from "lucide-react";
+import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check, Layers as LayersIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import {
   trackViewItem,
@@ -30,6 +30,7 @@ import { saveDesign } from "@/lib/designService";
 import { addToCartDB } from "@/lib/cartService";
 import { generateProductThumbnail } from "@/lib/thumbnailGenerator";
 import QuantitySelectorModal from "@/app/components/QuantitySelectorModal";
+import LayersPrintPanel from "@/app/components/canvas/LayersPrintPanel";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -68,6 +69,8 @@ export default function ProductEditorUnified({
   const partnerMallBuy = searchParams.get('partnerMallBuy');
   const templateIdParam = searchParams.get('templateId');
   const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam;
+  // 실험: ?layers-lab=1 진입 시에만 LayersPrintPanel 마운트. prod URL엔 안 붙음 → 손님 무영향.
+  const layersLabEnabled = searchParams?.get('layers-lab') === '1';
 
   const [currentStep, setCurrentStep] = useState<EditorStep>(
     isSpecialMode ? 'editor' : 'landing'
@@ -107,6 +110,8 @@ export default function ProductEditorUnified({
   const [retouchRequested, setRetouchRequested] = useState(false);
   const [showRetouchModal, setShowRetouchModal] = useState(false);
   const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
+  // 실험 패널 토글
+  const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
 
   const productConfig: ProductConfig = {
     productId: product.id,
@@ -1614,6 +1619,25 @@ export default function ProductEditorUnified({
         sizingChartImage={product.sizing_chart_image}
         productId={product.id}
       />
+
+      {/* 실험 — Layers × PrintMethod 패널 (?layers-lab=1 쿼리 게이트). prod URL엔 안 붙음. */}
+      {layersLabEnabled && (
+        <>
+          <button
+            onClick={() => setIsLayersPanelOpen(true)}
+            className="fixed bottom-4 right-4 z-[95] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+            aria-label="레이어 & 인쇄방식 패널 열기"
+          >
+            <LayersIcon className="w-5 h-5" />
+            <span className="text-sm font-semibold pr-1">레이어 & 인쇄</span>
+          </button>
+          <LayersPrintPanel
+            isOpen={isLayersPanelOpen}
+            onClose={() => setIsLayersPanelOpen(false)}
+            sides={product.configuration}
+          />
+        </>
+      )}
 
       <LoginPromptModal
         isOpen={isLoginPromptOpen}
