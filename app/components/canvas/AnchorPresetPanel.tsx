@@ -12,6 +12,8 @@ interface AnchorPresetPanelProps {
   anchors: AnchorPreset[];
   hasSelectedArtwork: boolean;
   onPick: (anchor: AnchorPreset) => void;
+  /** 행 호버 시 해당 앵커만 캔버스에 미리보기(라벨 포함). 벗어나면 null. */
+  onHoverAnchor?: (anchor: AnchorPreset | null) => void;
   variant?: 'mobile' | 'desktop';
 }
 
@@ -21,6 +23,7 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
   anchors,
   hasSelectedArtwork,
   onPick,
+  onHoverAnchor,
   variant = 'mobile',
 }) => {
   // hook은 early return 이전에 (rules of hooks)
@@ -48,7 +51,9 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
                 type="button"
                 disabled={!hasSelectedArtwork}
                 onClick={() => onPick(a)}
-                className="w-full text-left px-3 py-2 rounded border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                onMouseEnter={() => onHoverAnchor?.(a)}
+                onMouseLeave={() => onHoverAnchor?.(null)}
+                className="w-full text-left px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 <div className="flex items-center gap-1.5 font-medium text-sm text-gray-900">
                   <MapPin className="size-4 text-gray-400 shrink-0" />
@@ -94,22 +99,26 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
     );
   }
 
-  // Desktop side panel
+  // Desktop: 하단 중앙 플로팅 카드. 제품 패널(우측)과 겹치지 않고, 캔버스 위 앵커
+  // 미리보기가 보이도록 배경은 투명 클릭캐처(딤 없음)로 둔다.
   return (
-    <div className="fixed top-20 right-4 z-50 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[70vh]">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-        <h3 className="font-semibold text-sm">자주 쓰는 위치</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 transition p-1 -mr-1"
-          aria-label="닫기"
-        >
-          <X className="size-5" />
-        </button>
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[400px] max-w-[90vw] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[60vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="font-semibold text-base">자주 쓰는 위치</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-700 transition p-1 -mr-1"
+            aria-label="닫기"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">{list}</div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">{list}</div>
-    </div>
+    </>
   );
 };
 

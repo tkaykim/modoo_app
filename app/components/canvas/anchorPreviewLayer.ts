@@ -30,12 +30,15 @@ export function drawAnchorPreviews(
     canvasMmPerPx: number;
     mockupCanvasLeft?: number;
     mockupCanvasTop?: number;
+    /** 라벨(앵커 이름)을 캔버스에 그릴지. 여러 앵커를 동시에 그릴 땐 false로 두어
+     *  라벨 겹침을 막고, 호버한 단일 앵커일 때만 true로 보여준다. */
+    showLabels?: boolean;
   },
 ): void {
   if (!canvas) return;
   // Always clear existing previews first to avoid duplicates.
   clearAnchorPreviews(canvas);
-  const { canvasMmPerPx, mockupCanvasLeft = 0, mockupCanvasTop = 0 } = opts;
+  const { canvasMmPerPx, mockupCanvasLeft = 0, mockupCanvasTop = 0, showLabels = true } = opts;
   if (!Number.isFinite(canvasMmPerPx) || canvasMmPerPx <= 0) return;
 
   anchors.forEach((a) => {
@@ -88,7 +91,8 @@ export function drawAnchorPreviews(
     canvas.add(centerDot);
     canvas.bringObjectToFront(centerDot);
 
-    // Label sits NEXT TO the center dot.
+    // Label sits NEXT TO the center dot. 여러 앵커 동시 표시 땐 생략(겹침 방지).
+    if (!showLabels) return;
     const text = new fabric.FabricText(resolveAnchorLabel(a), {
       left: centerX + 8,
       top: centerY - 18,

@@ -72,6 +72,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
   // Anchor preset panel state.
   const [isAnchorPanelOpen, setIsAnchorPanelOpen] = useState(false);
+  // 호버한 앵커 1개만 캔버스에 라벨까지 미리보기. 미호버 시 박스만(라벨 X) → 겹침 방지.
+  const [hoveredAnchor, setHoveredAnchor] = useState<AnchorPreset | null>(null);
   const [sideAnchors, setSideAnchors] = useState<AnchorPreset[]>([]);
   // Fetched native (original-mockup-px) mm-per-px for the active side. Used directly
   // (instead of reading canvas property) so panel/snap/preview don't race with
@@ -139,10 +141,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     if (isAnchorPanelOpen && sideAnchors.length > 0) {
       const geo = resolveCanvasGeometry();
       if (geo) {
-        drawAnchorPreviews(canvas, sideAnchors, {
+        // 호버한 앵커가 있으면 그것만(라벨 포함), 아니면 전체를 박스만(라벨 X)으로.
+        drawAnchorPreviews(canvas, hoveredAnchor ? [hoveredAnchor] : sideAnchors, {
           canvasMmPerPx: geo.mmPerPx,
           mockupCanvasLeft: geo.mockupLeft,
           mockupCanvasTop: geo.mockupTop,
+          showLabels: !!hoveredAnchor,
         });
       }
     } else {
@@ -152,7 +156,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       clearAnchorPreviews(canvas);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAnchorPanelOpen, sideAnchors, activeSideId, nativeMmPerPxForSide]);
+  }, [isAnchorPanelOpen, hoveredAnchor, sideAnchors, activeSideId, nativeMmPerPxForSide]);
 
   const handlePickAnchor = (anchor: AnchorPreset) => {
     const canvas = getActiveCanvas();
@@ -838,10 +842,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
         <AnchorPresetPanel
           open={isAnchorPanelOpen}
-          onClose={() => setIsAnchorPanelOpen(false)}
+          onClose={() => { setHoveredAnchor(null); setIsAnchorPanelOpen(false); }}
           anchors={sideAnchors}
           hasSelectedArtwork={hasSelectedArtwork}
           onPick={handlePickAnchor}
+          onHoverAnchor={setHoveredAnchor}
           variant="desktop"
         />
 
@@ -1142,10 +1147,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       {!isDesktop && (
         <AnchorPresetPanel
           open={isAnchorPanelOpen}
-          onClose={() => setIsAnchorPanelOpen(false)}
+          onClose={() => { setHoveredAnchor(null); setIsAnchorPanelOpen(false); }}
           anchors={sideAnchors}
           hasSelectedArtwork={hasSelectedArtwork}
           onPick={handlePickAnchor}
+          onHoverAnchor={setHoveredAnchor}
           variant="mobile"
         />
       )}
