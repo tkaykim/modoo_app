@@ -30,7 +30,40 @@ const IAB_UA_PATTERNS = [
   /\bDaumApps\b/i,
 ];
 
+// Hosts that are NOT real production traffic: local dev servers and Vercel
+// preview deployments. Errors from these are almost always work-in-progress
+// bugs the developer is actively iterating on (e.g. a half-finished refactor),
+// so emailing them as "치명적 오류" just spams the inbox. We still STORE them
+// (visible in the digest / dashboard) — we only skip the email alert.
+function isNonProductionOrigin(url?: string): boolean {
+  if (!url) return false;
+  let host = '';
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (!host) return false;
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host === '[::1]' ||
+    host.endsWith('.local')
+  ) {
+    return true;
+  }
+  // Vercel preview deployments (e.g. modooapp-git-<branch>-<team>.vercel.app).
+  // The production domain (modoouniform.com) is intentionally NOT matched.
+  if (host.endsWith('.vercel.app')) return true;
+  return false;
+}
+
 const RULES: Rule[] = [
+  {
+    reason: 'non_production_origin',
+    test: (r) => isNonProductionOrigin(r.url),
+  },
   {
     reason: 'meta_iab_injected_script',
     test: (r) => /iabjs:\/\//i.test(r.stack ?? '') || /iabjs:\/\//i.test(r.message),
