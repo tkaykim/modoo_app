@@ -1384,7 +1384,7 @@ export default function ProductEditorUnified({
           <>
             <button
               onClick={() => setIsLayersPanelOpen(true)}
-              className="fixed bottom-20 right-4 z-[95] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+              className="fixed bottom-36 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
               aria-label="레이어 & 인쇄방식 패널 열기"
             >
               <LayersIcon className="w-5 h-5" />
@@ -1739,7 +1739,7 @@ export default function ProductEditorUnified({
         <>
           <button
             onClick={() => setIsLayersPanelOpen(true)}
-            className="fixed bottom-4 right-4 z-[95] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+            className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
             aria-label="레이어 & 인쇄방식 패널 열기"
           >
             <LayersIcon className="w-5 h-5" />
