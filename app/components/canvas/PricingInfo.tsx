@@ -117,8 +117,7 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
                       )}
                     </div>
                     <span className="text-gray-500 text-[10px]">
-                      크기: {objPricing.dimensionsMm.width.toFixed(0)}mm × {objPricing.dimensionsMm.height.toFixed(0)}mm
-                      {' • '}
+                      {/* 실측 크기(mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
                       색상 수: {objPricing.colorCount}개
                       {objPricing.quantity && ` • 수량: ${objPricing.quantity}개`}
                     </span>

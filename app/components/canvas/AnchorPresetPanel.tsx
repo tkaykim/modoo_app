@@ -49,9 +49,7 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
                 <div className="font-medium text-sm text-gray-900">
                   📍 {resolveAnchorLabel(a)}
                 </div>
-                <div className="text-[11px] text-gray-500 font-mono mt-0.5">
-                  ({a.xMm.toFixed(0)}, {a.yMm.toFixed(0)})mm · 권장 {a.recommendedWidthMm.toFixed(0)}×{a.recommendedHeightMm.toFixed(0)}mm
-                </div>
+                {/* 좌표·권장 크기(mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
               </button>
             </li>
           ))}

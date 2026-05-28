@@ -163,22 +163,23 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
             const filename = String(src).split('/').pop()?.split('?')[0]?.slice(0, 24);
             if (filename) displayName = filename;
           }
-          subInfo = `${Math.round(boundingRect.width)}×${Math.round(boundingRect.height)}px · ${widthMm.toFixed(1)}×${heightMm.toFixed(1)}cm`;
+          // 실측 크기(cm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지.
+          subInfo = '';
         } else if (objType === 'i-text' || objType === 'text' || objType === 'textbox') {
           const textObj = obj as fabric.IText;
           const text = textObj.text || '';
           displayName = text.length > 20 ? text.slice(0, 20) + '…' : (text || '텍스트');
           const fontFamily = textObj.fontFamily || 'Default';
           const fontSize = textObj.fontSize || 0;
-          subInfo = `${fontFamily} ${Math.round(fontSize)}pt · ${widthMm.toFixed(1)}×${heightMm.toFixed(1)}cm`;
+          subInfo = `${fontFamily} ${Math.round(fontSize)}pt`;
         } else if (objType === 'rect') {
           displayName = '사각형';
-          subInfo = `${widthMm.toFixed(1)}×${heightMm.toFixed(1)}cm`;
+          subInfo = '';
         } else if (objType === 'circle') {
           displayName = '원형';
-          subInfo = `${widthMm.toFixed(1)}×${heightMm.toFixed(1)}cm`;
+          subInfo = '';
         } else {
-          subInfo = `${widthMm.toFixed(1)}×${heightMm.toFixed(1)}cm`;
+          subInfo = '';
         }
 
         layers.push({

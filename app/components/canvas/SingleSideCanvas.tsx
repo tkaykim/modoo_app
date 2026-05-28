@@ -88,8 +88,29 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   // mmPerPx; canvas-px override is computed at use sites where displayScale is known.
   useEffect(() => {
     let cancelled = false;
+
+    // 1순위: 인쇄영역 실측 기반 native mm/px.
+    // printArea.width는 원본 mockup 픽셀, printAreaWidthMm는 그 영역의 실제 폭(mm)
+    // → 둘의 비율이 곧 native mm/px (calibrationNativeMmPerPx와 단위 동일).
+    // 손클릭 오차가 없어 캘리 라인보다 정확. 미입력(0)이면 기존 캘리 경로로 fallback.
+    const paWidthPx = side.printArea?.width ?? 0;
+    const paWidthMm = side.realLifeDimensions?.printAreaWidthMm ?? 0;
+    const printAreaNativeMmPerPx =
+      paWidthPx > 0 && paWidthMm > 0 ? paWidthMm / paWidthPx : 0;
+
+    const applyRatio = (fallbackNative: number) => {
+      const v = printAreaNativeMmPerPx > 0 ? printAreaNativeMmPerPx : fallbackNative;
+      calibrationNativeMmPerPxRef.current = v;
+      const canvas = canvasRef.current;
+      if (canvas) {
+        // @ts-expect-error - Custom property
+        canvas.calibrationNativeMmPerPx = v;
+        canvas.requestRenderAll();
+      }
+    };
+
     if (!productId) {
-      calibrationNativeMmPerPxRef.current = 0;
+      applyRatio(0);
       return;
     }
     fetchProductCalibrations(productId).then((map) => {
@@ -126,16 +147,10 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         }
       }
 
-      calibrationNativeMmPerPxRef.current = cal?.nativeMmPerPx ?? 0;
-      // Re-render so any in-flight scale-box / measurement reflects the new ratio.
-      const canvas = canvasRef.current;
-      if (canvas) {
-        // @ts-expect-error - Custom property
-        canvas.calibrationNativeMmPerPx = calibrationNativeMmPerPxRef.current;
-        canvas.requestRenderAll();
-      }
+      // printArea 실측이 있으면 그것을, 없으면 캘리 라인 값을 적용.
+      applyRatio(cal?.nativeMmPerPx ?? 0);
     }).catch(() => {
-      if (!cancelled) calibrationNativeMmPerPxRef.current = 0;
+      if (!cancelled) applyRatio(0);
     });
     return () => { cancelled = true; };
   }, [productId, side.id]);
