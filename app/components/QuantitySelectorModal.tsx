@@ -279,7 +279,7 @@ export default function QuantitySelectorModal({
                 />
                 {designNameError && (
                   <p className="text-xs text-red-600 mt-2 font-medium" role="alert">
-                    👆 디자인 이름을 먼저 입력해주세요. (예: 청담고 응원티)
+                    디자인 이름을 먼저 입력해주세요. (예: 청담고 응원티)
                   </p>
                 )}
               </div>

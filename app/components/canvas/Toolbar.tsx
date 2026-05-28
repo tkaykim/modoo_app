@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useCanvasStore } from '@/store/useCanvasStore';
-import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate, ChevronLeft } from 'lucide-react';
+import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate, ChevronLeft, MapPin } from 'lucide-react';
 import { ProductSide } from '@/types/types';
 import TextStylePanel from './TextStylePanel';
 import TemplatePicker from './TemplatePicker';
@@ -827,8 +827,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
                 className="flex flex-col items-center gap-1.5 group"
                 title="자주 쓰는 위치"
               >
-                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition shadow-sm text-lg">
-                  📍
+                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition shadow-sm">
+                  <MapPin className="size-5 text-gray-700" />
                 </div>
                 <span className="text-xs text-gray-600 font-medium">자주쓰는위치</span>
               </button>
@@ -1133,7 +1133,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           className="fixed bottom-36 left-6 z-50 bg-white shadow-xl rounded-full px-4 py-3 flex items-center gap-2 hover:bg-gray-50 transition border border-gray-200"
           title="자주 쓰는 위치"
         >
-          <span className="text-lg">📍</span>
+          <MapPin className="size-4 text-gray-700" />
           <span className="text-xs font-medium text-gray-700 whitespace-nowrap">자주 쓰는 위치</span>
         </button>
       )}

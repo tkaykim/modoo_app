@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react';
-import { Plus, Minus, X } from 'lucide-react';
+import { Plus, Minus, X, Tag } from 'lucide-react';
 import { CartItemWithDesign } from '@/lib/cartService';
 import { SizeOption, DiscountTier } from '@/types/types';
 
@@ -257,7 +257,7 @@ export default function QuantityChangeModal({
               {discountRates && discountRates.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
-                    <span className="shrink-0">🏷️</span>
+                    <Tag className="size-3.5 shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-semibold mb-1">대량 주문 할인 안내</p>
                       {[...discountRates]

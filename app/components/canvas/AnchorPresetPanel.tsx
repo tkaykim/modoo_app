@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { MapPin, X } from 'lucide-react';
 import type { AnchorPreset } from '@/lib/anchorPresets';
 import { resolveAnchorLabel } from '@/lib/anchorPresets';
 import { useShowSize } from '@/lib/useShowSize';
@@ -49,8 +50,9 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
                 onClick={() => onPick(a)}
                 className="w-full text-left px-3 py-2 rounded border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
-                <div className="font-medium text-sm text-gray-900">
-                  📍 {resolveAnchorLabel(a)}
+                <div className="flex items-center gap-1.5 font-medium text-sm text-gray-900">
+                  <MapPin className="size-4 text-gray-400 shrink-0" />
+                  {resolveAnchorLabel(a)}
                 </div>
                 {/* 좌표·권장 크기(mm)는 ?show-size=1 일 때만 노출 — prod 고객은 숨김. */}
                 {showSize && (
@@ -80,10 +82,10 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-800 text-xl leading-none px-2"
+              className="text-gray-400 hover:text-gray-700 transition p-1 -mr-1"
               aria-label="닫기"
             >
-              ×
+              <X className="size-5" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3">{list}</div>
@@ -100,10 +102,10 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-800 text-xl leading-none px-2"
+          className="text-gray-400 hover:text-gray-700 transition p-1 -mr-1"
           aria-label="닫기"
         >
-          ×
+          <X className="size-5" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">{list}</div>

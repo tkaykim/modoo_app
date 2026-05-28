@@ -4,6 +4,7 @@ import { ProductSide, PrintMethod } from "@/types/types";
 import { calculateAllSidesPricing, PricingSummary, ObjectPricing } from "@/app/utils/canvasPricing";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { useShowSize } from "@/lib/useShowSize";
 import PrintMethodPickerSheet from "./PrintMethodPickerSheet";
 
@@ -128,8 +129,9 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
                     </span>
                     {/* Show recommendation if auto-selected */}
                     {objPricing.recommendation?.suggested && (
-                      <span className="text-blue-600 text-[10px] italic">
-                        💡 {objPricing.recommendation.reason}
+                      <span className="flex items-center gap-1 text-blue-600 text-[10px] italic">
+                        <Sparkles className="size-3 shrink-0" />
+                        {objPricing.recommendation.reason}
                       </span>
                     )}
                   </div>
