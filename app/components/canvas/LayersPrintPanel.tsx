@@ -17,6 +17,7 @@ import {
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { ProductSide, PrintMethod } from '@/types/types';
 import { PRINT_METHOD_META, getPrintMethodLabel } from '@/lib/printPricingConfig';
+import { useShowSize } from '@/lib/useShowSize';
 
 export interface LayerInfo {
   objectId: string;
@@ -74,6 +75,8 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  const showSize = useShowSize();
 
   const allLayers: LayerInfo[] = useMemo(() => {
     // mock 모드: 입력 그대로 + override 적용
@@ -163,23 +166,28 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
             const filename = String(src).split('/').pop()?.split('?')[0]?.slice(0, 24);
             if (filename) displayName = filename;
           }
-          // 실측 크기(cm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지.
-          subInfo = '';
+          // 실측 크기는 ?show-size=1 일 때만 노출 — prod 고객은 숨김.
+          // widthMm/heightMm는 mm 단위 → cm 표기 시 ÷10 (기존 라벨 버그 수정).
+          subInfo = showSize
+            ? `${Math.round(boundingRect.width)}×${Math.round(boundingRect.height)}px · ${(widthMm / 10).toFixed(1)}×${(heightMm / 10).toFixed(1)}cm`
+            : '';
         } else if (objType === 'i-text' || objType === 'text' || objType === 'textbox') {
           const textObj = obj as fabric.IText;
           const text = textObj.text || '';
           displayName = text.length > 20 ? text.slice(0, 20) + '…' : (text || '텍스트');
           const fontFamily = textObj.fontFamily || 'Default';
           const fontSize = textObj.fontSize || 0;
-          subInfo = `${fontFamily} ${Math.round(fontSize)}pt`;
+          subInfo = showSize
+            ? `${fontFamily} ${Math.round(fontSize)}pt · ${(widthMm / 10).toFixed(1)}×${(heightMm / 10).toFixed(1)}cm`
+            : `${fontFamily} ${Math.round(fontSize)}pt`;
         } else if (objType === 'rect') {
           displayName = '사각형';
-          subInfo = '';
+          subInfo = showSize ? `${(widthMm / 10).toFixed(1)}×${(heightMm / 10).toFixed(1)}cm` : '';
         } else if (objType === 'circle') {
           displayName = '원형';
-          subInfo = '';
+          subInfo = showSize ? `${(widthMm / 10).toFixed(1)}×${(heightMm / 10).toFixed(1)}cm` : '';
         } else {
-          subInfo = '';
+          subInfo = showSize ? `${(widthMm / 10).toFixed(1)}×${(heightMm / 10).toFixed(1)}cm` : '';
         }
 
         layers.push({
@@ -198,7 +206,7 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
     });
 
     return layers;
-  }, [canvasMap, sides, canvasVersion, mockLayers, mockOverrides]);
+  }, [canvasMap, sides, canvasVersion, mockLayers, mockOverrides, showSize]);
 
   if (!isOpen) return null;
 

@@ -3,6 +3,7 @@
 import React from 'react';
 import type { AnchorPreset } from '@/lib/anchorPresets';
 import { resolveAnchorLabel } from '@/lib/anchorPresets';
+import { useShowSize } from '@/lib/useShowSize';
 
 interface AnchorPresetPanelProps {
   open: boolean;
@@ -21,6 +22,8 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
   onPick,
   variant = 'mobile',
 }) => {
+  // hook은 early return 이전에 (rules of hooks)
+  const showSize = useShowSize();
   if (!open) return null;
 
   const isMobile = variant === 'mobile';
@@ -49,7 +52,12 @@ const AnchorPresetPanel: React.FC<AnchorPresetPanelProps> = ({
                 <div className="font-medium text-sm text-gray-900">
                   📍 {resolveAnchorLabel(a)}
                 </div>
-                {/* 좌표·권장 크기(mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
+                {/* 좌표·권장 크기(mm)는 ?show-size=1 일 때만 노출 — prod 고객은 숨김. */}
+                {showSize && (
+                  <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                    ({a.xMm.toFixed(0)}, {a.yMm.toFixed(0)})mm · 권장 {a.recommendedWidthMm.toFixed(0)}×{a.recommendedHeightMm.toFixed(0)}mm
+                  </div>
+                )}
               </button>
             </li>
           ))}

@@ -7,6 +7,7 @@ import { useCanvasStore } from '@/store/useCanvasStore';
 import { ProductSide, PrintMethod } from '@/types/types';
 import { Image as ImageIcon, Type, Square, Printer } from 'lucide-react';
 import { getPrintMethodLabel } from '@/lib/printPricingConfig';
+import { useShowSize } from '@/lib/useShowSize';
 import PrintMethodPickerSheet from './PrintMethodPickerSheet';
 
 interface ObjectPreviewPanelProps {
@@ -31,6 +32,7 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
   // Phase 2에서 쿼리 게이트 제거 시 자연스럽게 prod 공개.
   const searchParams = useSearchParams();
   const pickerEnabled = searchParams?.get('print-picker') === '1';
+  const showSize = useShowSize();
 
   const [pickerForObjectId, setPickerForObjectId] = useState<string | null>(null);
 
@@ -177,7 +179,19 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
               </div>
 
               <div className="text-xs text-gray-600 space-y-0.5">
-                {/* 실측 크기(너비/높이 mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
+                {/* 실측 크기(너비/높이 mm)는 ?show-size=1 일 때만 노출 — prod 고객은 숨김. */}
+                {showSize && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">너비:</span>
+                      <span>{objInfo.widthMm.toFixed(1)}mm</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">높이:</span>
+                      <span>{objInfo.heightMm.toFixed(1)}mm</span>
+                    </div>
+                  </>
+                )}
                 {/* 인쇄방식 라벨 — prod 손님에게 항상 보이는 정보성 표시. */}
                 <div className="flex items-center gap-2 pt-0.5">
                   <Printer className="w-3 h-3 text-gray-500" />

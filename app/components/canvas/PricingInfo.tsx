@@ -4,6 +4,7 @@ import { ProductSide, PrintMethod } from "@/types/types";
 import { calculateAllSidesPricing, PricingSummary, ObjectPricing } from "@/app/utils/canvasPricing";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useShowSize } from "@/lib/useShowSize";
 import PrintMethodPickerSheet from "./PrintMethodPickerSheet";
 
 interface PricingInfoProps {
@@ -35,6 +36,7 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
   // ?print-picker=1 쿼리 진입 시에만 "변경" 버튼 + sheet 마운트. prod URL엔 안 붙음.
   const searchParams = useSearchParams();
   const pickerEnabled = searchParams?.get('print-picker') === '1';
+  const showSize = useShowSize();
   const [pickerForObjectId, setPickerForObjectId] = useState<string | null>(null);
 
   // Calculate pricing dynamically whenever canvases change
@@ -117,7 +119,10 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
                       )}
                     </div>
                     <span className="text-gray-500 text-[10px]">
-                      {/* 실측 크기(mm)는 고객에게 노출하지 않음 — 실측 오차 컴플레인 방지. */}
+                      {/* 실측 크기(mm)는 ?show-size=1 일 때만 노출 — prod 고객은 숨김. */}
+                      {showSize && (
+                        <>크기: {objPricing.dimensionsMm.width.toFixed(0)}mm × {objPricing.dimensionsMm.height.toFixed(0)}mm{' • '}</>
+                      )}
                       색상 수: {objPricing.colorCount}개
                       {objPricing.quantity && ` • 수량: ${objPricing.quantity}개`}
                     </span>
