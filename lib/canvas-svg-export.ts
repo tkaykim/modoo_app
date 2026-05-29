@@ -22,9 +22,15 @@ const fontCache: Map<string, opentype.Font> = new Map();
  */
 async function loadFont(
   fontFamily: string,
-  fontUrl?: string
+  fontUrl?: string,
+  customFontUrlMap?: Record<string, string>
 ): Promise<opentype.Font | null> {
-  const fontKey = fontUrl || fontFamily;
+  // Resolve a custom-font URL by family name when the object itself didn't
+  // carry one (e.g. older designs, or curved text). This must win over the
+  // Arimo fallback so customer-uploaded fonts are vectorized from their real
+  // file instead of being silently replaced.
+  const resolvedUrl = fontUrl || customFontUrlMap?.[fontFamily];
+  const fontKey = resolvedUrl || fontFamily;
 
   // Check cache first
   if (fontCache.has(fontKey)) {
@@ -32,7 +38,7 @@ async function loadFont(
   }
 
   // Determine font URL
-  let url = fontUrl;
+  let url = resolvedUrl;
   if (!url) {
     const localPath = SYSTEM_FONT_PATH_MAP[fontFamily];
     if (localPath) {
@@ -338,7 +344,8 @@ async function generateCurvedTextPathSVG(
   curvedText: CurvedText,
   objectId: string,
   canvasObjectIndex: number,
-  printMethod?: string | null
+  printMethod?: string | null,
+  customFontUrlMap?: Record<string, string>
 ): Promise<{ svg: string; pathData: string | null }> {
   const text = curvedText.text || '';
   const fontFamily = curvedText.fontFamily || 'Arial';
@@ -354,8 +361,12 @@ async function generateCurvedTextPathSVG(
   const angle = curvedText.angle || 0;
   const scaleX = curvedText.scaleX || 1;
   const scaleY = curvedText.scaleY || 1;
-  // Load font (try system font URLs)
-  const font = await loadFont(fontFamily);
+  // Load font: prefer the URL stored on the object, then the custom-font map by
+  // family, then system fonts. Without this, curved text with a customer font
+  // was exported using a fallback font.
+  // @ts-expect-error - Reading custom data property
+  const curvedFontUrl = curvedText.data?.fontUrl || undefined;
+  const font = await loadFont(fontFamily, curvedFontUrl, customFontUrlMap);
 
   if (!font) {
     console.warn(
@@ -499,7 +510,8 @@ async function generateTextPathSVG(
   textObj: fabric.IText | fabric.Text,
   objectId: string,
   canvasObjectIndex: number,
-  printMethod?: string | null
+  printMethod?: string | null,
+  customFontUrlMap?: Record<string, string>
 ): Promise<{ svg: string; pathData: string | null }> {
   const text = textObj.text || '';
   const fontFamily = textObj.fontFamily || 'Arial';
@@ -520,8 +532,8 @@ async function generateTextPathSVG(
   // @ts-expect-error - Reading custom data property
   const fontUrl = textObj.data?.fontUrl || textObj.fontUrl || undefined;
 
-  // Load font
-  const font = await loadFont(fontFamily, fontUrl);
+  // Load font (custom-font map resolves by family name when no per-object URL)
+  const font = await loadFont(fontFamily, fontUrl, customFontUrlMap);
 
   if (!font) {
     // Fallback to text element if font loading fails
@@ -597,7 +609,10 @@ async function generateTextPathSVG(
  * Wait for all CurvedText objects in a canvas to have their fonts loaded
  * This ensures SVG path generation will work correctly
  */
-async function waitForCurvedTextFonts(canvas: fabric.Canvas): Promise<void> {
+async function waitForCurvedTextFonts(
+  canvas: fabric.Canvas,
+  customFontUrlMap?: Record<string, string>
+): Promise<void> {
   const objects = canvas.getObjects();
   const curvedTextObjects = objects.filter(isCurvedText) as CurvedText[];
 
@@ -609,7 +624,8 @@ async function waitForCurvedTextFonts(canvas: fabric.Canvas): Promise<void> {
       try {
         console.log(`[SVG Export] CurvedText: text="${curvedText.text}", fontFamily="${curvedText.fontFamily}", curveIntensity=${curvedText.curveIntensity}`);
         // Pre-load font for SVG path conversion
-        await loadFont(curvedText.fontFamily);
+        // @ts-expect-error - Reading custom data property
+        await loadFont(curvedText.fontFamily, curvedText.data?.fontUrl || undefined, customFontUrlMap);
       } catch (error) {
         console.warn('[SVG Export] Font loading failed for CurvedText:', error);
       }
@@ -859,10 +875,18 @@ ${wrappedObjectMarkup}
  * @returns SVG export result with all text converted to paths
  */
 export async function extractTextObjectsToSVGAsync(
-  canvas: fabric.Canvas
+  canvas: fabric.Canvas,
+  customFonts?: Array<{ fontFamily: string; url: string }>
 ): Promise<SVGExportResult> {
+  // Build a family→URL lookup so customer-uploaded fonts can be resolved even
+  // when an individual text object lost its data.fontUrl reference.
+  const customFontUrlMap: Record<string, string> = {};
+  for (const f of customFonts ?? []) {
+    if (f?.fontFamily && f?.url) customFontUrlMap[f.fontFamily] = f.url;
+  }
+
   // Wait for all CurvedText fonts to load before extracting
-  await waitForCurvedTextFonts(canvas);
+  await waitForCurvedTextFonts(canvas, customFontUrlMap);
 
   const canvasObjects = canvas.getObjects();
   console.log('[SVG Export] Total canvas objects:', canvasObjects.length);
@@ -984,7 +1008,8 @@ export async function extractTextObjectsToSVGAsync(
         textObj as CurvedText,
         objectId,
         canvasObjectIndex,
-        printMethod
+        printMethod,
+        customFontUrlMap
       );
 
       if (pathResult.pathData) {
@@ -1007,7 +1032,8 @@ export async function extractTextObjectsToSVGAsync(
         textObj as fabric.IText,
         objectId,
         canvasObjectIndex,
-        printMethod
+        printMethod,
+        customFontUrlMap
       );
 
       if (pathResult.pathData) {
@@ -1212,8 +1238,8 @@ export function downloadSVG(svgContent: string, filename: string = 'text-export.
  */
 export function extractImageUrlsFromCanvasState(
   canvasStateMap: Record<string, CanvasState | string>
-): Record<string, Array<{ url: string; path?: string; uploadedAt?: string }>> {
-  const imageUrls: Record<string, Array<{ url: string; path?: string; uploadedAt?: string }>> = {};
+): Record<string, Array<{ url: string; path?: string; uploadedAt?: string; kind?: 'original' | 'processed'; fileName?: string }>> {
+  const imageUrls: Record<string, Array<{ url: string; path?: string; uploadedAt?: string; kind?: 'original' | 'processed'; fileName?: string }>> = {};
 
   for (const [sideId, canvasStateRaw] of Object.entries(canvasStateMap)) {
     // Parse canvas state if it's a JSON string
@@ -1236,19 +1262,37 @@ export function extractImageUrlsFromCanvasState(
     // Filter for image objects with Supabase storage data (case-insensitive)
     const imageObjects = canvasState.objects.filter(obj => obj.type?.toLowerCase() === 'image');
 
-    const sideImages: Array<{ url: string; path?: string; uploadedAt?: string }> = [];
+    const sideImages: Array<{ url: string; path?: string; uploadedAt?: string; kind?: 'original' | 'processed'; fileName?: string }> = [];
 
     imageObjects.forEach(imgObj => {
       // Check if image has Supabase storage metadata
       const supabaseUrl = imgObj.data?.supabaseUrl;
       const supabasePath = imgObj.data?.supabasePath;
       const uploadedAt = imgObj.data?.uploadedAt;
+      const originalFileUrl = imgObj.data?.originalFileUrl;
+      const originalFilePath = imgObj.data?.originalFilePath;
+      const originalFileName = imgObj.data?.originalFileName;
 
       if (supabaseUrl) {
         sideImages.push({
           url: String(supabaseUrl),
           path: supabasePath ? String(supabasePath) : undefined,
           uploadedAt: uploadedAt ? String(uploadedAt) : undefined,
+          kind: 'processed',
+        });
+      }
+
+      // Preserve the customer's TRUE original upload as a separate attachment
+      // when it differs from the (processed/background-removed) display image.
+      // Without this, background removal silently drops the original from the
+      // order's downloadable assets.
+      if (originalFileUrl && String(originalFileUrl) !== String(supabaseUrl ?? '')) {
+        sideImages.push({
+          url: String(originalFileUrl),
+          path: originalFilePath ? String(originalFilePath) : undefined,
+          uploadedAt: uploadedAt ? String(uploadedAt) : undefined,
+          kind: 'original',
+          fileName: originalFileName ? String(originalFileName) : undefined,
         });
       }
     });

@@ -463,12 +463,27 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         );
       }
 
-      const displayUploadResult = await uploadFileToStorage(
-        supabase,
-        trimResult.file,
-        STORAGE_BUCKETS.USER_DESIGNS,
-        STORAGE_FOLDERS.IMAGES,
-      );
+      // Preserve the customer's TRUE original upload as a downloadable
+      // attachment. AI/PSD files already uploaded their original during phase 1
+      // (pending.sourceUrl); regular images have not, so upload the source file
+      // now — in parallel with the processed/display image to avoid extra latency.
+      const needsOriginalUpload = !pending.sourceUrl;
+      const [displayUploadResult, originalUploadResult] = await Promise.all([
+        uploadFileToStorage(
+          supabase,
+          trimResult.file,
+          STORAGE_BUCKETS.USER_DESIGNS,
+          STORAGE_FOLDERS.IMAGES,
+        ),
+        needsOriginalUpload
+          ? uploadFileToStorage(
+              supabase,
+              pending.sourceFile,
+              STORAGE_BUCKETS.USER_DESIGNS,
+              STORAGE_FOLDERS.IMAGES,
+            )
+          : Promise.resolve(null),
+      ]);
 
       if (!displayUploadResult.success || !displayUploadResult.url) {
         setIsLoadingModalOpen(false);
@@ -480,6 +495,21 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         alert(friendly);
         setBgPending(null);
         return;
+      }
+
+      // Resolve the customer's original-file reference. Falls back to the
+      // processed/display image only if there was no original to upload or the
+      // upload failed — so the order always carries at least one attachment.
+      const originalUrl =
+        pending.sourceUrl ??
+        (originalUploadResult?.success ? originalUploadResult.url ?? null : null);
+      const originalPath =
+        pending.sourcePath ??
+        (originalUploadResult?.success ? originalUploadResult.path ?? null : null);
+      if (needsOriginalUpload && !originalUrl) {
+        console.warn(
+          '[bg-removal] original image upload failed; only the processed image will be attached.',
+        );
       }
 
       // Designer delegation: tag the canvas object with a pending jobId. The
@@ -524,7 +554,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         objectId,
         supabaseUrl: displayUrl,
         supabasePath: displayUploadResult.path,
-        originalFileUrl: pending.sourceUrl ?? displayUrl,
+        originalFileUrl: originalUrl ?? displayUrl,
+        originalFilePath: originalPath ?? null,
         originalFileName: pending.sourceFile.name,
         fileType: pending.sourceFile.type || 'unknown',
         isConverted: isAiOrPsdFile(pending.sourceFile),
@@ -534,8 +565,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           ? {
               designerJobId,
               designerPending: true,
-              designerSourceUrl: pending.sourceUrl ?? displayUrl,
-              designerSourcePath: pending.sourcePath ?? null,
+              designerSourceUrl: originalUrl ?? displayUrl,
+              designerSourcePath: originalPath ?? null,
               designerSourceFileName: pending.sourceFile.name,
             }
           : { bgRemoved: result.usedRemoval }),

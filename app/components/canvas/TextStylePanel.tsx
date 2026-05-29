@@ -148,11 +148,15 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
       (selectedObject as CurvedText).setFont(value);
     } else if (selectedObject) {
       updateTextProperty('fontFamily', value);
-      // Store fontUrl in data for SVG export path conversion
-      if (url) {
-        const existingData = (selectedObject as any).data || {};
-        (selectedObject as any).data = { ...existingData, fontUrl: url };
-      }
+    }
+
+    // Store the custom font URL on the object (for BOTH curved and regular
+    // text) so SVG path export and the admin renderer can resolve the exact
+    // font. Previously curved text skipped this and got exported as a fallback
+    // font.
+    if (selectedObject && url) {
+      const existingData = (selectedObject as any).data || {};
+      (selectedObject as any).data = { ...existingData, fontUrl: url };
     }
   };
 

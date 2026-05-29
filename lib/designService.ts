@@ -72,7 +72,7 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
           console.log(`Canvas objects count:`, canvas?.getObjects?.()?.length ?? 'N/A');
 
           // Wait for fonts to load before extracting (ensures curved text becomes paths)
-          const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas);
+          const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas, data.customFonts);
           console.log(`Side ${sideId}: Found ${textObjects.length} text objects, ${objectSvgs.length} SVGs generated`);
 
           if (objectSvgs.length > 0) {
@@ -305,7 +305,7 @@ export async function updateDesign(
       for (const [sideId, canvas] of Object.entries(data.canvasMap)) {
         try {
           // Wait for fonts to load before extracting (ensures curved text becomes paths)
-          const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas);
+          const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas, data.customFonts);
 
           if (objectSvgs.length > 0) {
             const sideObjectUrls: Record<string, string> = {};
