@@ -1089,12 +1089,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
               <FileImage className="size-5 text-gray-700" />
               <span className="text-[10px] font-medium text-gray-600">이미지</span>
             </button>
-            {productId && (
-              <button onClick={() => setIsTemplatePickerOpen(true)} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
-                <LayoutTemplate className="size-5 text-gray-700" />
-                <span className="text-[10px] font-medium text-gray-600">템플릿</span>
-              </button>
-            )}
             {hasColorOptions && onColorPress && (
               <button onClick={onColorPress} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
                 <span className="size-5 rounded-full border border-gray-300 shadow-sm" style={{ backgroundColor: displayColor || '#FFFFFF' }} />
@@ -1109,7 +1103,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
                 className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px] disabled:opacity-40"
               >
                 <MapPin className="size-5 text-gray-700" />
-                <span className="text-[10px] font-medium text-gray-600">위치</span>
+                <span className="text-[10px] font-medium text-gray-600 text-center leading-tight">자주 쓰는 위치</span>
               </button>
             )}
             {layersLabEnabled && (
