@@ -7,11 +7,20 @@ interface InquiryRequestBody {
   clothingType: string;
   quantity: string;
   priorities: string[];
+  designType?: string | null;
+  colorCount?: string | null;
+  printLocations?: string[] | null;
+  printMethod?: string | null;
+  recommendedPrintMethod?: string | null;
+  estimatedPriceMin?: number | null;
+  estimatedPriceMax?: number | null;
+  recommendedProductIds?: string[] | null;
   neededDate: string | null;
   neededDateFlexible: boolean;
   contactName: string;
   contactEmail?: string;
   contactPhone: string;
+  consultRequested?: boolean;
 }
 
 // Parse quantity string to number (returns approximate middle value of range)
@@ -22,8 +31,11 @@ function parseQuantity(quantityStr: string): number {
   if (quantityStr === '21~50벌') {
     return 35;
   }
-  if (quantityStr === '50벌 이상') {
-    return 50;
+  if (quantityStr === '50~100벌') {
+    return 75;
+  }
+  if (quantityStr === '100벌 이상') {
+    return 100;
   }
   // Fallback: try to extract first number
   const match = quantityStr.match(/(\d+)/);
@@ -62,11 +74,20 @@ export async function POST(request: NextRequest) {
         clothing_type: body.clothingType,
         quantity: parseQuantity(body.quantity),
         priorities: body.priorities,
+        design_type: body.designType ?? null,
+        color_count: body.colorCount ?? null,
+        print_locations: body.printLocations ?? null,
+        print_method: body.printMethod ?? null,
+        recommended_print_method: body.recommendedPrintMethod ?? null,
+        estimated_price_min: body.estimatedPriceMin ?? null,
+        estimated_price_max: body.estimatedPriceMax ?? null,
+        recommended_product_ids: body.recommendedProductIds ?? null,
         needed_date: body.neededDateFlexible ? null : body.neededDate,
         needed_date_flexible: body.neededDateFlexible,
         contact_name: body.contactName,
         contact_email: body.contactEmail || null,
         contact_phone: body.contactPhone,
+        admin_notes: body.consultRequested ? '[상담원 연결 요청]' : null,
         status: 'pending'
       })
       .select()

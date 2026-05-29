@@ -4,6 +4,7 @@ import { ChatMessage, QuickReply, InquiryFlowState, InquiryStep, InquiryData } f
 const INITIAL_INQUIRY_STATE: InquiryFlowState = {
   currentStep: 'welcome',
   inquiryData: {},
+  history: [],
   inquiryId: undefined,
   isSubmitting: false,
   error: undefined
@@ -37,6 +38,7 @@ interface ChatState {
 
   // Inquiry flow actions
   setInquiryStep: (step: InquiryStep) => void;
+  goBackStep: () => InquiryStep | null;
   updateInquiryData: (data: Partial<InquiryData>) => void;
   setInquiryId: (id: string) => void;
   setIsSubmitting: (submitting: boolean) => void;
@@ -50,17 +52,14 @@ interface ChatState {
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   sender: 'bot',
-  content: '안녕하세요! 모두의 유니폼입니다.\n맞춤 상품을 추천해 드릴게요! 먼저 어떤 종류의 의류를 찾으시나요?',
+  content: '안녕하세요! 모두의 유니폼입니다.\n무엇을 도와드릴까요?',
   contentType: 'inquiry_step',
   timestamp: Date.now(),
   metadata: {
-    inquiryStep: 'clothing_type',
+    inquiryStep: 'menu',
     quickReplies: [
-      { label: '티셔츠', action: '티셔츠', type: 'message' },
-      { label: '후드티', action: '후드티', type: 'message' },
-      { label: '맨투맨', action: '맨투맨', type: 'message' },
-      { label: '후드집업', action: '후드집업', type: 'message' },
-      { label: '자켓', action: '자켓', type: 'message' },
+      { label: '제작 상담받기', action: '제작상담', type: 'message', icon: 'palette' },
+      { label: '기타 문의', action: '기타문의', type: 'message', icon: 'message-circle' },
     ]
   }
 };
@@ -90,7 +89,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }],
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
-          currentStep: 'clothing_type'
+          currentStep: 'menu'
         }
       });
     } else {
@@ -130,13 +129,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return { messages };
   }),
 
-  // Inquiry flow actions
+  // Inquiry flow actions — advancing pushes the current step onto history
   setInquiryStep: (step) => set((state) => ({
     inquiryFlow: {
       ...state.inquiryFlow,
-      currentStep: step
+      currentStep: step,
+      history: [...state.inquiryFlow.history, state.inquiryFlow.currentStep]
     }
   })),
+
+  // 이전 단계로: history에서 pop, currentStep 복원. 복원된 step 반환(없으면 null).
+  goBackStep: () => {
+    const { inquiryFlow } = get();
+    if (inquiryFlow.history.length === 0) return null;
+    const prev = inquiryFlow.history[inquiryFlow.history.length - 1];
+    set({
+      inquiryFlow: {
+        ...inquiryFlow,
+        currentStep: prev,
+        history: inquiryFlow.history.slice(0, -1)
+      }
+    });
+    return prev;
+  },
 
   updateInquiryData: (data) => set((state) => ({
     inquiryFlow: {
@@ -185,7 +200,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }],
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
-          currentStep: 'clothing_type'
+          currentStep: 'menu'
         }
       });
     }
