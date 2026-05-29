@@ -34,6 +34,9 @@ export interface SideCalibrationPayload {
     recommendedHeightMm: number;
   }>;
   scenarios?: unknown;
+  /** 인쇄영역 실측(mm) — 캘리브 도구(/test/calibration)에서 입력. 환산 1순위 소스.
+   *  printAreaWidthMm / side.printArea.width(px) = native mm/px. */
+  printAreaRealMm?: { widthMm?: number | null; heightMm?: number | null };
 }
 
 export interface SideCalibration {
@@ -41,6 +44,9 @@ export interface SideCalibration {
   sideId: string;
   /** Native (original mockup px) mm-per-px derived from the active calibration line. 0 if no usable line. */
   nativeMmPerPx: number;
+  /** 인쇄영역 실측(mm). printArea 픽셀폭과 함께 native mm/px(환산 1순위) 산출에 사용. */
+  printAreaWidthMm?: number;
+  printAreaHeightMm?: number;
   /** Label of the line used (for tooltips / audit). */
   activeLineLabel?: string;
   /** Registered anchor presets with snapshot labels (label may be missing on older rows). */
@@ -91,7 +97,12 @@ export async function fetchProductCalibrations(
         const payload = (row.payload ?? {}) as SideCalibrationPayload;
         const activeLine = pickActiveLine(payload);
         const nativeMmPerPx = activeLine ? lineNativeMmPerPx(activeLine) : 0;
-        if (!Number.isFinite(nativeMmPerPx) || nativeMmPerPx <= 0) continue;
+        const hasLine = Number.isFinite(nativeMmPerPx) && nativeMmPerPx > 0;
+        const paW = Number(payload.printAreaRealMm?.widthMm) || 0;
+        const paH = Number(payload.printAreaRealMm?.heightMm) || 0;
+        const hasPrintAreaReal = paW > 0;
+        // 선분도 없고 인쇄영역 실측도 없으면 이 행은 쓸모 없음 → skip.
+        if (!hasLine && !hasPrintAreaReal) continue;
         const anchors: AnchorPreset[] = (payload.registeredAnchors ?? [])
           .filter((a) => a && typeof a === 'object' && a.id)
           .map((a) => ({
@@ -107,6 +118,8 @@ export async function fetchProductCalibrations(
           productId: row.product_id,
           sideId: row.side_id,
           nativeMmPerPx,
+          printAreaWidthMm: hasPrintAreaReal ? paW : undefined,
+          printAreaHeightMm: paH > 0 ? paH : undefined,
           activeLineLabel: activeLine?.label,
           anchors,
           payload,

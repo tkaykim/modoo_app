@@ -98,8 +98,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     const printAreaNativeMmPerPx =
       paWidthPx > 0 && paWidthMm > 0 ? paWidthMm / paWidthPx : 0;
 
-    const applyRatio = (fallbackNative: number) => {
-      const v = printAreaNativeMmPerPx > 0 ? printAreaNativeMmPerPx : fallbackNative;
+    const applyRatio = (printAreaNative: number, fallbackNative: number) => {
+      const v = printAreaNative > 0 ? printAreaNative : fallbackNative;
       calibrationNativeMmPerPxRef.current = v;
       const canvas = canvasRef.current;
       if (canvas) {
@@ -110,7 +110,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     };
 
     if (!productId) {
-      applyRatio(0);
+      applyRatio(printAreaNativeMmPerPx, 0);
       return;
     }
     fetchProductCalibrations(productId).then((map) => {
@@ -147,10 +147,14 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         }
       }
 
-      // printArea 실측이 있으면 그것을, 없으면 캘리 라인 값을 적용.
-      applyRatio(cal?.nativeMmPerPx ?? 0);
+      // printArea 실측 우선순위: 캘리브 도구(product_calibrations) → 상품설정(realLifeDimensions).
+      const paFromCal =
+        paWidthPx > 0 && cal?.printAreaWidthMm ? cal.printAreaWidthMm / paWidthPx : 0;
+      const paNative = paFromCal > 0 ? paFromCal : printAreaNativeMmPerPx;
+      // 최종: printArea 실측 → 캘리 선분(cal.nativeMmPerPx).
+      applyRatio(paNative, cal?.nativeMmPerPx ?? 0);
     }).catch(() => {
-      if (!cancelled) applyRatio(0);
+      if (!cancelled) applyRatio(printAreaNativeMmPerPx, 0);
     });
     return () => { cancelled = true; };
   }, [productId, side.id]);
