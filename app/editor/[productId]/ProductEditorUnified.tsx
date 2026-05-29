@@ -8,7 +8,11 @@ import { useCanvasStore } from "@/store/useCanvasStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useFontStore } from "@/store/useFontStore";
 import Header from "@/app/components/Header";
-import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check } from "lucide-react";
+import { X, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Loader2, Info, Check, Layers as LayersIcon, MapPin } from "lucide-react";
+import AnchorPresetPanel from '@/app/components/canvas/AnchorPresetPanel';
+import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
+import { snapArtworkToAnchor } from '@/lib/anchorSnap';
+import type { AnchorPreset } from '@/lib/anchorPresets';
 import { useState, useEffect, useRef } from "react";
 import {
   trackViewItem,
@@ -30,6 +34,7 @@ import { saveDesign } from "@/lib/designService";
 import { addToCartDB } from "@/lib/cartService";
 import { generateProductThumbnail } from "@/lib/thumbnailGenerator";
 import QuantitySelectorModal from "@/app/components/QuantitySelectorModal";
+import LayersPrintPanel from "@/app/components/canvas/LayersPrintPanel";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -67,7 +72,10 @@ export default function ProductEditorUnified({
   const partnerMallAdd = searchParams.get('partnerMallAdd');
   const partnerMallBuy = searchParams.get('partnerMallBuy');
   const templateIdParam = searchParams.get('templateId');
-  const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam;
+  // 실험: ?layers-lab=1 진입 시에만 LayersPrintPanel 마운트. prod URL엔 안 붙음 → 손님 무영향.
+  const layersLabEnabled = searchParams?.get('layers-lab') === '1';
+  // layers-lab 진입은 landing 거치지 않고 바로 editor로 보내서 패널 즉시 확인 가능하게.
+  const isSpecialMode = !!cartItemId || !!partnerMallAdd || !!partnerMallBuy || !!templateIdParam || layersLabEnabled;
 
   const [currentStep, setCurrentStep] = useState<EditorStep>(
     isSpecialMode ? 'editor' : 'landing'
@@ -91,6 +99,11 @@ export default function ProductEditorUnified({
     incrementCanvasVersion,
     activeSideId,
     resetCanvasState,
+    anchorPanelOpen,
+    setAnchorPanelOpen,
+    setHoveredAnchorId,
+    layersPanelOpen,
+    setLayersPanelOpen,
   } = useCanvasStore();
 
   const { addItem: addToCart, items: cartStoreItems } = useCartStore();
@@ -107,6 +120,67 @@ export default function ProductEditorUnified({
   const [retouchRequested, setRetouchRequested] = useState(false);
   const [showRetouchModal, setShowRetouchModal] = useState(false);
   const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
+  // 실험 패널 토글 — layersPanelOpen은 스토어 공유(모바일 툴 독에서 토글).
+
+  // 자주쓰는위치(앵커) — 데스크톱 우측 aside에 도킹. 데이터·지오메트리·픽 핸들러.
+  const [sideAnchorsForPanel, setSideAnchorsForPanel] = useState<AnchorPreset[]>([]);
+  const [nativeMmPerPxForPanel, setNativeMmPerPxForPanel] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    if (!product.id || !activeSideId) {
+      setSideAnchorsForPanel([]);
+      setNativeMmPerPxForPanel(0);
+      return;
+    }
+    fetchProductCalibrations(product.id).then((map) => {
+      if (cancelled) return;
+      const cal = map.get(activeSideId);
+      setSideAnchorsForPanel(cal?.anchors ?? []);
+      setNativeMmPerPxForPanel(cal?.nativeMmPerPx ?? 0);
+    }).catch(() => {
+      if (!cancelled) { setSideAnchorsForPanel([]); setNativeMmPerPxForPanel(0); }
+    });
+    return () => { cancelled = true; };
+  }, [product.id, activeSideId]);
+
+  const resolveAnchorGeometry = (): { mmPerPx: number; mockupLeft: number; mockupTop: number } | null => {
+    const canvas = canvasMap[activeSideId];
+    if (!canvas) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c = canvas as any;
+    const sw = c.scaledImageWidth as number | undefined;
+    const ow = c.originalImageWidth as number | undefined;
+    const mockupLeft = (c.mockupCanvasLeft as number | undefined) ?? 0;
+    const mockupTop = (c.mockupCanvasTop as number | undefined) ?? 0;
+    if (nativeMmPerPxForPanel > 0 && sw && ow) {
+      const r = calibrationToCanvasMmPerPx({ nativeMmPerPx: nativeMmPerPxForPanel, scaledImageWidth: sw, originalImageWidth: ow });
+      if (r) return { mmPerPx: r, mockupLeft, mockupTop };
+    }
+    const realW = (c.realWorldProductWidth as number | undefined) ?? 0;
+    if (sw && sw > 0 && realW > 0) return { mmPerPx: realW / sw, mockupLeft, mockupTop };
+    return null;
+  };
+
+  const handlePickAnchorSidebar = (anchor: AnchorPreset) => {
+    const canvas = canvasMap[activeSideId];
+    if (!canvas) return;
+    const target = canvas.getActiveObject();
+    if (!target) return;
+    const geo = resolveAnchorGeometry();
+    if (!geo) return;
+    const ok = snapArtworkToAnchor({
+      obj: target,
+      anchor,
+      canvasMmPerPx: geo.mmPerPx,
+      mockupCanvasLeft: geo.mockupLeft,
+      mockupCanvasTop: geo.mockupTop,
+    });
+    if (ok) {
+      canvas.requestRenderAll();
+      incrementCanvasVersion();
+      setAnchorPanelOpen(false);
+    }
+  };
 
   const productConfig: ProductConfig = {
     productId: product.id,
@@ -1223,7 +1297,7 @@ export default function ProductEditorUnified({
 
         {/* Bottom bar (hidden in quick-replace mode) */}
         {!quickReplaceTemplate && (
-        <div className="w-full fixed bottom-0 left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
+        <div className={`w-full fixed left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20 ${selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'text' || isCurvedText(selectedObject)) ? 'bottom-0' : 'bottom-16'}`}>
           {/* Background removal checkbox - shown when image object is selected */}
           {selectedObject && selectedObject.type === 'image' && (
             <label className="flex items-center gap-2 mb-2 cursor-pointer">
@@ -1303,6 +1377,15 @@ export default function ProductEditorUnified({
           sizingChartImage={product.sizing_chart_image}
           productId={product.id}
         />
+
+        {/* Layers × PrintMethod 패널 (?layers-lab=1, mobile). FAB는 Toolbar 하단 툴 독으로 이동. */}
+        {layersLabEnabled && (
+          <LayersPrintPanel
+            isOpen={layersPanelOpen}
+            onClose={() => setLayersPanelOpen(false)}
+            sides={product.configuration}
+          />
+        )}
 
         <LoginPromptModal
           isOpen={isLoginPromptOpen}
@@ -1487,6 +1570,33 @@ export default function ProductEditorUnified({
                   <TextStylePanel selectedObject={selectedObject as fabric.IText | fabric.Text} layout="sidebar" />
                 </div>
               </>
+            ) : anchorPanelOpen ? (
+              <>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                    <MapPin className="size-4 text-gray-500" />
+                    자주 쓰는 위치
+                  </h3>
+                  <button
+                    onClick={() => setAnchorPanelOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition"
+                    title="닫기"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <AnchorPresetPanel
+                    open
+                    variant="sidebar"
+                    anchors={sideAnchorsForPanel}
+                    hasSelectedArtwork={!!selectedObject}
+                    onPick={handlePickAnchorSidebar}
+                    onHoverAnchor={(a) => setHoveredAnchorId(a?.id ?? null)}
+                    onClose={() => setAnchorPanelOpen(false)}
+                  />
+                </div>
+              </>
             ) : (
               <>
                 {/* Product Info */}
@@ -1612,6 +1722,25 @@ export default function ProductEditorUnified({
         sizingChartImage={product.sizing_chart_image}
         productId={product.id}
       />
+
+      {/* 실험 — Layers × PrintMethod 패널 (?layers-lab=1 쿼리 게이트). prod URL엔 안 붙음. */}
+      {layersLabEnabled && (
+        <>
+          <button
+            onClick={() => setLayersPanelOpen(true)}
+            className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+            aria-label="레이어 & 인쇄방식 패널 열기"
+          >
+            <LayersIcon className="w-5 h-5" />
+            <span className="text-sm font-semibold pr-1">레이어 & 인쇄</span>
+          </button>
+          <LayersPrintPanel
+            isOpen={layersPanelOpen}
+            onClose={() => setLayersPanelOpen(false)}
+            sides={product.configuration}
+          />
+        </>
+      )}
 
       <LoginPromptModal
         isOpen={isLoginPromptOpen}

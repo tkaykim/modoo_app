@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import * as fabric from 'fabric';
 import { useCanvasStore } from '@/store/useCanvasStore';
-import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate, ChevronLeft } from 'lucide-react';
+import { Plus, TextCursor, Layers, FileImage, Trash2, RefreshCcw, ZoomIn, ZoomOut, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, LayoutTemplate, ChevronLeft, MapPin } from 'lucide-react';
 import { ProductSide } from '@/types/types';
 import TextStylePanel from './TextStylePanel';
 import TemplatePicker from './TemplatePicker';
@@ -37,7 +38,8 @@ interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions }) => {
-  const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel } = useCanvasStore();
+  const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel, anchorPanelOpen, setAnchorPanelOpen, hoveredAnchorId, setHoveredAnchorId, setLayersPanelOpen } = useCanvasStore();
+  const layersLabEnabled = useSearchParams()?.get('layers-lab') === '1';
   const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
@@ -70,9 +72,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   const [cropOpen, setCropOpen] = useState(false);
   // const canvas = getActiveCanvas();
 
-  // Anchor preset panel state.
-  const [isAnchorPanelOpen, setIsAnchorPanelOpen] = useState(false);
+  // Anchor preset panel state는 스토어에서 공유(데스크톱은 우측 aside에 도킹).
   const [sideAnchors, setSideAnchors] = useState<AnchorPreset[]>([]);
+  // 호버한 앵커 1개만 캔버스에 라벨까지 미리보기. 미호버 시 박스만(라벨 X) → 겹침 방지.
+  const hoveredAnchor = hoveredAnchorId ? (sideAnchors.find((a) => a.id === hoveredAnchorId) ?? null) : null;
   // Fetched native (original-mockup-px) mm-per-px for the active side. Used directly
   // (instead of reading canvas property) so panel/snap/preview don't race with
   // SingleSideCanvas calibration effect.
@@ -136,13 +139,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   useEffect(() => {
     const canvas = getActiveCanvas();
     if (!canvas) return;
-    if (isAnchorPanelOpen && sideAnchors.length > 0) {
+    if (anchorPanelOpen && sideAnchors.length > 0) {
       const geo = resolveCanvasGeometry();
       if (geo) {
-        drawAnchorPreviews(canvas, sideAnchors, {
+        // 호버한 앵커가 있으면 그것만(라벨 포함), 아니면 전체를 박스만(라벨 X)으로.
+        drawAnchorPreviews(canvas, hoveredAnchor ? [hoveredAnchor] : sideAnchors, {
           canvasMmPerPx: geo.mmPerPx,
           mockupCanvasLeft: geo.mockupLeft,
           mockupCanvasTop: geo.mockupTop,
+          showLabels: !!hoveredAnchor,
         });
       }
     } else {
@@ -152,7 +157,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       clearAnchorPreviews(canvas);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAnchorPanelOpen, sideAnchors, activeSideId, nativeMmPerPxForSide]);
+  }, [anchorPanelOpen, hoveredAnchor, sideAnchors, activeSideId, nativeMmPerPxForSide]);
 
   const handlePickAnchor = (anchor: AnchorPreset) => {
     const canvas = getActiveCanvas();
@@ -171,7 +176,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     if (ok) {
       canvas.requestRenderAll();
       incrementCanvasVersion();
-      setIsAnchorPanelOpen(false);
+      setAnchorPanelOpen(false);
     }
   };
 
@@ -854,12 +859,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             )}
             {hasAnchors && (
               <button
-                onClick={() => setIsAnchorPanelOpen(true)}
+                onClick={() => setAnchorPanelOpen(true)}
                 className="flex flex-col items-center gap-1.5 group"
                 title="자주 쓰는 위치"
               >
-                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition shadow-sm text-lg">
-                  📍
+                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 transition shadow-sm">
+                  <MapPin className="size-5 text-gray-700" />
                 </div>
                 <span className="text-xs text-gray-600 font-medium">자주쓰는위치</span>
               </button>
@@ -867,14 +872,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           </div>
         </div>
 
-        <AnchorPresetPanel
-          open={isAnchorPanelOpen}
-          onClose={() => setIsAnchorPanelOpen(false)}
-          anchors={sideAnchors}
-          hasSelectedArtwork={hasSelectedArtwork}
-          onPick={handlePickAnchor}
-          variant="desktop"
-        />
+        {/* 데스크톱 자주쓰는위치 패널은 우측 aside(ProductEditorUnified)에 도킹됨. */}
 
         {/* Loading Modal for file conversion */}
         <LoadingModal
@@ -1078,75 +1076,51 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
           </button>
         </div>
       )}
-      {!selectedObject &&
-        <>
-        {isExpanded && (
-          <div className="fixed inset-0 z-40" onClick={() => setIsExpanded(false)} />
-        )}
-        <div className="fixed bottom-36 right-6 flex flex-col items-end gap-3 z-50">
-          {/* Inner buttons - expand upwards */}
-          <div className={`flex flex-col gap-2 transition-all duration-700 overflow-hidden ${
-            isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
-          }`}>
-            <button
-              onClick={() => { addText(); setIsExpanded(false); }}
-            >
-              <div className='bg-white rounded-full p-3 text-sm font-medium transition hover:bg-gray-50 border border-gray-200 whitespace-nowrap'>
-                <TextCursor />
-              </div>
-              <p className='text-xs'>텍스트</p>
+      {/* Mobile bottom tool dock — 흩어진 플로팅 버튼을 한 줄로 통합.
+          텍스트 편집 중(텍스트 선택)일 땐 TextStylePanel이 떠서 dock은 숨김. */}
+      {!(selectedObject && (selectedObject.type === "i-text" || selectedObject.type === "text" || isCurvedText(selectedObject))) && (
+        <div className="fixed bottom-0 inset-x-0 z-30 h-16 bg-white border-t border-gray-200">
+          <div className="h-full flex items-stretch justify-around gap-0.5 px-1 overflow-x-auto">
+            <button onClick={() => addText()} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
+              <TextCursor className="size-5 text-gray-700" />
+              <span className="text-[10px] font-medium text-gray-600">텍스트</span>
             </button>
-            <button
-              onClick={() => { handleAddImageClick(); setIsExpanded(false); }}
-            >
-              <div className='bg-white rounded-full p-3 text-sm font-medium transition hover:bg-gray-50 border border-gray-200 whitespace-nowrap'>
-                <FileImage />
-              </div>
-              <p className='text-xs'>이미지</p>
+            <button onClick={() => handleAddImageClick()} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
+              <FileImage className="size-5 text-gray-700" />
+              <span className="text-[10px] font-medium text-gray-600">이미지</span>
             </button>
             {productId && (
+              <button onClick={() => setIsTemplatePickerOpen(true)} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
+                <LayoutTemplate className="size-5 text-gray-700" />
+                <span className="text-[10px] font-medium text-gray-600">템플릿</span>
+              </button>
+            )}
+            {hasColorOptions && onColorPress && (
+              <button onClick={onColorPress} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px]">
+                <span className="size-5 rounded-full border border-gray-300 shadow-sm" style={{ backgroundColor: displayColor || '#FFFFFF' }} />
+                <span className="text-[10px] font-medium text-gray-600">색상</span>
+              </button>
+            )}
+            {hasAnchors && (
               <button
-                onClick={() => {
-                  setIsTemplatePickerOpen(true);
-                  setIsExpanded(false);
-                }}
+                onClick={() => setAnchorPanelOpen(true)}
+                disabled={!selectedObject}
+                title={!selectedObject ? '이미지를 먼저 선택하세요' : '자주 쓰는 위치'}
+                className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition min-w-[52px] disabled:opacity-40"
               >
-                <div className='bg-white rounded-full p-3 text-sm font-medium transition hover:bg-gray-50 border border-gray-200 whitespace-nowrap'>
-                  <LayoutTemplate />
-                </div>
-                <p className='text-xs'>템플릿</p>
+                <MapPin className="size-5 text-gray-700" />
+                <span className="text-[10px] font-medium text-gray-600">위치</span>
+              </button>
+            )}
+            {layersLabEnabled && (
+              <button onClick={() => setLayersPanelOpen(true)} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-blue-50 active:bg-blue-100 transition min-w-[52px]">
+                <Layers className="size-5 text-blue-600" />
+                <span className="text-[10px] font-medium text-blue-600">레이어</span>
               </button>
             )}
           </div>
-
-          {/* Color button */}
-          {hasColorOptions && onColorPress && (
-            <button
-              onClick={onColorPress}
-              className="flex flex-col items-center gap-1"
-            >
-              <div
-                className="size-12 rounded-full border-2 border-gray-300 shadow-xl transition hover:border-gray-500"
-                style={{ backgroundColor: displayColor || '#FFFFFF' }}
-              />
-              <p className="text-[10px] font-medium">색상 선택</p>
-            </button>
-          )}
-
-          {/* Plus button */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex flex-col items-center gap-1"
-          >
-            <div className={`size-12 ${isExpanded ? "bg-black text-white" : "bg-white text-black"} shadow-xl rounded-full flex items-center justify-center hover:bg-gray-200 transition-all duration-300`}>
-              <Plus className={`${isExpanded ? 'rotate-45' : ''} size-8 transition-all duration-300`}/>
-            </div>
-            <p className="text-[10px] font-medium">디자인하기</p>
-          </button>
         </div>
-        </>
-      }
-
+      )}
 
       {/* Render if selected item is text */}
       {selectedObject && (selectedObject.type === "i-text" || selectedObject.type === "text" || isCurvedText(selectedObject)) && (
@@ -1156,27 +1130,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
         />
       )}
 
-      {/* Mobile floating button — Anchor presets (자주 쓰는 위치) */}
-      {!isDesktop && hasAnchors && selectedObject && (
-        <button
-          type="button"
-          onClick={() => setIsAnchorPanelOpen(true)}
-          className="fixed bottom-36 left-6 z-50 bg-white shadow-xl rounded-full px-4 py-3 flex items-center gap-2 hover:bg-gray-50 transition border border-gray-200"
-          title="자주 쓰는 위치"
-        >
-          <span className="text-lg">📍</span>
-          <span className="text-xs font-medium text-gray-700 whitespace-nowrap">자주 쓰는 위치</span>
-        </button>
-      )}
-
       {/* Anchor preset panel (mobile bottom sheet) */}
       {!isDesktop && (
         <AnchorPresetPanel
-          open={isAnchorPanelOpen}
-          onClose={() => setIsAnchorPanelOpen(false)}
+          open={anchorPanelOpen}
+          onClose={() => setAnchorPanelOpen(false)}
           anchors={sideAnchors}
           hasSelectedArtwork={hasSelectedArtwork}
           onPick={handlePickAnchor}
+          onHoverAnchor={(a) => setHoveredAnchorId(a?.id ?? null)}
           variant="mobile"
         />
       )}

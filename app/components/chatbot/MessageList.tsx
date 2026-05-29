@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ChatMessage as ChatMessageType, QuickReply, Priority } from '@/lib/chatbot/types';
+import { ChatMessage as ChatMessageType, QuickReply, Priority, PrintLocation, PrintMethodChoice, DesignType, ColorCount, DesignSizeCounts } from '@/lib/chatbot/types';
 import ChatMessage from './ChatMessage';
 
 interface MessageListProps {
@@ -12,6 +12,13 @@ interface MessageListProps {
   onDateSubmit?: (date: string | null, flexible: boolean) => void;
   onPrioritiesSubmit?: (priorities: Priority[]) => void;
   onContactSubmit?: (name: string, email: string, phone: string) => void;
+  onLocationSubmit?: (locations: PrintLocation[]) => void;
+  onDesignSizeSubmit?: (counts: DesignSizeCounts) => void;
+  onQuantitySubmit?: (qty: number) => void;
+  onMethodSelect?: (method: PrintMethodChoice) => void;
+  onConsult?: () => void;
+  designType?: DesignType;
+  colorCount?: ColorCount;
   isSubmitting?: boolean;
 }
 
@@ -23,6 +30,13 @@ export default function MessageList({
   onDateSubmit,
   onPrioritiesSubmit,
   onContactSubmit,
+  onLocationSubmit,
+  onDesignSizeSubmit,
+  onQuantitySubmit,
+  onMethodSelect,
+  onConsult,
+  designType,
+  colorCount,
   isSubmitting
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -49,6 +63,13 @@ export default function MessageList({
           onDateSubmit={onDateSubmit}
           onPrioritiesSubmit={onPrioritiesSubmit}
           onContactSubmit={onContactSubmit}
+          onLocationSubmit={onLocationSubmit}
+          onDesignSizeSubmit={onDesignSizeSubmit}
+          onQuantitySubmit={onQuantitySubmit}
+          onMethodSelect={onMethodSelect}
+          onConsult={onConsult}
+          designType={designType}
+          colorCount={colorCount}
           isTyping={isTyping}
           isSubmitting={isSubmitting}
         />

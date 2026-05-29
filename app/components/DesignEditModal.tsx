@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { X, Save, Trash2, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown } from 'lucide-react';
 import ProductDesigner from './canvas/ProductDesigner';
 import EditButton from './canvas/EditButton';
 import PricingInfo from './canvas/PricingInfo';
+import PricingLabSection from './canvas/PricingLabSection';
 import ColorInfo from './canvas/ColorInfo';
 import ObjectPreviewPanel from './canvas/ObjectPreviewPanel';
 import LayerColorSelector from './canvas/LayerColorSelector';
@@ -47,6 +49,10 @@ export default function DesignEditModal({
     incrementCanvasVersion,
     activeSideId,
   } = useCanvasStore();
+
+  // Phase 2 실험: ?pricing-lab=1 진입 시에만 방식+수량 가격 섹션 마운트. prod URL엔 안 붙음.
+  const searchParams = useSearchParams();
+  const pricingLabEnabled = searchParams?.get('pricing-lab') === '1';
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -736,6 +742,21 @@ export default function DesignEditModal({
     );
   };
 
+  // ?pricing-lab=1 실험용: 현재 도안 중 가장 큰 오브젝트를 대표 크기로 삼아 cm 환산.
+  // 객체가 없으면 A4를 기본값으로 (섹션이 빈 화면이 되지 않도록).
+  const labArtwork = (() => {
+    let best: { w: number; h: number } | null = null;
+    for (const sp of pricingData.sidePricing) {
+      for (const o of sp.objects) {
+        const area = o.dimensionsMm.width * o.dimensionsMm.height;
+        if (!best || area > best.w * best.h) {
+          best = { w: o.dimensionsMm.width, h: o.dimensionsMm.height };
+        }
+      }
+    }
+    return best ? { w: best.w / 10, h: best.h / 10 } : { w: 21, h: 29.7 };
+  })();
+
   return (
     <div className="fixed inset-0 z-200 bg-white flex flex-col">
       {/* Header - desktop: always visible, mobile: only when NOT in edit mode */}
@@ -855,6 +876,14 @@ export default function DesignEditModal({
                     <ObjectPreviewPanel sides={productConfig.sides} />
                     <ColorInfo />
                     <PricingInfo basePrice={basePrice} sides={productConfig.sides} />
+                    {pricingLabEnabled && (
+                      <div className="border-t border-dashed border-blue-300 pt-3">
+                        <PricingLabSection
+                          artworkWidthCm={labArtwork.w}
+                          artworkHeightCm={labArtwork.h}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Bottom pricing summary */}
@@ -891,6 +920,14 @@ export default function DesignEditModal({
               <div className="bg-white p-4 pb-24">
                 {renderColorSelector('mobile')}
                 <PricingInfo basePrice={basePrice} sides={productConfig.sides} />
+                {pricingLabEnabled && (
+                  <div className="mt-4 border-t border-dashed border-blue-300 pt-3">
+                    <PricingLabSection
+                      artworkWidthCm={labArtwork.w}
+                      artworkHeightCm={labArtwork.h}
+                    />
+                  </div>
+                )}
                 <ColorInfo className="mt-4" />
                 <ObjectPreviewPanel sides={productConfig.sides} />
                 <div className="mt-4">

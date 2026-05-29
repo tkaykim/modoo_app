@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Check } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 interface DatePickerBubbleProps {
   onSubmit: (date: string | null, flexible: boolean) => void;
@@ -41,16 +41,15 @@ export default function DatePickerBubble({ onSubmit, disabled }: DatePickerBubbl
         <button
           onClick={handleFlexibleDate}
           disabled={disabled}
-          className="flex-1 py-2.5 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           크게 상관 없음
         </button>
         <button
           onClick={handleDateSubmit}
           disabled={!selectedDate || disabled}
-          className="flex-1 py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="flex-1 py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
-          <Check className="w-4 h-4" />
           선택 완료
         </button>
       </div>

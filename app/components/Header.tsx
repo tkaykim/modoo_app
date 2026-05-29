@@ -69,7 +69,7 @@ export default function Header({
                   <Link href="/home" className="hover:text-black transition">홈</Link>
                   <Link href="/home/search" className="hover:text-black transition">검색</Link>
                   <Link href="/support/guides" className="hover:text-black transition">제작가이드</Link>
-                  <Link href="/inquiries/new" className="hover:text-black transition">문의하기</Link>
+                  <Link href="/inquiries" className="hover:text-black transition">문의하기</Link>
                   <Link href="/home/my-page" className="hover:text-black transition">내정보</Link>
                 </nav>
               )}
@@ -84,7 +84,7 @@ export default function Header({
                     제작가이드
                   </Link>
                   <Link
-                    href="/inquiries/new"
+                    href="/inquiries"
                     className="px-2.5 py-1 rounded-full border border-blue-500 bg-blue-500 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
                   >
                     문의하기
