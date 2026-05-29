@@ -120,6 +120,9 @@ export default function ProductEditorUnified({
   const [retouchRequested, setRetouchRequested] = useState(false);
   const [showRetouchModal, setShowRetouchModal] = useState(false);
   const [showBgRemovalModal, setShowBgRemovalModal] = useState(false);
+  // 모바일 하단 바(리터치+완료) 높이를 측정해 CSS 변수로 노출 → 툴 독이 그 위에 flush로 얹힌다.
+  // 바 높이는 배경제거 체크박스 유무로 가변이라 고정 offset 대신 측정값을 쓴다.
+  const mobileBottomBarRef = useRef<HTMLDivElement>(null);
   // 실험 패널 토글 — layersPanelOpen은 스토어 공유(모바일 툴 독에서 토글).
 
   // 자주쓰는위치(앵커) — 데스크톱 우측 aside에 도킹. 데이터·지오메트리·픽 핸들러.
@@ -142,6 +145,18 @@ export default function ProductEditorUnified({
     });
     return () => { cancelled = true; };
   }, [product.id, activeSideId]);
+
+  // 모바일 하단 바 높이 → --editor-dock-bottom. 툴 독이 이 변수만큼 띄워져 바 위에 붙는다.
+  useEffect(() => {
+    const el = mobileBottomBarRef.current;
+    const root = document.documentElement;
+    if (!el) { root.style.removeProperty('--editor-dock-bottom'); return; }
+    const apply = () => root.style.setProperty('--editor-dock-bottom', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty('--editor-dock-bottom'); };
+  }, [isMobile, quickReplaceTemplate, selectedObject]);
 
   const resolveAnchorGeometry = (): { mmPerPx: number; mockupLeft: number; mockupTop: number } | null => {
     const canvas = canvasMap[activeSideId];
@@ -1297,7 +1312,7 @@ export default function ProductEditorUnified({
 
         {/* Bottom bar (hidden in quick-replace mode) */}
         {!quickReplaceTemplate && (
-        <div className={`w-full fixed left-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20 ${selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'text' || isCurvedText(selectedObject)) ? 'bottom-0' : 'bottom-16'}`}>
+        <div ref={mobileBottomBarRef} className="w-full fixed left-0 bottom-0 bg-white pb-6 pt-3 px-4 shadow-2xl shadow-black z-20">
           {/* Background removal checkbox - shown when image object is selected */}
           {selectedObject && selectedObject.type === 'image' && (
             <label className="flex items-center gap-2 mb-2 cursor-pointer">
