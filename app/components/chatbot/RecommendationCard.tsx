@@ -1,6 +1,6 @@
 'use client';
 
-import { Sparkles, Printer, Wallet, ArrowRight, Headset, Upload } from 'lucide-react';
+import { Sparkles, Printer, Wallet, Headset, Upload } from 'lucide-react';
 import { ProductPreview, RecommendationResult } from '@/lib/chatbot/types';
 import ProductCard from './ProductCard';
 
@@ -8,7 +8,6 @@ interface RecommendationCardProps {
   recommendation: RecommendationResult;
   products: ProductPreview[];
   onProductClick: (productId: string) => void;
-  onContinue: () => void;
   onConsult: () => void;
   disabled?: boolean;
 }
@@ -19,7 +18,6 @@ export default function RecommendationCard({
   recommendation,
   products,
   onProductClick,
-  onContinue,
   onConsult,
   disabled,
 }: RecommendationCardProps) {
@@ -83,24 +81,19 @@ export default function RecommendationCard({
           </div>
         )}
 
-        {/* CTA */}
-        <div className="space-y-2 pt-1">
-          <button
-            onClick={() => !disabled && onContinue()}
-            disabled={disabled}
-            className="w-full py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-          >
-            견적서·무료 시안 받기
-            <ArrowRight className="w-4 h-4" />
-          </button>
+        {/* CTA — 상담사 연락(정식 문의 등록) */}
+        <div className="space-y-1.5 pt-1">
           <button
             onClick={() => !disabled && onConsult()}
             disabled={disabled}
-            className="w-full py-2.5 bg-white text-[#3B55A5] text-sm font-medium rounded-lg border border-[#3B55A5] hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             <Headset className="w-4 h-4" />
-            상담원과 통화할래요
+            상담사에게 연락 받기
           </button>
+          <p className="text-[11px] text-center text-gray-400">
+            위 추천 상품을 누르면 바로 디자인을 시작할 수 있어요.
+          </p>
         </div>
       </div>
     </div>

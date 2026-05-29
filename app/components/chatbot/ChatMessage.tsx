@@ -1,6 +1,6 @@
 'use client';
 
-import { ChatMessage as ChatMessageType, QuickReply, Priority, PrintLocation, PrintMethodChoice, DesignType, ColorCount } from '@/lib/chatbot/types';
+import { ChatMessage as ChatMessageType, QuickReply, Priority, PrintLocation, PrintMethodChoice, DesignType, ColorCount, DesignSizeCounts } from '@/lib/chatbot/types';
 import { LogIn } from 'lucide-react';
 import ProductCard from './ProductCard';
 import PricingTable from './PricingTable';
@@ -9,6 +9,8 @@ import DatePickerBubble from './DatePickerBubble';
 import PrioritySelectorBubble from './PrioritySelectorBubble';
 import ContactFormBubble from './ContactFormBubble';
 import LocationSelectorBubble from './LocationSelectorBubble';
+import DesignSizeBubble from './DesignSizeBubble';
+import QuantityInputBubble from './QuantityInputBubble';
 import PrintMethodBubble from './PrintMethodBubble';
 import RecommendationCard from './RecommendationCard';
 
@@ -21,8 +23,9 @@ interface ChatMessageProps {
   onPrioritiesSubmit?: (priorities: Priority[]) => void;
   onContactSubmit?: (name: string, email: string, phone: string) => void;
   onLocationSubmit?: (locations: PrintLocation[]) => void;
+  onDesignSizeSubmit?: (counts: DesignSizeCounts) => void;
+  onQuantitySubmit?: (qty: number) => void;
   onMethodSelect?: (method: PrintMethodChoice) => void;
-  onRecommendationContinue?: () => void;
   onConsult?: () => void;
   designType?: DesignType;
   colorCount?: ColorCount;
@@ -39,8 +42,9 @@ export default function ChatMessage({
   onPrioritiesSubmit,
   onContactSubmit,
   onLocationSubmit,
+  onDesignSizeSubmit,
+  onQuantitySubmit,
   onMethodSelect,
-  onRecommendationContinue,
   onConsult,
   designType,
   colorCount,
@@ -122,6 +126,22 @@ export default function ChatMessage({
           />
         )}
 
+        {/* Design size counts - only show on last bot message */}
+        {message.contentType === 'design_size_input' && isLastBotMessage && onDesignSizeSubmit && (
+          <DesignSizeBubble
+            onSubmit={onDesignSizeSubmit}
+            disabled={isTyping}
+          />
+        )}
+
+        {/* Quantity number input - only show on last bot message */}
+        {message.contentType === 'quantity_input' && isLastBotMessage && onQuantitySubmit && (
+          <QuantityInputBubble
+            onSubmit={onQuantitySubmit}
+            disabled={isTyping}
+          />
+        )}
+
         {/* Print method picker - only show on last bot message */}
         {message.contentType === 'print_method' && isLastBotMessage && onMethodSelect && (
           <PrintMethodBubble
@@ -135,12 +155,11 @@ export default function ChatMessage({
         )}
 
         {/* Recommendation + estimate card - only show on last bot message */}
-        {message.contentType === 'recommendation_card' && isLastBotMessage && message.metadata?.recommendation && onRecommendationContinue && onConsult && (
+        {message.contentType === 'recommendation_card' && isLastBotMessage && message.metadata?.recommendation && onConsult && (
           <RecommendationCard
             recommendation={message.metadata.recommendation}
             products={message.metadata.products || []}
             onProductClick={onProductClick}
-            onContinue={onRecommendationContinue}
             onConsult={onConsult}
             disabled={isTyping || isSubmitting}
           />

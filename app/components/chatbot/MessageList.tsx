@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ChatMessage as ChatMessageType, QuickReply, Priority, PrintLocation, PrintMethodChoice, DesignType, ColorCount } from '@/lib/chatbot/types';
+import { ChatMessage as ChatMessageType, QuickReply, Priority, PrintLocation, PrintMethodChoice, DesignType, ColorCount, DesignSizeCounts } from '@/lib/chatbot/types';
 import ChatMessage from './ChatMessage';
 
 interface MessageListProps {
@@ -13,8 +13,9 @@ interface MessageListProps {
   onPrioritiesSubmit?: (priorities: Priority[]) => void;
   onContactSubmit?: (name: string, email: string, phone: string) => void;
   onLocationSubmit?: (locations: PrintLocation[]) => void;
+  onDesignSizeSubmit?: (counts: DesignSizeCounts) => void;
+  onQuantitySubmit?: (qty: number) => void;
   onMethodSelect?: (method: PrintMethodChoice) => void;
-  onRecommendationContinue?: () => void;
   onConsult?: () => void;
   designType?: DesignType;
   colorCount?: ColorCount;
@@ -30,8 +31,9 @@ export default function MessageList({
   onPrioritiesSubmit,
   onContactSubmit,
   onLocationSubmit,
+  onDesignSizeSubmit,
+  onQuantitySubmit,
   onMethodSelect,
-  onRecommendationContinue,
   onConsult,
   designType,
   colorCount,
@@ -62,8 +64,9 @@ export default function MessageList({
           onPrioritiesSubmit={onPrioritiesSubmit}
           onContactSubmit={onContactSubmit}
           onLocationSubmit={onLocationSubmit}
+          onDesignSizeSubmit={onDesignSizeSubmit}
+          onQuantitySubmit={onQuantitySubmit}
           onMethodSelect={onMethodSelect}
-          onRecommendationContinue={onRecommendationContinue}
           onConsult={onConsult}
           designType={designType}
           colorCount={colorCount}

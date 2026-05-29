@@ -16,11 +16,8 @@ interface PrintMethodBubbleProps {
   disabled?: boolean;
 }
 
-const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
-
 export default function PrintMethodBubble({
   recommendedMethod,
-  methodQuotes,
   designType,
   colorCount,
   onSelect,
@@ -29,15 +26,12 @@ export default function PrintMethodBubble({
   const [showGuide, setShowGuide] = useState(false);
 
   const digitalRequired =
-    designType === '사진·실사' ||
-    designType === '일러스트·풀그래픽' ||
+    designType === '사진·그래픽' ||
     colorCount === '그라데이션';
 
   // 디자인 제약상 가능한 방식만 노출 (부적합 방식은 가격조차 보여주지 않음 — 오해 방지)
   const eligible = eligibleMethodChoices(designType, colorCount);
   const visible = PRINT_METHOD_CHOICES.filter((m) => eligible.includes(m));
-
-  const quoteFor = (m: PrintMethodChoice) => methodQuotes?.find((q) => q.method === m);
 
   // 선택 상태: 기본은 추천 방식(가능할 때), 아니면 첫 번째 가능 방식
   const initial =
@@ -56,13 +50,12 @@ export default function PrintMethodBubble({
         {visible.map((method) => {
           const isRecommended = method === recommendedMethod;
           const isSelected = method === selected;
-          const q = quoteFor(method);
           return (
             <button
               key={method}
               onClick={() => !disabled && setSelected(method)}
               disabled={disabled}
-              className={`relative px-2.5 py-2.5 rounded-lg transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`relative px-2.5 py-3 rounded-lg transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
                 isSelected
                   ? 'bg-[#3B55A5] text-white ring-2 ring-[#3B55A5] ring-offset-1'
                   : 'bg-white text-gray-700 border border-gray-300 hover:border-[#3B55A5]'
@@ -76,27 +69,6 @@ export default function PrintMethodBubble({
               <span className="text-sm font-medium flex items-center gap-1">
                 {isSelected && <Check className="w-3.5 h-3.5" />}
                 {method}
-              </span>
-              {q && q.unit != null ? (
-                <span className={`text-[11px] block ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
-                  장당 {won(q.unit)}
-                </span>
-              ) : (
-                <span className={`text-[11px] block ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
-                  단가 문의
-                </span>
-              )}
-              <span className="flex flex-wrap gap-1 mt-1">
-                {q?.cheapest && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded-full">
-                    이 수량 최저가
-                  </span>
-                )}
-                {q?.thresholdNote && !isSelected && (
-                  <span className="text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded-full">
-                    {q.thresholdNote}
-                  </span>
-                )}
               </span>
             </button>
           );

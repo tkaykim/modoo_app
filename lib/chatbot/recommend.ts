@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase-client';
 import { getCustomerPricingByPrintMethod } from '@/lib/customerPricingFetch';
 import type { CustomerPricingRow } from '@/lib/customerPricingMatcher';
-import { quoteMethod, bulkAdvantageThreshold } from '@/lib/printMethodPricing';
+import { quoteMethod } from '@/lib/printMethodPricing';
 import type { PrintMethod } from '@/types/types';
 import type {
   PrintMethodChoice,
   DesignType,
   ColorCount,
-  PrintLocation,
+  DesignSizeCounts,
   QuantityOption,
   Priority,
   RecommendationResult,
@@ -49,20 +49,14 @@ const REP_QTY: Record<QuantityOption, number> = {
 export interface RecommendInput {
   designType?: DesignType;
   colorCount?: ColorCount;
-  quantity?: QuantityOption;
+  quantity?: QuantityOption;     // (구버전) 구간 — 폴백용
+  quantityExact?: number;        // 직접 입력 수량 (있으면 견적에 이 값 사용)
   priorities?: Priority[];
-  locations?: PrintLocation[];
+  designSizes?: DesignSizeCounts;   // 크기별 디자인 개수 (견적 산정)
   chosenMethod?: PrintMethodChoice;
 }
 
-// 인쇄 위치 → 가정 사이즈 버킷 (디자인이 클수록 큰 버킷)
-function bucketForLocation(loc: PrintLocation, designType?: DesignType): SizeBucket {
-  const isLarge = designType === '사진·실사' || designType === '일러스트·풀그래픽';
-  if (loc === '등판') return isLarge ? 'A3' : 'A4';
-  if (loc === '앞/가슴') return isLarge ? 'A4' : '10x10';
-  if (loc === '좌측 소매' || loc === '우측 소매') return '10x10';
-  return 'A4'; // 기타
-}
+const SIZE_BUCKETS: SizeBucket[] = ['10x10', 'A4', 'A3'];
 
 // 디자인 제약상 가능한 인쇄방식. 사진·풀그래픽·그라데이션은 디지털(DTF/DTG)만.
 export function eligibleMethodChoices(
@@ -70,8 +64,7 @@ export function eligibleMethodChoices(
   colorCount?: ColorCount,
 ): PrintMethodChoice[] {
   const digitalOnly =
-    designType === '사진·실사' ||
-    designType === '일러스트·풀그래픽' ||
+    designType === '사진·그래픽' ||
     colorCount === '그라데이션';
   if (digitalOnly) return ['DTF 전사', 'DTG 전사'];
   return ['실크 나염', 'DTF 전사', 'DTG 전사', '자수'];
@@ -103,49 +96,70 @@ export async function loadRowsByKey(): Promise<Record<string, CustomerPricingRow
   return _rowsByKeyPromise;
 }
 
-// 한 방식의 (위치별 버킷 × 대표수량) 총 인쇄비. 위치 합산. 단가표 없으면 null.
+// 색상 도수 배수 (bulk 방식만 적용). 1색=1배, 2색=2배... 4색 이상=4배.
+function colorMultiplier(colorCount?: ColorCount): number {
+  switch (colorCount) {
+    case '2색': return 2;
+    case '3색': return 3;
+    case '4색 이상': return 4;
+    default: return 1; // 1색 / 그라데이션 / 미지정
+  }
+}
+
+// 한 방식의 (크기별 개수 × 대표수량) 총 인쇄비. 크기 버킷 합산. 단가표 없으면 null.
+// bulk(나염/자수/아플리케)은 색상 도수만큼 배수, flat(DTF/DTG)은 색 무관.
 function methodTotal(
   rows: CustomerPricingRow[],
-  locations: PrintLocation[],
+  sizes: DesignSizeCounts | undefined,
   qty: number,
-  designType?: DesignType,
+  colorMult: number,
 ): number | null {
   if (!rows || rows.length === 0) return null;
-  const locs = locations.length > 0 ? locations : (['앞/가슴'] as PrintLocation[]);
   let total = 0;
-  for (const loc of locs) {
-    const { w, h } = SIZE_CM[bucketForLocation(loc, designType)];
-    const q = quoteMethod(rows, w, h, qty).total;
-    if (q === null) return null;
-    total += q;
+  let any = false;
+  for (const bucket of SIZE_BUCKETS) {
+    const count = sizes?.[bucket] ?? 0;
+    if (count <= 0) continue;
+    const { w, h } = SIZE_CM[bucket];
+    const q = quoteMethod(rows, w, h, qty);
+    if (q.total === null) return null;
+    const factor = q.pricingModel === 'bulk' ? colorMult : 1;
+    total += q.total * factor * count;
+    any = true;
   }
-  return total;
+  return any ? total : null;
 }
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
 // 4개 방식의 실가격 요약 (피커 칩용). eligible/최저가/분기점 포함.
 export async function computeMethodQuotes(input: RecommendInput): Promise<MethodQuoteLite[]> {
-  const { designType, colorCount, quantity, locations } = input;
+  const { designType, colorCount, quantity, quantityExact, designSizes } = input;
   const rowsByKey = await loadRowsByKey();
-  const qty = quantity ? REP_QTY[quantity] : 35;
-  const locs = locations && locations.length > 0 ? locations : (['앞/가슴'] as PrintLocation[]);
+  const qty = quantityExact && quantityExact > 0 ? quantityExact : (quantity ? REP_QTY[quantity] : 35);
+  const colorMult = colorMultiplier(colorCount);
   const eligibleSet = new Set(eligibleMethodChoices(designType, colorCount));
 
-  // 분기점 계산용 대표 버킷 (가장 큰 면적 위치)
-  const repBucket = locs
-    .map((l) => bucketForLocation(l, designType))
-    .sort((a, b) => SIZE_CM[b].w * SIZE_CM[b].h - SIZE_CM[a].w * SIZE_CM[a].h)[0] as SizeBucket;
+  // 분기점 계산용 대표 버킷 (입력된 것 중 가장 큰 면적)
+  const repBucket: SizeBucket =
+    (['A3', 'A4', '10x10'] as SizeBucket[]).find((b) => (designSizes?.[b] ?? 0) > 0) ?? 'A4';
   const repDim = SIZE_CM[repBucket];
   const dtfRows = rowsByKey['dtf'] ?? [];
 
   const quotes: MethodQuoteLite[] = ALL_CHOICES.map((choice) => {
     const key = METHOD_LABEL_TO_KEY[choice];
     const rows = rowsByKey[key] ?? [];
-    const total = methodTotal(rows, locs, qty, designType);
+    const total = methodTotal(rows, designSizes, qty, colorMult);
     let thresholdNote: string | null = null;
     if (BULK_CHOICES.has(choice) && rows.length > 0 && dtfRows.length > 0) {
-      const t = bulkAdvantageThreshold(rows, dtfRows, repDim.w, repDim.h);
+      // 색상 도수 배수를 반영한 "N벌 이상 유리" 분기점 (bulk×도수 ≤ DTF)
+      let t: number | null = null;
+      for (let q = 1; q <= 1000; q += 1) {
+        const bulk = quoteMethod(rows, repDim.w, repDim.h, q).total;
+        const dtf = quoteMethod(dtfRows, repDim.w, repDim.h, q).total;
+        if (bulk == null || dtf == null) continue;
+        if (bulk * colorMult <= dtf) { t = q; break; }
+      }
       if (t != null) thresholdNote = `${t}벌 이상 유리`;
     }
     return {
@@ -191,7 +205,7 @@ export async function recommendMethod(input: RecommendInput): Promise<PrintMetho
  * 없으면 추천 방식. 실가격(getCustomerPricingByPrintMethod) 기반 총액/장당/절약액.
  */
 export async function buildRecommendation(input: RecommendInput): Promise<RecommendationResult> {
-  const qty = input.quantity ? REP_QTY[input.quantity] : 35;
+  const qty = input.quantityExact && input.quantityExact > 0 ? input.quantityExact : (input.quantity ? REP_QTY[input.quantity] : 35);
   const quotes = await computeMethodQuotes(input);
   const eligible = eligibleMethodChoices(input.designType, input.colorCount);
 

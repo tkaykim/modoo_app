@@ -3,7 +3,12 @@
  * "담당자 안내"로 funnel하는 안전 답변. 실제 정책이 확정되면 answer만 교체하면 됨.
  *
  * toConsult: true 면 답변 후 제작 상담 플로우로 자연스럽게 유도.
+ *
+ * 단일화: 실제 노출은 faqs 테이블(show_in_chatbot=true)에서 fetchChatbotFaqs()로 읽고,
+ * 아래 FAQ_ITEMS는 DB 조회 실패/빈 결과 시 폴백으로만 사용.
  */
+import { createClient } from '@/lib/supabase-client';
+
 export interface FaqItem {
   id: string;
   question: string; // 버튼 라벨 + 매칭 텍스트
@@ -63,4 +68,31 @@ export const FAQ_ITEMS: FaqItem[] = [
 
 export function getFaqItem(id: string): FaqItem | undefined {
   return FAQ_ITEMS.find((f) => f.id === id);
+}
+
+// faqs 테이블에서 챗봇 노출 FAQ를 가져온다 (단일 출처). 실패/빈 결과 시 FAQ_ITEMS 폴백. 모듈 캐시.
+let _chatbotFaqsCache: FaqItem[] | null = null;
+export async function fetchChatbotFaqs(): Promise<FaqItem[]> {
+  if (_chatbotFaqsCache) return _chatbotFaqsCache;
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('faqs')
+      .select('id, question, answer, to_consult')
+      .eq('is_published', true)
+      .eq('show_in_chatbot', true)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) return FAQ_ITEMS;
+    const items: FaqItem[] = data.map((r: any) => ({
+      id: String(r.id),
+      question: r.question as string,
+      answer: (r.answer as string) ?? '',
+      toConsult: Boolean(r.to_consult),
+    }));
+    _chatbotFaqsCache = items;
+    return items;
+  } catch {
+    return FAQ_ITEMS;
+  }
 }

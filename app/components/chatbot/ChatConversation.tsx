@@ -11,18 +11,18 @@
  *  - variant='fullscreen': /chat 전용 전체화면 (마운트 시 initializeChat)
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, ArrowLeft, Home } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   QuickReply,
   InquiryStep,
   ClothingType,
-  QuantityOption,
   DesignType,
   ColorCount,
-  PrintLocation,
+  DesignSizeCounts,
   PrintMethodChoice,
   Priority,
 } from '@/lib/chatbot/types';
@@ -30,13 +30,12 @@ import {
   STEP_MESSAGES,
   CATEGORY_MAPPING,
   CLOTHING_TYPES,
-  QUANTITY_OPTIONS,
   DESIGN_TYPES,
   COLOR_COUNTS,
   FULL_COLOR_DESIGN_TYPES,
 } from '@/lib/chatbot/config';
-import { FAQ_ITEMS } from '@/lib/chatbot/faq';
-import { fetchProductsForRecommendation } from '@/lib/chatbot/productSearch';
+import { FAQ_ITEMS, fetchChatbotFaqs, type FaqItem } from '@/lib/chatbot/faq';
+import { recommendProducts } from '@/lib/chatbot/productSearch';
 import {
   computeMethodQuotes,
   buildRecommendation,
@@ -45,6 +44,11 @@ import {
 import MessageList from './MessageList';
 
 type Variant = 'floating' | 'fullscreen';
+
+// 인쇄방식 단계 안내문 (실제 추천 방식을 언급). 줄바꿈으로 가독성 확보.
+function printMethodPrompt(recommended: PrintMethodChoice): string {
+  return `답변 주신 내용을 토대로\n가장 적합한 '${recommended}' 방식을 추천드려요!\n\n변경을 원하시면 선택 후 다음을 눌러주세요.`;
+}
 
 interface ChatConversationProps {
   variant: Variant;
@@ -72,6 +76,12 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
   const isFullscreen = variant === 'fullscreen';
 
+  // 챗봇 FAQ는 faqs 테이블(show_in_chatbot=true)에서 로드 (단일 출처). 로딩 전/실패 시 FAQ_ITEMS 폴백.
+  const [chatbotFaqs, setChatbotFaqs] = useState<FaqItem[]>(FAQ_ITEMS);
+  useEffect(() => {
+    fetchChatbotFaqs().then(setChatbotFaqs).catch(() => {});
+  }, []);
+
   // 전체화면 진입 시 환영 메시지 초기화 (플로팅은 런처의 openChat이 담당하므로 불필요)
   useEffect(() => {
     if (isFullscreen && messages.length === 0) {
@@ -98,9 +108,12 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       | 'date_picker'
       | 'priority_selector'
       | 'contact_form'
-      | 'location_selector' = 'inquiry_step';
+      | 'design_size_input'
+      | 'quantity_input' = 'inquiry_step';
     if (products) {
       contentType = 'products';
+    } else if (step === 'quantity') {
+      contentType = 'quantity_input';
     } else if (step === 'needed_date') {
       contentType = 'date_picker';
     } else if (step === 'priorities') {
@@ -108,7 +121,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     } else if (step === 'contact_info') {
       contentType = 'contact_form';
     } else if (step === 'print_location') {
-      contentType = 'location_selector';
+      contentType = 'design_size_input';
     }
 
     addMessage({
@@ -125,7 +138,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
   // ── 메뉴/FAQ 헬퍼 ──────────────────────────────
   const faqMenuReplies: QuickReply[] = [
-    ...FAQ_ITEMS.map((f) => ({ label: f.question, action: f.question, type: 'message' as const })),
+    ...chatbotFaqs.map((f) => ({ label: f.question, action: f.question, type: 'message' as const })),
     { label: '제작 상담받기', action: '제작상담', type: 'message' as const, icon: 'palette' },
   ];
 
@@ -139,7 +152,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     });
   };
 
-  const showFaqAnswer = (item: (typeof FAQ_ITEMS)[number]) => {
+  const showFaqAnswer = (item: FaqItem) => {
     const followup: QuickReply[] = [
       ...(item.toConsult
         ? [{ label: '제작 상담받기', action: '제작상담', type: 'message' as const, icon: 'palette' }]
@@ -169,7 +182,8 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         designType: inquiryData.designType,
         colorCount: inquiryData.colorCount,
         quantity: inquiryData.quantity,
-        locations: inquiryData.printLocations,
+        quantityExact: inquiryData.quantityExact,
+        designSizes: inquiryData.designSizes,
       };
       let methodQuotes;
       let recommended: PrintMethodChoice;
@@ -182,7 +196,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       }
       addMessage({
         sender: 'bot',
-        content: `${prefix}\n\n${STEP_MESSAGES.print_method.content}`,
+        content: `${prefix}\n\n${printMethodPrompt(recommended)}`,
         contentType: 'print_method',
         metadata: { inquiryStep: 'print_method', recommendedMethod: recommended, methodQuotes },
       });
@@ -211,12 +225,13 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     addBotMessage('contact_info', '담당자와 바로 연결해 드릴게요! 연락처를 남겨주시면 빠르게 연락드릴게요.');
   };
 
-  // Fetch recommended products based on inquiry data
-  const fetchRecommendations = async () => {
+  // Fetch recommended products: 카테고리 + 선호 방향 기반 랭킹 + 로테이션
+  // (priorities는 setState 직후 closure가 stale일 수 있어 인자로 받음)
+  const fetchRecommendations = async (preference?: Priority) => {
     const { inquiryData } = inquiryFlow;
     const category = inquiryData.clothingType ? CATEGORY_MAPPING[inquiryData.clothingType] : undefined;
     try {
-      return await fetchProductsForRecommendation({ category, limit: 3 });
+      return await recommendProducts({ category, preference, limit: 3 });
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       return [];
@@ -251,7 +266,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         break;
 
       case 'faq': {
-        const item = FAQ_ITEMS.find((f) => f.question === text);
+        const item = chatbotFaqs.find((f) => f.question === text);
         if (item) showFaqAnswer(item);
         else showFaqMenu('아래에서 골라주세요!');
         break;
@@ -268,16 +283,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         break;
 
       case 'quantity':
-        if (QUANTITY_OPTIONS.includes(text as QuantityOption)) {
-          updateInquiryData({ quantity: text as QuantityOption });
-          setInquiryStep('design_type');
-          const ack = text === '100벌 이상' || text === '50~100벌'
-            ? '대량이면 장당 단가가 확 좋아져요!'
-            : '소량도 얼마든지 가능해요!';
-          addBotMessage('design_type', ack);
-        } else {
-          addBotMessage('quantity', '아래 옵션 중에서 선택해주세요.');
-        }
+        // 수량은 QuantityInputBubble(handleQuantitySubmit)에서 처리
         break;
 
       case 'design_type':
@@ -286,10 +292,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           updateInquiryData({ designType });
           if (FULL_COLOR_DESIGN_TYPES.includes(designType)) {
             setInquiryStep('print_location');
-            addBotMessage('print_location', '풀컬러 디자인이군요! 색상 질문은 건너뛸게요.');
-          } else if (designType === '디자인 없음') {
-            setInquiryStep('print_location');
-            addBotMessage('print_location', '디자인 제작도 저희가 도와드릴 수 있어요! 우선 인쇄할 위치를 알려주세요.');
+            addBotMessage('print_location', '다양한 색상 디자인이군요! 색상 질문은 건너뛸게요.');
           } else {
             setInquiryStep('color_count');
             addBotMessage('color_count');
@@ -367,21 +370,42 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     }
   };
 
-  // Print location multi-select submitted → 실가격 로드 후 인쇄방식 피커
-  const handleLocationSubmit = async (locations: PrintLocation[]) => {
+  // 수량 직접 입력 → design_type
+  const handleQuantitySubmit = async (qty: number) => {
     if (isTyping) return;
+    addMessage({ sender: 'user', content: `${qty}벌 정도`, contentType: 'text' });
+    setIsTyping(true);
+    await delay(400);
+    updateInquiryData({ quantityExact: qty });
+    setInquiryStep('design_type');
+    const ack = qty >= 50 ? '대량이면 장당 단가가 확 좋아져요!' : '소량도 얼마든지 가능해요!';
+    addBotMessage('design_type', ack);
+    setIsTyping(false);
+  };
+
+  // 크기별 디자인 개수 입력됨 → 실가격 로드 후 인쇄방식 피커
+  const handleDesignSizeSubmit = async (counts: DesignSizeCounts) => {
+    if (isTyping) return;
+
+    const summary = [
+      counts['10x10'] > 0 ? `작은 ${counts['10x10']}개` : '',
+      counts.A4 > 0 ? `중간 ${counts.A4}개` : '',
+      counts.A3 > 0 ? `큰 ${counts.A3}개` : '',
+    ].filter(Boolean).join(', ');
+    addMessage({ sender: 'user', content: `디자인: ${summary}`, contentType: 'text' });
 
     setIsTyping(true);
     await delay(300);
 
     const { inquiryData } = inquiryFlow;
-    updateInquiryData({ printLocations: locations });
+    updateInquiryData({ designSizes: counts });
 
     const input = {
       designType: inquiryData.designType,
       colorCount: inquiryData.colorCount,
       quantity: inquiryData.quantity,
-      locations,
+      quantityExact: inquiryData.quantityExact,
+      designSizes: counts,
     };
 
     let methodQuotes;
@@ -398,7 +422,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     setInquiryStep('print_method');
     addMessage({
       sender: 'bot',
-      content: `인쇄 위치: ${locations.join(', ')}\n\n${STEP_MESSAGES.print_method.content}`,
+      content: printMethodPrompt(recommended),
       contentType: 'print_method',
       metadata: {
         inquiryStep: 'print_method',
@@ -456,13 +480,14 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         designType: inquiryData.designType,
         colorCount: inquiryData.colorCount,
         quantity: inquiryData.quantity,
-        locations: inquiryData.printLocations,
+        quantityExact: inquiryData.quantityExact,
+        designSizes: inquiryData.designSizes,
         priorities,
         chosenMethod: inquiryData.printMethod,
       });
     } catch {
       recommendation = {
-        method: inquiryData.printMethod ?? recommendPrintMethodHeuristic({ designType: inquiryData.designType, colorCount: inquiryData.colorCount, quantity: inquiryData.quantity }),
+        method: inquiryData.printMethod ?? recommendPrintMethodHeuristic({ designType: inquiryData.designType, colorCount: inquiryData.colorCount, quantity: inquiryData.quantity, quantityExact: inquiryData.quantityExact }),
         methodReason: '조건에 맞춰 추천드린 방식이에요.',
         unitPrice: null,
         totalPrice: null,
@@ -476,7 +501,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       estimatedPriceMax: recommendation.unitPrice,
     });
 
-    const products = await fetchRecommendations();
+    const products = await fetchRecommendations(priorities[0]);
     updateInquiryData({ recommendedProductIds: products.map((p) => p.id) });
 
     setInquiryStep('recommendation');
@@ -487,15 +512,6 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       metadata: { inquiryStep: 'recommendation', recommendation, products },
     });
 
-    setIsTyping(false);
-  };
-
-  const handleRecommendationContinue = async () => {
-    if (isTyping) return;
-    setIsTyping(true);
-    await delay(300);
-    setInquiryStep('contact_info');
-    addBotMessage('contact_info');
     setIsTyping(false);
   };
 
@@ -528,11 +544,12 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clothingType: inquiryData.clothingType ?? '미지정',
-          quantity: inquiryData.quantity ?? '1~20벌',
+          quantity: inquiryData.quantity ?? null,
+          quantityExact: inquiryData.quantityExact ?? null,
           priorities: inquiryData.priorities ?? [],
           designType: inquiryData.designType || null,
           colorCount: inquiryData.colorCount || null,
-          printLocations: inquiryData.printLocations || null,
+          designSizes: inquiryData.designSizes || null,
           printMethod: inquiryData.printMethod || null,
           recommendedPrintMethod: inquiryData.recommendedPrintMethod || null,
           estimatedPriceMin: inquiryData.estimatedPriceMin ?? null,
@@ -544,6 +561,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           contactEmail: contactEmail || null,
           contactPhone: phone,
           consultRequested: inquiryData.consultRequested ?? false,
+          userId: useAuthStore.getState().user?.id ?? null,
         }),
       });
 
@@ -554,7 +572,31 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
       setInquiryId(result.inquiry.id);
       setInquiryStep('completed');
-      addBotMessage('completed', '문의가 접수되었습니다! 담당자가 빠르게 연락드릴게요.');
+
+      const topProductId = inquiryData.recommendedProductIds?.[0];
+      const loggedIn = !!useAuthStore.getState().user?.id;
+      // 완료 CTA: (있으면) 추천상품 디자인 시작 + 내 문의 보기 + 새 문의
+      const completedReplies: QuickReply[] = [
+        ...(topProductId
+          ? [{ label: '추천 상품으로 디자인 시작하기', action: `/editor/${topProductId}`, type: 'navigate' as const, icon: 'palette' }]
+          : []),
+        {
+          label: loggedIn ? '내 문의 보기' : '문의 내역 조회',
+          action: loggedIn ? '/inquiries?tab=my' : '/inquiries',
+          type: 'navigate' as const,
+          icon: 'message-circle',
+        },
+        { label: '새 문의하기', action: 'reset', type: 'message' as const, icon: 'rotate-ccw' },
+      ];
+      addMessage({
+        sender: 'bot',
+        content:
+          '상담 신청이 접수되었어요! 담당자가 문의 게시판을 통해 답변드릴 예정이에요.\n'
+          + `입력하신 이메일로 접수 확인 메일도 보내드렸어요.${loggedIn ? '' : '\n(문의 내역은 남겨주신 전화번호로 조회하실 수 있어요.)'}`
+          + (topProductId ? '\n\n기다리는 동안 추천 상품에 직접 디자인을 올려보실 수 있어요.' : ''),
+        contentType: 'inquiry_step',
+        metadata: { inquiryStep: 'completed', quickReplies: completedReplies },
+      });
     } catch (error) {
       console.error('Error submitting inquiry:', error);
       addMessage({
@@ -583,9 +625,9 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           onDateSubmit={handleDateSubmit}
           onPrioritiesSubmit={handlePrioritiesSubmit}
           onContactSubmit={handleContactSubmit}
-          onLocationSubmit={handleLocationSubmit}
+          onDesignSizeSubmit={handleDesignSizeSubmit}
+          onQuantitySubmit={handleQuantitySubmit}
           onMethodSelect={handleMethodSelect}
-          onRecommendationContinue={handleRecommendationContinue}
           onConsult={handleConsult}
           designType={inquiryFlow.inquiryData.designType}
           colorCount={inquiryFlow.inquiryData.colorCount}
@@ -611,24 +653,31 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   if (isFullscreen) {
     return (
       <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
-        <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-[#3B55A5] text-white shadow-md safe-area-top">
-          <button
-            onClick={() => router.push('/home')}
-            className="p-2 hover:bg-[#2D4280] rounded-full transition-colors"
-            aria-label="홈으로"
-          >
-            <Home className="w-6 h-6" />
-          </button>
-          <div className="text-center">
-            <h1 className="font-semibold text-lg">모두의 유니폼</h1>
-            <p className="text-xs text-blue-200">맞춤 상품 추천</p>
+        <div
+          className="shrink-0 grid grid-cols-3 items-center px-3 py-4 bg-[#3B55A5] text-white shadow-md"
+          style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="flex justify-start">
+            <button
+              onClick={() => router.push('/home')}
+              className="p-2 hover:bg-[#2D4280] rounded-full transition-colors"
+              aria-label="홈으로"
+            >
+              <Home className="w-6 h-6" />
+            </button>
           </div>
-          <button
-            onClick={handleReset}
-            className="px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 text-white rounded-full transition-all"
-          >
-            처음으로
-          </button>
+          <div className="text-center leading-tight">
+            <h1 className="font-semibold text-lg">모두의 유니폼</h1>
+            <p className="text-xs text-blue-200 mt-0.5">맞춤 상품 추천</p>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleReset}
+              className="px-3 py-1.5 text-xs font-medium bg-white/20 hover:bg-white/30 text-white rounded-full transition-all"
+            >
+              처음으로
+            </button>
+          </div>
         </div>
         {body}
       </div>

@@ -8,15 +8,13 @@ import {
   PrintLocation,
   PrintMethodChoice,
 } from './types';
+import { CATEGORIES } from '@/lib/categories';
 
-// Category mapping for product search
-export const CATEGORY_MAPPING: Record<string, string> = {
-  '티셔츠': 't-shirts',
-  '후드티': 'hoodie',
-  '맨투맨': 'sweatshirt',
-  '후드집업': 'hoodie-zip',
-  '자켓': 'jacket'
-};
+// 의류 라벨(한글) → 상품 category 키 매핑. lib/categories.ts(스토어프론트 정식 출처)에서
+// 생성해 드리프트 방지. (예: 맨투맨→sweater, 후드집업→zipup)
+export const CATEGORY_MAPPING: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.name, c.key])
+);
 
 // Step messages configuration
 export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?: QuickReply[] }> = {
@@ -44,21 +42,13 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
     ]
   },
   quantity: {
-    content: '몇 벌 정도 생각하세요? 수량에 따라 추천 인쇄방식과 단가가 달라져요.',
-    quickReplies: [
-      { label: '1~20벌', action: '1~20벌', type: 'message' },
-      { label: '21~50벌', action: '21~50벌', type: 'message' },
-      { label: '50~100벌', action: '50~100벌', type: 'message' },
-      { label: '100벌 이상', action: '100벌 이상', type: 'message' },
-    ]
+    content: '몇 벌 정도 생각하세요?\n대략적인 수량을 입력해 주세요.\n\n수량에 따라 추천 인쇄방식과 단가가 달라져요.',
   },
   design_type: {
-    content: '옷에 넣으실 디자인은 어떤 형태인가요?',
+    content: '옷에는 어떤 디자인을 넣고 싶으신가요?',
     quickReplies: [
-      { label: '사진·실사', action: '사진·실사', type: 'message' },
-      { label: '일러스트·풀그래픽', action: '일러스트·풀그래픽', type: 'message' },
-      { label: '로고·심볼·텍스트', action: '로고·텍스트', type: 'message' },
-      { label: '아직 없어요 (제작 필요)', action: '디자인 없음', type: 'message' },
+      { label: '사진·실사, 그래픽 (다양한 색상)', action: '사진·그래픽', type: 'message' },
+      { label: '로고·심볼·텍스트 (간단한 색상)', action: '로고·텍스트', type: 'message' },
     ]
   },
   color_count: {
@@ -71,8 +61,9 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
       { label: '그라데이션 포함', action: '그라데이션', type: 'message' },
     ]
   },
+  // 단계 ID는 print_location이지만, 인쇄할 디자인을 "크기별 개수"로 입력받는다.
   print_location: {
-    content: '어디에 인쇄하실 건가요? 여러 곳 선택할 수 있어요.',
+    content: '인쇄할 로고(또는 이미지)는 총 몇 개인가요?\n크기별로 입력해 주세요.',
   },
   print_method: {
     content: '인쇄방식을 선택해주세요. 고객님 조건에 맞는 방식엔 추천 표시를 해 두었어요. 선택 후 다음을 눌러주세요.',
@@ -81,7 +72,7 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
     content: '언제까지 받아보셔야 하나요?',
   },
   priorities: {
-    content: '마지막으로, 가장 중요한 것을 순서대로 골라주세요! (최대 3개)',
+    content: '다음 중 더 선호하시는 방향은?',
   },
   recommendation: {
     content: '고객님 조건을 정리하면, 이렇게 추천드려요.',
@@ -102,10 +93,10 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
 // Valid options for each step
 export const CLOTHING_TYPES: ClothingType[] = ['티셔츠', '후드티', '맨투맨', '후드집업', '자켓'];
 export const QUANTITY_OPTIONS: QuantityOption[] = ['1~20벌', '21~50벌', '50~100벌', '100벌 이상'];
-export const DESIGN_TYPES: DesignType[] = ['사진·실사', '일러스트·풀그래픽', '로고·텍스트', '디자인 없음'];
+export const DESIGN_TYPES: DesignType[] = ['사진·그래픽', '로고·텍스트'];
 export const COLOR_COUNTS: ColorCount[] = ['1색', '2색', '3색', '4색 이상', '그라데이션'];
 export const PRINT_LOCATIONS: PrintLocation[] = ['앞/가슴', '등판', '좌측 소매', '우측 소매', '기타'];
 export const PRINT_METHOD_CHOICES: PrintMethodChoice[] = ['실크 나염', 'DTF 전사', 'DTG 전사', '자수'];
 
 // Design types that skip the color_count step (continuous-tone → 자동 풀컬러)
-export const FULL_COLOR_DESIGN_TYPES: DesignType[] = ['사진·실사', '일러스트·풀그래픽'];
+export const FULL_COLOR_DESIGN_TYPES: DesignType[] = ['사진·그래픽'];
