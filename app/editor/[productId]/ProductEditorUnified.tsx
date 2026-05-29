@@ -1182,11 +1182,9 @@ export default function ProductEditorUnified({
       if (sideColors[firstSide.id]) return sideColors[firstSide.id];
     }
 
-    // Fallback to productColor or first available color
-    if (productColor && productColor !== '#FFFFFF') return productColor;
-    if (firstSide.colorOptions && firstSide.colorOptions.length > 0) return firstSide.colorOptions[0].hex;
-    if (productColors.length > 0) return productColors[0].manufacturer_colors.hex;
-    return '#FFFFFF';
+    // 칩은 캔버스에 실제 적용된 색을 그대로 비춘다. productColor 기본값은 #FFFFFF(흰색 무지)
+    // 이며, 흰색일 때 팔레트 첫 항목(검정)으로 폴백하면 흰 의류에 검정 칩이 뜨는 불일치가 생긴다.
+    return productColor || '#FFFFFF';
   };
 
   const displayColor = getDisplayColor();
