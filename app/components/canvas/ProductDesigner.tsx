@@ -164,7 +164,7 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
           </div>
         )}
 
-        <div className={`${containerWidthClass} overflow-hidden transition-all relative duration-300 ${containerHeightClass} bg-[#EBEBEB] flex flex-col justify-center items-center`}>
+        <div className={`${containerWidthClass} overflow-hidden transition-all relative duration-300 ${containerHeightClass} ${shouldFullscreen ? 'pt-28 pb-[calc(var(--editor-dock-bottom,7rem)+4rem)]' : ''} bg-[#EBEBEB] flex flex-col justify-center items-center`}>
           <div
             ref={containerRef}
             className={`relative ${allowSwipe ? 'touch-pan-y' : ''}`}
