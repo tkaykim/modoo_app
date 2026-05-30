@@ -653,7 +653,7 @@ export const Catalog: React.FC<CatalogProps> = ({
                 </button>
               </div>
 
-              {/* 가격: 얼마부터 시작 */}
+              {/* 가격: 얼마부터 시작 (수량별 할인가 미세팅 — 정상가만 표시) */}
               <div
                 style={{
                   marginTop: 8,
@@ -662,21 +662,9 @@ export const Catalog: React.FC<CatalogProps> = ({
                   gap: 6,
                 }}
               >
-                {p.originalPrice && (
-                  <span
-                    className="num"
-                    style={{
-                      font: `500 12px/1 ${MODOO.fonts.sans}`,
-                      color: MODOO.faint,
-                      textDecoration: "line-through",
-                    }}
-                  >
-                    {p.originalPrice.toLocaleString()}
-                  </span>
-                )}
                 <span style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
                   <span className="num" style={{ font: `800 19px/1 ${MODOO.fonts.sans}`, letterSpacing: "-0.02em" }}>
-                    ₩{p.price.toLocaleString()}
+                    ₩{(p.originalPrice ?? p.price).toLocaleString()}
                   </span>
                   <span style={{ font: `600 13px/1 ${MODOO.fonts.sans}`, color: MODOO.muted }}>
                     부터
@@ -748,11 +736,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   brand = MODOO.brand,
   product,
 }) => {
-  const minTier = product.discountTiers[0];
-  const discounted = minTier && minTier.discount_rate > 0
-    ? Math.round(product.basePrice * (1 - minTier.discount_rate / 100))
-    : null;
-  const finalPrice = discounted ?? product.basePrice;
   const ratingRounded = product.rating ?? 0;
   const colors = product.colors.length
     ? product.colors
@@ -971,29 +954,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             borderRadius: 14,
           }}
         >
+          {/* 수량별 할인가 미세팅 — 정상가만 표시 */}
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            {discounted && (
-              <>
-                <span
-                  style={{
-                    font: `700 13px/1 ${MODOO.fonts.sans}`,
-                    color: MODOO.err,
-                  }}
-                >
-                  {minTier!.discount_rate}%
-                </span>
-                <span
-                  className="num"
-                  style={{
-                    font: `500 13px/1 ${MODOO.fonts.sans}`,
-                    color: MODOO.faint,
-                    textDecoration: "line-through",
-                  }}
-                >
-                  ₩{product.basePrice.toLocaleString()}
-                </span>
-              </>
-            )}
             <span
               className="num"
               style={{
@@ -1002,38 +964,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                 letterSpacing: "-0.02em",
               }}
             >
-              ₩{finalPrice.toLocaleString()}
+              ₩{product.basePrice.toLocaleString()}
             </span>
           </div>
-          {product.discountTiers.length > 0 && (
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                gap: 6,
-                flexWrap: "wrap",
-              }}
-            >
-              {product.discountTiers.slice(0, 4).map((t, i, arr) => (
-                <React.Fragment key={t.min_quantity}>
-                  <div
-                    style={{
-                      font: `600 11px/1 ${MODOO.fonts.sans}`,
-                      color: i === arr.length - 1 ? brand : MODOO.muted,
-                    }}
-                  >
-                    {t.min_quantity}장 ₩
-                    {Math.round(
-                      product.basePrice * (1 - t.discount_rate / 100)
-                    ).toLocaleString()}
-                  </div>
-                  {i < arr.length - 1 && (
-                    <span style={{ color: MODOO.hairline }}>·</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
         </div>
         <div style={{ marginTop: 22 }}>
           <div
