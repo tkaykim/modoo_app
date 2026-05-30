@@ -26,7 +26,7 @@ interface ChatMessageProps {
   onDesignSizeSubmit?: (counts: DesignSizeCounts) => void;
   onQuantitySubmit?: (qty: number) => void;
   onMethodSelect?: (method: PrintMethodChoice) => void;
-  onConsult?: () => void;
+  onConsult?: (productId?: string) => void;
   designType?: DesignType;
   colorCount?: ColorCount;
   isTyping?: boolean;

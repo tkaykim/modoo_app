@@ -34,6 +34,7 @@ export interface ProductPreview {
   base_price: number;
   thumbnail_image_link: string[] | null;
   category: string | null;
+  keywords?: string[] | null;
 }
 
 // Pricing data structure
@@ -159,6 +160,7 @@ export interface InquiryData {
   estimatedPriceMin?: number | null;
   estimatedPriceMax?: number | null;
   recommendedProductIds?: string[];
+  selectedProductId?: string;     // 추천 카드에서 고객이 선택한 제품 (상담 연결 시 문의에 연결)
 }
 
 // Inquiry flow state

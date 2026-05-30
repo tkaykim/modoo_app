@@ -532,14 +532,20 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     setIsTyping(false);
   };
 
-  const handleConsult = async () => {
+  const handleConsult = async (productId?: string) => {
     if (isTyping) return;
     trackChatbotStep('consult_click');
     setIsTyping(true);
     await delay(300);
-    updateInquiryData({ consultRequested: true });
+    // 선택한 제품이 있으면 문의에 함께 연결 (상담 원활)
+    updateInquiryData({ consultRequested: true, ...(productId ? { selectedProductId: productId } : {}) });
     setInquiryStep('contact_info');
-    addBotMessage('contact_info', '담당자와 바로 연결해 드릴게요! 연락처를 남겨주시면 빠르게 연락드릴게요.');
+    addBotMessage(
+      'contact_info',
+      productId
+        ? '선택하신 제품으로 상담 도와드릴게요! 연락처를 남겨주시면 빠르게 연락드릴게요.'
+        : '담당자와 바로 연결해 드릴게요! 연락처를 남겨주시면 빠르게 연락드릴게요.',
+    );
     setIsTyping(false);
   };
 
@@ -572,7 +578,9 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           recommendedPrintMethod: inquiryData.recommendedPrintMethod || null,
           estimatedPriceMin: inquiryData.estimatedPriceMin ?? null,
           estimatedPriceMax: inquiryData.estimatedPriceMax ?? null,
-          recommendedProductIds: inquiryData.recommendedProductIds || null,
+          recommendedProductIds: inquiryData.selectedProductId
+            ? [inquiryData.selectedProductId]
+            : (inquiryData.recommendedProductIds || null),
           neededDate: inquiryData.neededDate || null,
           neededDateFlexible: inquiryData.neededDateFlexible ?? false,
           contactName: name,

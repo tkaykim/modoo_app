@@ -53,7 +53,7 @@ export async function recommendProducts(opts: {
   const supabase = createClient();
   let query = supabase
     .from('products')
-    .select('id, title, base_price, thumbnail_image_link, category, is_featured, sort_order, popularity')
+    .select('id, title, base_price, thumbnail_image_link, category, keywords, is_featured, sort_order, popularity')
     .eq('is_active', true);
   if (opts.category) query = query.eq('category', opts.category);
 
@@ -90,6 +90,7 @@ export async function recommendProducts(opts: {
     base_price: p.base_price,
     thumbnail_image_link: p.thumbnail_image_link,
     category: p.category,
+    keywords: p.keywords ?? null,
   });
 
   if (pool.length <= limit) return pool.map(toPreview);
