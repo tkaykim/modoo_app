@@ -13,6 +13,9 @@ export interface CustomerInquiryConfirmation {
   recommendedPrintMethod?: string | null;
   estimatedPriceMin?: number | null;
   estimatedPriceMax?: number | null;
+  productName?: string | null;       // 선택한 제품명
+  estimatedPayUnit?: number | null;  // 제품+인쇄 합산 장당
+  estimatedPayTotal?: number | null; // 제품+인쇄 합산 총액
   createdAt: string;
   formalInquiryId?: string | null; // 정식 문의 ID — 해당 문의 직접 링크용
 }
@@ -76,14 +79,22 @@ export async function sendCustomerInquiryConfirmation(
             <td style="padding:6px 0;color:#888;">디자인</td>
             <td style="padding:6px 0;font-weight:600;">${data.designType}${data.colorCount ? ` · ${data.colorCount}` : ''}</td>
           </tr>` : ''}
+          ${data.productName ? `<tr>
+            <td style="padding:6px 0;color:#888;">선택 제품</td>
+            <td style="padding:6px 0;font-weight:600;">${data.productName}</td>
+          </tr>` : ''}
           <tr>
             <td style="padding:6px 0;color:#888;">추천 인쇄방식</td>
             <td style="padding:6px 0;font-weight:600;">${data.recommendedPrintMethod || data.printMethod || '담당자 안내'}</td>
           </tr>
-          <tr>
+          ${data.estimatedPayUnit != null && data.estimatedPayTotal != null ? `<tr>
+            <td style="padding:6px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td>
+            <td style="padding:6px 0;font-weight:700;color:#3B55A5;">${data.quantity}벌 약 ${won(data.estimatedPayTotal)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(data.estimatedPayUnit)}</span></td>
+          </tr>
+          <tr><td colspan="2" style="padding:2px 0 6px;color:#aaa;font-size:11px;">* 실제 디자인에 따라 소폭 변동될 수 있습니다.</td></tr>` : `<tr>
             <td style="padding:6px 0;color:#888;">예상 인쇄비</td>
             <td style="padding:6px 0;font-weight:600;">${estPrice(data.estimatedPriceMin, data.estimatedPriceMax)}</td>
-          </tr>
+          </tr>`}
         </table>
       </div>
 
@@ -124,9 +135,11 @@ export async function sendCustomerInquiryConfirmation(
   const text = `${data.contactName}님, 상담 신청이 접수되었습니다.
 
 [상담 요약]
-- 의류: ${data.clothingType} / ${data.quantity}벌
+- 의류: ${data.clothingType} / ${data.quantity}벌${data.productName ? `\n- 선택 제품: ${data.productName}` : ''}
 - 추천 인쇄방식: ${data.recommendedPrintMethod || data.printMethod || '담당자 안내'}
-- 예상 인쇄비: ${estPrice(data.estimatedPriceMin, data.estimatedPriceMax)}
+${data.estimatedPayUnit != null && data.estimatedPayTotal != null
+  ? `- 예상 결제 금액(제품+인쇄): ${data.quantity}벌 약 ${won(data.estimatedPayTotal)} · 장당 약 ${won(data.estimatedPayUnit)}\n  * 실제 디자인에 따라 소폭 변동될 수 있습니다.`
+  : `- 예상 인쇄비: ${estPrice(data.estimatedPriceMin, data.estimatedPriceMax)}`}
 
 문의 확인: ${inquiryUrl}
 (로그인 시 '내 문의'에서, 비로그인 시 전화번호로 조회 가능)

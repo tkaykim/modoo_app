@@ -29,7 +29,11 @@ interface InquiryRequestBody {
 }
 
 // 챗봇 상담 내용을 정식 문의(inquiries) content로 요약
-function buildInquirySummary(b: InquiryRequestBody, quantityNum: number): string {
+function buildInquirySummary(
+  b: InquiryRequestBody,
+  quantityNum: number,
+  pay?: { productName: string | null; payUnit: number | null; payTotal: number | null },
+): string {
   const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
   const sizes = b.designSizes;
   const sizeStr = sizes
@@ -45,10 +49,16 @@ function buildInquirySummary(b: InquiryRequestBody, quantityNum: number): string
         : `장당 약 ${won(b.estimatedPriceMin)}`)
     : '담당자 안내';
   const date = b.neededDateFlexible ? '상관없음 (제작일정에 따름)' : (b.neededDate || '미지정');
+  // 제품+인쇄 합산 = 고객 예상 결제금액(있으면 우선 표기)
+  const payLine =
+    pay?.payUnit != null && pay.payTotal != null
+      ? `· 예상 결제 금액(제품+인쇄): 장당 약 ${won(pay.payUnit)} · ${quantityNum}벌 약 ${won(pay.payTotal)} (실제 디자인에 따라 변동)`
+      : null;
   return [
     '챗봇 상담을 통해 접수된 문의입니다.',
     '',
     `· 의류: ${b.clothingType}`,
+    pay?.productName ? `· 선택 제품: ${pay.productName}` : '',
     `· 수량: ${quantityNum}벌`,
     `· 디자인: ${b.designType || '미입력'}`,
     `· 색상: ${b.colorCount || '미입력'}`,
@@ -56,8 +66,9 @@ function buildInquirySummary(b: InquiryRequestBody, quantityNum: number): string
     `· 선택 인쇄방식: ${b.printMethod || '미정'}`,
     `· 추천 인쇄방식: ${b.recommendedPrintMethod || '미정'}`,
     `· 예상 인쇄비: ${est}`,
+    payLine ?? '',
     `· 필요 날짜: ${date}`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 // Parse quantity string to number (returns approximate middle value of range)
@@ -112,6 +123,28 @@ export async function POST(request: NextRequest) {
     const fileUrls = Array.isArray(body.fileUrls)
       ? body.fileUrls.filter((u): u is string => typeof u === 'string' && u.length > 0)
       : [];
+
+    // 선택 제품 + 인쇄비 합산 = 고객 예상 결제금액. 선택 제품의 base_price를 조회해 인쇄비(장당)와 합산.
+    let selectedProductName: string | null = null;
+    let payUnit: number | null = null; // 장당(제품+인쇄)
+    let payTotal: number | null = null; // 총(제품+인쇄)
+    const selectedProductId = body.recommendedProductIds?.[0] ?? null;
+    if (selectedProductId) {
+      const { data: prod } = await supabase
+        .from('products')
+        .select('title, base_price')
+        .eq('id', selectedProductId)
+        .single();
+      const printUnit = body.estimatedPriceMin ?? null; // 인쇄비 장당
+      if (prod) {
+        selectedProductName = prod.title ?? null;
+        if (printUnit != null && prod.base_price != null) {
+          payUnit = Number(prod.base_price) + printUnit;
+          payTotal = payUnit * quantityNum;
+        }
+      }
+    }
+    const payEstimate = { productName: selectedProductName, payUnit, payTotal };
 
     // Insert inquiry into database
     const { data: inquiry, error } = await supabase
@@ -187,7 +220,7 @@ export async function POST(request: NextRequest) {
           .insert({
             user_id: body.userId || null,
             title: `[챗봇 상담] ${body.clothingType} ${quantityNum}벌`,
-            content: buildInquirySummary(body, quantityNum),
+            content: buildInquirySummary(body, quantityNum, payEstimate),
             status: 'pending',
             manager_name: body.contactName,
             phone: body.contactPhone,
@@ -230,6 +263,9 @@ export async function POST(request: NextRequest) {
               recommendedPrintMethod: body.recommendedPrintMethod,
               estimatedPriceMin: body.estimatedPriceMin,
               estimatedPriceMax: body.estimatedPriceMax,
+              productName: payEstimate.productName,
+              estimatedPayUnit: payEstimate.payUnit,
+              estimatedPayTotal: payEstimate.payTotal,
               createdAt: inquiry.created_at,
               formalInquiryId: formal.id,
             }).catch((e) => console.error('Customer email failed:', e));
