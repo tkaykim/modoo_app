@@ -74,6 +74,7 @@ export interface MethodQuoteLite {
   eligible: boolean;          // 디자인 제약상 가능 여부
   cheapest: boolean;          // 이 수량 최저가
   thresholdNote?: string | null; // "15벌 이상 유리" (bulk만)
+  smallBulkNote?: boolean;    // 소량+묶음방식이라 단가가 높을 수 있음 (안내문 표시용)
 }
 
 // Recommendation + estimate result attached to a recommendation_card message

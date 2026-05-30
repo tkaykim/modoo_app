@@ -18,6 +18,7 @@ interface PrintMethodBubbleProps {
 
 export default function PrintMethodBubble({
   recommendedMethod,
+  methodQuotes,
   designType,
   colorCount,
   onSelect,
@@ -37,6 +38,9 @@ export default function PrintMethodBubble({
   const initial =
     recommendedMethod && visible.includes(recommendedMethod) ? recommendedMethod : visible[0];
   const [selected, setSelected] = useState<PrintMethodChoice>(initial);
+
+  // 선택한 방식이 소량+묶음방식이라 단가가 높을 수 있는지
+  const selectedSmallBulk = methodQuotes?.find((q) => q.method === selected)?.smallBulkNote ?? false;
 
   return (
     <div className="mt-3">
@@ -74,6 +78,13 @@ export default function PrintMethodBubble({
           );
         })}
       </div>
+
+      {/* 소량 + 묶음방식 안내 (선택 시에만) */}
+      {selectedSmallBulk && (
+        <p className="text-xs text-amber-600 mb-2">
+          ※ 소량의 경우 제작단가가 다소 높을 수 있어요.
+        </p>
+      )}
 
       {/* 다음 — 선택 확정 후에만 진행 (자동 진행 X) */}
       <button

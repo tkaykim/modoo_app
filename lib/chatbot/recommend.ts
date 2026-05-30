@@ -145,12 +145,15 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
     (['A3', 'A4', '10x10'] as SizeBucket[]).find((b) => (designSizes?.[b] ?? 0) > 0) ?? 'A4';
   const repDim = SIZE_CM[repBucket];
   const dtfRows = rowsByKey['dtf'] ?? [];
+  // 현재 수량 기준 DTF 총액 (소량 묶음방식 비교용)
+  const dtfTotalAtQty = methodTotal(dtfRows, designSizes, qty, colorMult);
 
   const quotes: MethodQuoteLite[] = ALL_CHOICES.map((choice) => {
     const key = METHOD_LABEL_TO_KEY[choice];
     const rows = rowsByKey[key] ?? [];
     const total = methodTotal(rows, designSizes, qty, colorMult);
     let thresholdNote: string | null = null;
+    let smallBulkNote = false;
     if (BULK_CHOICES.has(choice) && rows.length > 0 && dtfRows.length > 0) {
       // 색상 도수 배수를 반영한 "N벌 이상 유리" 분기점 (bulk×도수 ≤ DTF)
       let t: number | null = null;
@@ -161,6 +164,10 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
         if (bulk * colorMult <= dtf) { t = q; break; }
       }
       if (t != null) thresholdNote = `${t}벌 이상 유리`;
+      // 이 수량에선 묶음방식이 DTF보다 비쌈 → 소량 안내
+      if (total != null && dtfTotalAtQty != null && total > dtfTotalAtQty) {
+        smallBulkNote = true;
+      }
     }
     return {
       method: choice,
@@ -169,6 +176,7 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
       eligible: eligibleSet.has(choice),
       cheapest: false,
       thresholdNote,
+      smallBulkNote,
     };
   });
 
