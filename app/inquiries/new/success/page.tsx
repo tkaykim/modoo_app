@@ -68,8 +68,8 @@ export default async function InquirySuccessPage() {
             문의가 접수되었습니다
           </h1>
           <p className="text-sm lg:text-base text-gray-600 leading-relaxed">
-            담당자 확인 후 <span className="font-semibold text-[#3B55A5]">카카오톡</span>으로
-            견적서와 시안을 보내드릴게요.
+            담당자가 <span className="font-semibold text-[#3B55A5]">이메일 또는 문의 게시판</span>을 통해
+            견적서와 시안을 전달드릴게요.
           </p>
 
           {weekend && (

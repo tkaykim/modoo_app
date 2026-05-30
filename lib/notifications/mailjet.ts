@@ -55,50 +55,45 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
     ? `<div style="background:#E8590C;color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:14px;font-weight:bold;">🔥 상담원 연결 요청 — 우선 응대가 필요한 문의입니다</div>`
     : '';
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #3B55A5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background-color: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
-        .field { margin-bottom: 15px; }
-        .label { font-weight: bold; color: #3B55A5; }
-        .value { margin-top: 5px; }
-        .footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h2 style="margin: 0;">🆕 새로운 챗봇 문의</h2>
-        </div>
-        <div class="content">
-          ${consultBanner}
-          <div class="field"><div class="label">의류 종류</div><div class="value">${inquiry.clothing_type}</div></div>
-          <div class="field"><div class="label">수량</div><div class="value">${inquiry.quantity}벌</div></div>
-          <div class="field"><div class="label">선호 방향</div><div class="value">${inquiry.priorities.join(' → ') || '미입력'}</div></div>
-          <div class="field"><div class="label">디자인 종류</div><div class="value">${inquiry.design_type || '미입력'}</div></div>
-          <div class="field"><div class="label">색상</div><div class="value">${inquiry.color_count || '미입력'}</div></div>
-          <div class="field"><div class="label">인쇄 크기/개수</div><div class="value">${formatPrintSizes(inquiry.print_sizes)}</div></div>
-          <div class="field"><div class="label">선택 인쇄방식</div><div class="value">${inquiry.print_method || '미정'}</div></div>
-          <div class="field"><div class="label">추천 인쇄방식</div><div class="value">${inquiry.recommended_print_method || '미정'}</div></div>
-          <div class="field"><div class="label">예상 인쇄비</div><div class="value">${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}</div></div>
-          <div class="field"><div class="label">필요 날짜</div><div class="value">${neededDateDisplay}</div></div>
-          <div class="field"><div class="label">담당자</div><div class="value">${inquiry.contact_name}</div></div>
-          <div class="field"><div class="label">이메일</div><div class="value">${inquiry.contact_email || '미입력'}</div></div>
-          <div class="field"><div class="label">연락처</div><div class="value">${inquiry.contact_phone}</div></div>
-          <div class="footer">
-            <p>문의 ID: ${inquiry.id}</p>
-            <p>접수 시간: ${createdAt}</p>
-          </div>
-        </div>
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <div style="background:#3B55A5;padding:20px 32px;text-align:center;">
+      <img src="https://modoouniform.com/icons/modoo_logo.png" alt="모두의 유니폼" style="height:32px;display:inline-block;" />
+      <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">${inquiry.consult_requested ? '🔥 상담원 연결 요청' : '새로운 챗봇 문의'}</p>
+    </div>
+    <div style="padding:24px 32px;">
+      ${inquiry.consult_requested ? `<div style="background:#fff4f0;border:1px solid #f8c4a8;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#c0390b;font-weight:600;">🔥 상담원 연결 요청 — 우선 응대가 필요한 문의입니다</div>` : ''}
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;width:130px;">의류 종류</td><td style="padding:9px 0;font-weight:600;">${inquiry.clothing_type}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">수량</td><td style="padding:9px 0;font-weight:600;">${inquiry.quantity}벌</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">선호 방향</td><td style="padding:9px 0;">${inquiry.priorities.join(' → ') || '미입력'}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">디자인 종류</td><td style="padding:9px 0;">${inquiry.design_type || '미입력'}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">색상</td><td style="padding:9px 0;">${inquiry.color_count || '미입력'}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">인쇄 크기/개수</td><td style="padding:9px 0;">${formatPrintSizes(inquiry.print_sizes)}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">선택 인쇄방식</td><td style="padding:9px 0;">${inquiry.print_method || '미정'}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">추천 인쇄방식</td><td style="padding:9px 0;font-weight:600;">${inquiry.recommended_print_method || '미정'}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 인쇄비</td><td style="padding:9px 0;font-weight:600;">${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">필요 날짜</td><td style="padding:9px 0;">${neededDateDisplay}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">담당자</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_name}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">연락처</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_phone}</td></tr>
+        <tr><td style="padding:9px 0;color:#888;">이메일</td><td style="padding:9px 0;">${inquiry.contact_email || '미입력'}</td></tr>
+      </table>
+      <div style="text-align:center;margin-top:24px;">
+        <a href="https://modoo-admin.vercel.app/content/chatbot"
+           style="display:inline-block;background:#3B55A5;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;">
+          챗봇 문의 관리에서 보기 →
+        </a>
       </div>
-    </body>
-    </html>
-  `;
+    </div>
+    <div style="background:#f8f8f8;padding:14px 32px;text-align:center;border-top:1px solid #eee;">
+      <p style="margin:0;font-size:12px;color:#aaa;">모두의 유니폼 · 문의 ID: ${inquiry.id}<br/>접수 시간: ${createdAt}</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
   const text = `새로운 챗봇 문의가 접수되었습니다.${inquiry.consult_requested ? '\n[🔥 상담원 연결 요청 — 우선 응대 필요]' : ''}
 

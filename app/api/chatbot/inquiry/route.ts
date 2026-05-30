@@ -223,6 +223,7 @@ export async function POST(request: NextRequest) {
               estimatedPriceMin: body.estimatedPriceMin,
               estimatedPriceMax: body.estimatedPriceMax,
               createdAt: inquiry.created_at,
+              formalInquiryId: formal.id,
             }).catch((e) => console.error('Customer email failed:', e));
           }
         }

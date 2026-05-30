@@ -309,7 +309,7 @@ function InquiryForm() {
 
       <div className="w-full px-4 py-6 pb-24">
         <p className="text-sm text-gray-600 mb-6">
-          작성해주시면 그래픽 시안 및 빠른 견적을 카카오톡으로 받아 보실 수 있습니다.
+          작성해주시면 담당자가 이메일 또는 문의 게시판을 통해 빠르게 안내드려요.
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -406,10 +406,7 @@ function InquiryForm() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  ▶ 전화번호 또는 카카오톡 아이디 중 하나 이상 입력해주세요. 카카오톡을 통해 견적서와 시안을 받아보실 수 있습니다.
-                </p>
-                <p className="text-xs text-gray-500">
-                  ※ 카카오톡 전화번호 친구 추가 허용이 되어 있지 않은 경우 카카오톡 아이디를 별도 기재 부탁드립니다.
+                  ▶ 전화번호 또는 카카오톡 아이디 중 하나 이상 입력해주세요. 담당자가 이메일 또는 문의 게시판을 통해 연락드립니다.
                 </p>
               </div>
             </FormRow>

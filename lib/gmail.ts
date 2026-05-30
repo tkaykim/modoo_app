@@ -37,7 +37,8 @@ export async function sendGmailEmail({ to, subject, text, html }: SendGmailParam
   const t = getTransporter();
   if (!t) return false;
 
-  const fromName = process.env.GMAIL_FROM_NAME || '모두의 유니폼';
+  // GMAIL_FROM_NAME 환경변수가 인코딩 깨진 경우 대비 — 고정값 사용
+  const fromName = '모두의 유니폼';
   const fromEmail = process.env.GMAIL_USER;
 
   try {
