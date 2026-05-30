@@ -19,6 +19,9 @@ interface ChatbotInquiryNotification {
   recommended_print_method?: string | null;
   estimated_price_min?: number | null;
   estimated_price_max?: number | null;
+  product_name?: string | null;       // 선택 제품
+  estimated_pay_unit?: number | null;  // 제품+인쇄 합산 장당
+  estimated_pay_total?: number | null; // 제품+인쇄 합산 총액
   consult_requested?: boolean;
 }
 
@@ -74,8 +77,10 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">색상</td><td style="padding:9px 0;">${inquiry.color_count || '미입력'}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">인쇄 크기/개수</td><td style="padding:9px 0;">${formatPrintSizes(inquiry.print_sizes)}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">선택 인쇄방식</td><td style="padding:9px 0;">${inquiry.print_method || '미정'}</td></tr>
+        ${inquiry.product_name ? `<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">선택 제품</td><td style="padding:9px 0;font-weight:600;">${inquiry.product_name}</td></tr>` : ''}
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">추천 인쇄방식</td><td style="padding:9px 0;font-weight:600;">${inquiry.recommended_print_method || '미정'}</td></tr>
-        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 인쇄비</td><td style="padding:9px 0;font-weight:600;">${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}</td></tr>
+        <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 인쇄비</td><td style="padding:9px 0;">${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}</td></tr>
+        ${inquiry.estimated_pay_unit != null && inquiry.estimated_pay_total != null ? `<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td><td style="padding:9px 0;font-weight:700;color:#3B55A5;">${inquiry.quantity}벌 약 ${won(inquiry.estimated_pay_total)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(inquiry.estimated_pay_unit)}</span><br><span style="font-size:11px;color:#aaa;">* 예상가이며 상담·디자인 결과 소폭 변동될 수 있습니다.</span></td></tr>` : ''}
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">필요 날짜</td><td style="padding:9px 0;">${neededDateDisplay}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">담당자</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_name}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">연락처</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_phone}</td></tr>
@@ -103,9 +108,9 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
 디자인 종류: ${inquiry.design_type || '미입력'}
 색상: ${inquiry.color_count || '미입력'}
 인쇄 크기/개수: ${formatPrintSizes(inquiry.print_sizes)}
-선택 인쇄방식: ${inquiry.print_method || '미정'}
+선택 인쇄방식: ${inquiry.print_method || '미정'}${inquiry.product_name ? `\n선택 제품: ${inquiry.product_name}` : ''}
 추천 인쇄방식: ${inquiry.recommended_print_method || '미정'}
-예상 인쇄비: ${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}
+예상 인쇄비: ${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}${inquiry.estimated_pay_unit != null && inquiry.estimated_pay_total != null ? `\n예상 결제 금액(제품+인쇄): ${inquiry.quantity}벌 약 ${won(inquiry.estimated_pay_total)} · 장당 약 ${won(inquiry.estimated_pay_unit)}\n  * 예상가이며 상담·디자인 결과 소폭 변동될 수 있습니다.` : ''}
 필요 날짜: ${neededDateDisplay}
 담당자: ${inquiry.contact_name}
 이메일: ${inquiry.contact_email || '미입력'}

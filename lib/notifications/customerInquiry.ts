@@ -91,7 +91,7 @@ export async function sendCustomerInquiryConfirmation(
             <td style="padding:6px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td>
             <td style="padding:6px 0;font-weight:700;color:#3B55A5;">${data.quantity}벌 약 ${won(data.estimatedPayTotal)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(data.estimatedPayUnit)}</span></td>
           </tr>
-          <tr><td colspan="2" style="padding:2px 0 6px;color:#aaa;font-size:11px;">* 실제 디자인에 따라 소폭 변동될 수 있습니다.</td></tr>` : `<tr>
+          <tr><td colspan="2" style="padding:2px 0 6px;color:#aaa;font-size:11px;">* 예상가이며, 실제 상담·디자인 결과에 따라 소폭 변동될 수 있습니다.</td></tr>` : `<tr>
             <td style="padding:6px 0;color:#888;">예상 인쇄비</td>
             <td style="padding:6px 0;font-weight:600;">${estPrice(data.estimatedPriceMin, data.estimatedPriceMax)}</td>
           </tr>`}
@@ -138,7 +138,7 @@ export async function sendCustomerInquiryConfirmation(
 - 의류: ${data.clothingType} / ${data.quantity}벌${data.productName ? `\n- 선택 제품: ${data.productName}` : ''}
 - 추천 인쇄방식: ${data.recommendedPrintMethod || data.printMethod || '담당자 안내'}
 ${data.estimatedPayUnit != null && data.estimatedPayTotal != null
-  ? `- 예상 결제 금액(제품+인쇄): ${data.quantity}벌 약 ${won(data.estimatedPayTotal)} · 장당 약 ${won(data.estimatedPayUnit)}\n  * 실제 디자인에 따라 소폭 변동될 수 있습니다.`
+  ? `- 예상 결제 금액(제품+인쇄): ${data.quantity}벌 약 ${won(data.estimatedPayTotal)} · 장당 약 ${won(data.estimatedPayUnit)}\n  * 예상가이며, 실제 상담·디자인 결과에 따라 소폭 변동될 수 있습니다.`
   : `- 예상 인쇄비: ${estPrice(data.estimatedPriceMin, data.estimatedPriceMax)}`}
 
 문의 확인: ${inquiryUrl}

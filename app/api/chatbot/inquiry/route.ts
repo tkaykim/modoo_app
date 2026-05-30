@@ -201,6 +201,9 @@ export async function POST(request: NextRequest) {
       recommended_print_method: inquiry.recommended_print_method,
       estimated_price_min: inquiry.estimated_price_min,
       estimated_price_max: inquiry.estimated_price_max,
+      product_name: payEstimate.productName,
+      estimated_pay_unit: payEstimate.payUnit,
+      estimated_pay_total: payEstimate.payTotal,
       consult_requested: body.consultRequested ?? false,
     };
 
