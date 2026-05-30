@@ -11,6 +11,7 @@ import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
 import ErrorReporter from "./components/ErrorReporter";
 import { getSiteUrl } from "@/lib/site-url";
+import { Analytics } from "@vercel/analytics/next";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
 const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
