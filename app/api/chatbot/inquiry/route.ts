@@ -23,6 +23,7 @@ interface InquiryRequestBody {
   contactName: string;
   contactEmail?: string;
   contactPhone: string;
+  fileUrls?: string[] | null;
   consultRequested?: boolean;
   userId?: string | null;
 }
@@ -107,6 +108,11 @@ export async function POST(request: NextRequest) {
     // Use admin client to bypass RLS for insert
     const supabase = createAdminClient();
 
+    // 첨부 파일(시안/로고) — 클라이언트가 inquiry-files 버킷에 업로드한 공개 URL
+    const fileUrls = Array.isArray(body.fileUrls)
+      ? body.fileUrls.filter((u): u is string => typeof u === 'string' && u.length > 0)
+      : [];
+
     // Insert inquiry into database
     const { data: inquiry, error } = await supabase
       .from('chatbot_inquiries')
@@ -127,6 +133,7 @@ export async function POST(request: NextRequest) {
         contact_name: body.contactName,
         contact_email: body.contactEmail || null,
         contact_phone: body.contactPhone,
+        file_urls: fileUrls,
         admin_notes: body.consultRequested ? '[상담원 연결 요청]' : null,
         status: 'pending'
       })
@@ -188,6 +195,7 @@ export async function POST(request: NextRequest) {
             expected_qty: quantityNum,
             desired_date: body.neededDateFlexible ? null : (body.neededDate || null),
             password: phoneDigits || null, // 비로그인 고객은 전화번호로 열람
+            file_urls: fileUrls,
             is_admin: false,
           })
           .select('id')

@@ -544,7 +544,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   };
 
   // Contact form submitted → submit inquiry
-  const handleContactSubmit = async (name: string, email: string, phone: string) => {
+  const handleContactSubmit = async (name: string, email: string, phone: string, fileUrls: string[] = []) => {
     if (isTyping || inquiryFlow.isSubmitting) return;
 
     setIsTyping(true);
@@ -578,6 +578,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           contactName: name,
           contactEmail: contactEmail || null,
           contactPhone: phone,
+          fileUrls: fileUrls ?? [],
           consultRequested: inquiryData.consultRequested ?? false,
           userId: useAuthStore.getState().user?.id ?? null,
         }),
