@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MODOO, Icon, Tee, TabBar, AppBar, Chip, Placeholder } from "../tokens";
+import { MODOO, Icon, Tee, TabBar, AppBar, Chip } from "../tokens";
 import type {
   V2CatalogProduct,
   V2Category,
@@ -15,23 +15,6 @@ interface BrandProp {
 
 const FALLBACK_COLORS = ["#0E1116", "#FFE7B0", "#0052CC", "#5C6573", "#FFFFFF", "#16331F"];
 const SORT_LABELS = ["추천순", "인기순", "낮은 가격순", "빠른제작"];
-
-/* ------------------------------------------------------------------ *
- * 인쇄 방식별 대표예시 — 제품 무관 공용 컷.
- * imgUrl 에 실제 대표 사진을 꽂으면 placeholder 대신 그 사진이 노출됨.
- * (라벨/단가 표현은 v2 editor 의 인쇄 방식 정의와 일치)
- * ------------------------------------------------------------------ */
-const PRINT_EXAMPLES: {
-  key: string;
-  label: string;
-  sub: string;
-  tone: "warm" | "cool" | "blue" | "gray" | "dark";
-  imgUrl: string | null;
-}[] = [
-  { key: "dtf", label: "DTF 전사", sub: "풀컬러 · 사진", tone: "blue", imgUrl: null },
-  { key: "silk", label: "실크 나염", sub: "선명 · 대량", tone: "warm", imgUrl: null },
-  { key: "embroidery", label: "자수", sub: "고급 · 입체", tone: "gray", imgUrl: null },
-];
 
 /** admin에서 지정한 키워드(products.keywords)만 노출. 비어 있으면 표시 안 함. */
 function productHashtags(p: V2CatalogProduct): string[] {
@@ -176,12 +159,12 @@ export const Catalog: React.FC<CatalogProps> = ({
                 ? "신상"
                 : null;
           const fallback = FALLBACK_COLORS[i % FALLBACK_COLORS.length];
-          const gallery = (p.gallery && p.gallery.length
-            ? p.gallery
-            : p.thumbnail
-              ? [p.thumbnail]
-              : []
-          ).slice(0, 3);
+          const gallery =
+            p.gallery && p.gallery.length
+              ? p.gallery
+              : p.thumbnail
+                ? [p.thumbnail]
+                : [];
           const hashtags = productHashtags(p);
 
           return (
@@ -195,7 +178,7 @@ export const Catalog: React.FC<CatalogProps> = ({
                 borderBottom: `1px solid ${MODOO.hairlineSoft}`,
               }}
             >
-              {/* 사진 레일: [제품 메인] + [인쇄 방식별 대표예시] 가로 스크롤 */}
+              {/* 사진 레일: 썸네일 갤러리 (1장이면 1장, 여러 장이면 가로 스크롤) */}
               <div
                 style={{
                   display: "flex",
@@ -206,63 +189,11 @@ export const Catalog: React.FC<CatalogProps> = ({
                   padding: "0 16px 2px",
                 }}
               >
-                {/* 메인 제품 컷 */}
-                <div
-                  style={{
-                    position: "relative",
-                    flex: "0 0 auto",
-                    width: RAIL_H,
-                    height: RAIL_H,
-                    borderRadius: 14,
-                    overflow: "hidden",
-                    background: MODOO.surfaceWarm,
-                    border: `1px solid ${MODOO.hairlineSoft}`,
-                  }}
-                >
-                  <RailImg src={p.thumbnail} fallbackColor={fallback} alt={p.title} />
-                  {tag && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        left: 8,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        background:
-                          tag === "BEST"
-                            ? brand
-                            : tag === "HOT"
-                              ? MODOO.err
-                              : MODOO.ink,
-                        color: "#fff",
-                        font: `700 10px/1.2 ${MODOO.fonts.mono}`,
-                        letterSpacing: "0.06em",
-                      }}
-                    >
-                      {tag}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 8,
-                      bottom: 8,
-                      padding: "2px 7px",
-                      borderRadius: 6,
-                      background: "rgba(14,17,22,0.62)",
-                      color: "#fff",
-                      font: `600 10px/1.3 ${MODOO.fonts.sans}`,
-                    }}
-                  >
-                    무지 제품
-                  </div>
-                </div>
-
-                {/* 추가 제품 사진(갤러리) */}
-                {gallery.slice(1).map((src, gi) => (
+                {gallery.map((src, gi) => (
                   <div
                     key={`g${gi}`}
                     style={{
+                      position: "relative",
                       flex: "0 0 auto",
                       width: RAIL_H,
                       height: RAIL_H,
@@ -273,64 +204,28 @@ export const Catalog: React.FC<CatalogProps> = ({
                     }}
                   >
                     <RailImg src={src} fallbackColor={fallback} alt={p.title} />
-                  </div>
-                ))}
-
-                {/* 인쇄 방식별 대표예시 */}
-                {PRINT_EXAMPLES.map((ex) => (
-                  <div
-                    key={ex.key}
-                    style={{
-                      position: "relative",
-                      flex: "0 0 auto",
-                      width: RAIL_H,
-                      height: RAIL_H,
-                      borderRadius: 14,
-                      overflow: "hidden",
-                      border: `1px solid ${MODOO.hairlineSoft}`,
-                    }}
-                  >
-                    {ex.imgUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={ex.imgUrl}
-                        alt={ex.label}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    ) : (
-                      <Placeholder label={`${ex.label} 예시`} tone={ex.tone} />
-                    )}
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 6,
-                        right: 6,
-                        bottom: 6,
-                        padding: "5px 8px",
-                        borderRadius: 9,
-                        background: "rgba(14,17,22,0.66)",
-                        backdropFilter: "blur(4px)",
-                        WebkitBackdropFilter: "blur(4px)",
-                      }}
-                    >
+                    {gi === 0 && tag && (
                       <div
                         style={{
-                          font: `700 11px/1.2 ${MODOO.fonts.sans}`,
+                          position: "absolute",
+                          top: 8,
+                          left: 8,
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          background:
+                            tag === "BEST"
+                              ? brand
+                              : tag === "HOT"
+                                ? MODOO.err
+                                : MODOO.ink,
                           color: "#fff",
+                          font: `700 10px/1.2 ${MODOO.fonts.mono}`,
+                          letterSpacing: "0.06em",
                         }}
                       >
-                        {ex.label}
+                        {tag}
                       </div>
-                      <div
-                        style={{
-                          font: `500 9px/1.2 ${MODOO.fonts.sans}`,
-                          color: "rgba(255,255,255,0.78)",
-                          marginTop: 1,
-                        }}
-                      >
-                        {ex.sub}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
