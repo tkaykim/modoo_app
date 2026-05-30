@@ -180,10 +180,15 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
     };
   });
 
-  // 최저가 (eligible + 산정가능 중 총액 최소)
+  // 최저가 (eligible + 산정가능 중 총액 최소). 30벌 미만이면 bulk(나염/자수)는 추천 대상 제외.
   const priceable = quotes.filter((q) => q.eligible && q.total !== null);
-  if (priceable.length > 0) {
-    const min = priceable.reduce((a, b) => (a.total! <= b.total! ? a : b));
+  const BULK_MIN_QTY = 30;
+  const recommendable = priceable.filter((q) =>
+    qty >= BULK_MIN_QTY || !BULK_CHOICES.has(q.method),
+  );
+  const pool = recommendable.length > 0 ? recommendable : priceable;
+  if (pool.length > 0) {
+    const min = pool.reduce((a, b) => (a.total! < b.total! ? a : b));
     min.cheapest = true;
   }
   return quotes;
@@ -201,7 +206,8 @@ export function recommendPrintMethodHeuristic(input: RecommendInput): PrintMetho
 // 실가격 기반 추천 방식 1개 (피커 뱃지용). 퀄리티 최우선이면 자수, 아니면 이 수량 최저가.
 export async function recommendMethod(input: RecommendInput): Promise<PrintMethodChoice> {
   const eligible = eligibleMethodChoices(input.designType, input.colorCount);
-  if (input.priorities?.[0] === '퀄리티' && eligible.includes('자수')) return '자수';
+  const qty = input.quantityExact ?? (input.quantity ? REP_QTY[input.quantity] : 35);
+  if (input.priorities?.[0] === '퀄리티' && eligible.includes('자수') && qty >= 30) return '자수';
   const quotes = await computeMethodQuotes(input);
   const cheapest = quotes.find((q) => q.cheapest);
   if (cheapest) return cheapest.method;
@@ -218,7 +224,7 @@ export async function buildRecommendation(input: RecommendInput): Promise<Recomm
   const eligible = eligibleMethodChoices(input.designType, input.colorCount);
 
   const recommended =
-    input.priorities?.[0] === '퀄리티' && eligible.includes('자수')
+    input.priorities?.[0] === '퀄리티' && eligible.includes('자수') && qty >= 30
       ? '자수'
       : (quotes.find((q) => q.cheapest)?.method ?? recommendPrintMethodHeuristic(input));
 

@@ -336,7 +336,7 @@ export default function InquiriesPage() {
     <div className="min-h-screen bg-white pb-24">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="flex items-center px-2 py-3">
-          <button onClick={() => router.push('/inquiries')} className="p-2 hover:bg-gray-100 rounded-full transition">
+          <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full transition">
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h1 className="text-lg font-bold">{view === 'my' ? '나의 문의' : '실시간 문의'}</h1>

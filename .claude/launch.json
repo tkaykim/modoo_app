@@ -4,9 +4,8 @@
     {
       "name": "modoo-app-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "4567"],
-      "port": 4567,
-      "autoPort": false
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
     }
   ]
 }
