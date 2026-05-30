@@ -14,7 +14,15 @@ interface BrandProp {
 }
 
 const FALLBACK_COLORS = ["#0E1116", "#FFE7B0", "#0052CC", "#5C6573", "#FFFFFF", "#16331F"];
-const SORT_LABELS = ["추천순", "인기순", "낮은 가격순", "빠른제작"];
+
+type SortOption = "default" | "review_count" | "price_low" | "price_high";
+const SORT_LABELS: Record<SortOption, string> = {
+  default: "기본",
+  review_count: "리뷰 많은순",
+  price_low: "낮은 가격순",
+  price_high: "높은 가격순",
+};
+const PAGE_SIZE = 12;
 
 /** admin에서 지정한 키워드(products.keywords)만 노출. 비어 있으면 표시 안 함. */
 function productHashtags(p: V2CatalogProduct): string[] {
@@ -71,86 +79,441 @@ export const Catalog: React.FC<CatalogProps> = ({
   selectedCategory = "all",
 }) => {
   const cats = [{ key: "all", name: "전체" }, ...categories];
-  const filtered =
-    selectedCategory === "all"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
+
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [selectedManufacturer, setSelectedManufacturer] = React.useState("all");
+  const [sortBy, setSortBy] = React.useState<SortOption>("default");
+  const [showSortMenu, setShowSortMenu] = React.useState(false);
+  const [displayCount, setDisplayCount] = React.useState(PAGE_SIZE);
+  const sortRef = React.useRef<HTMLDivElement>(null);
+  const loadMoreRef = React.useRef<HTMLDivElement>(null);
+
+  // 제조사 목록
+  const manufacturers = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          products.map((p) => p.manufacturerName).filter((m): m is string => !!m)
+        )
+      ).sort(),
+    [products]
+  );
+
+  // 가격 범위(천원 단위 반올림)
+  const priceBounds = React.useMemo<[number, number]>(() => {
+    if (!products.length) return [0, 0];
+    const prices = products.map((p) => p.price);
+    return [
+      Math.floor(Math.min(...prices) / 1000) * 1000,
+      Math.ceil(Math.max(...prices) / 1000) * 1000,
+    ];
+  }, [products]);
+  const [priceMin, setPriceMin] = React.useState(priceBounds[0]);
+  const [priceMax, setPriceMax] = React.useState(priceBounds[1]);
+  React.useEffect(() => {
+    setPriceMin(priceBounds[0]);
+    setPriceMax(priceBounds[1]);
+  }, [priceBounds]);
+
+  const priceActive =
+    priceBounds[1] > 0 &&
+    (priceMin !== priceBounds[0] || priceMax !== priceBounds[1]);
+  const hasActiveFilter = selectedManufacturer !== "all" || priceActive;
+
+  // 정렬 메뉴 외부 클릭 닫기
+  React.useEffect(() => {
+    if (!showSortMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node))
+        setShowSortMenu(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showSortMenu]);
+
+  // 필터/정렬 결과
+  const filtered = React.useMemo(() => {
+    let result =
+      selectedCategory === "all"
+        ? products
+        : products.filter((p) => p.category === selectedCategory);
+
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.category?.toLowerCase().includes(q) ||
+          p.manufacturerName?.toLowerCase().includes(q) ||
+          (p.keywords ?? []).some((k) => k.toLowerCase().includes(q))
+      );
+    }
+    if (selectedManufacturer !== "all")
+      result = result.filter((p) => p.manufacturerName === selectedManufacturer);
+    if (priceBounds[1] > 0)
+      result = result.filter((p) => p.price >= priceMin && p.price <= priceMax);
+
+    if (sortBy === "review_count")
+      result = [...result].sort((a, b) => b.reviewCount - a.reviewCount);
+    else if (sortBy === "price_low")
+      result = [...result].sort((a, b) => a.price - b.price);
+    else if (sortBy === "price_high")
+      result = [...result].sort((a, b) => b.price - a.price);
+
+    return result;
+  }, [
+    products,
+    selectedCategory,
+    searchQuery,
+    selectedManufacturer,
+    priceMin,
+    priceMax,
+    priceBounds,
+    sortBy,
+  ]);
+
+  React.useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+  }, [filtered]);
+
+  const visible = filtered.slice(0, displayCount);
+  const hasMore = displayCount < filtered.length;
+
+  React.useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setDisplayCount((n) => n + PAGE_SIZE);
+      },
+      { rootMargin: "300px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore]);
+
+  const resetFilters = () => {
+    setSelectedManufacturer("all");
+    setPriceMin(priceBounds[0]);
+    setPriceMax(priceBounds[1]);
+  };
+
+  const span = priceBounds[1] - priceBounds[0] || 1;
 
   return (
     <div style={{ background: "#fff", minHeight: "100%", position: "relative" }}>
-      <AppBar
-        title="상품"
-        left={
-          <Link href="/v2" style={{ color: "inherit" }}>
-            <Icon name="arrow-l" />
-          </Link>
-        }
-        right={
-          <div style={{ display: "flex", gap: 14 }}>
-            <Icon name="search" />
+      <div style={{ position: "sticky", top: 0, zIndex: 20, background: "#fff" }}>
+        <AppBar
+          title="상품"
+          left={
+            <Link href="/v2" style={{ color: "inherit" }}>
+              <Icon name="arrow-l" />
+            </Link>
+          }
+          right={
             <Link href="/v2/cart" style={{ color: "inherit" }}>
               <Icon name="cart" />
             </Link>
+          }
+        />
+
+        {/* 검색 바 + 필터 토글 */}
+        <div style={{ padding: "4px 16px 10px" }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <span style={{ position: "absolute", left: 12, display: "flex", color: MODOO.faint }}>
+              <Icon name="search" size={19} />
+            </span>
+            <input
+              type="text"
+              placeholder="상품 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%",
+                height: 44,
+                padding: "0 84px 0 38px",
+                borderRadius: 12,
+                border: `1px solid ${MODOO.hairline}`,
+                background: MODOO.surfaceAlt,
+                font: `500 14px/1 ${MODOO.fonts.sans}`,
+                outline: "none",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  aria-label="검색어 지우기"
+                  style={{ display: "flex", color: MODOO.faint, padding: 4 }}
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              )}
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                aria-label="필터"
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  padding: 6,
+                  borderRadius: 9,
+                  background: showFilters || hasActiveFilter ? MODOO.brandSoft : "transparent",
+                  color: showFilters || hasActiveFilter ? brand : MODOO.faint,
+                }}
+              >
+                <Icon name="filter" size={19} />
+                {hasActiveFilter && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 7,
+                      height: 7,
+                      borderRadius: 4,
+                      background: brand,
+                    }}
+                  />
+                )}
+              </button>
+            </div>
           </div>
-        }
-      />
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-          padding: "8px 16px 12px",
-        }}
-      >
-        {cats.map((c) => (
-          <Link
-            key={c.key}
-            href={c.key === "all" ? "/v2/mall" : `/v2/mall?category=${c.key}`}
-            style={{ textDecoration: "none" }}
-          >
-            <Chip active={selectedCategory === c.key}>{c.name}</Chip>
-          </Link>
-        ))}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          padding: "0 16px 12px",
-          borderBottom: `1px solid ${MODOO.hairlineSoft}`,
-        }}
-      >
-        {SORT_LABELS.map((s, i) => (
+        </div>
+
+        {/* 카테고리 칩 (v2 현행 유지) */}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            overflowX: "auto",
+            padding: "0 16px 12px",
+          }}
+        >
+          {cats.map((c) => (
+            <Link
+              key={c.key}
+              href={c.key === "all" ? "/v2/mall" : `/v2/mall?category=${c.key}`}
+              style={{ textDecoration: "none" }}
+            >
+              <Chip active={selectedCategory === c.key}>{c.name}</Chip>
+            </Link>
+          ))}
+        </div>
+
+        {/* 필터 패널 */}
+        {showFilters && (
           <div
-            key={s}
             style={{
-              font: `${i === 0 ? 700 : 500} 12px/1 ${MODOO.fonts.sans}`,
-              color: i === 0 ? MODOO.ink : MODOO.muted,
+              padding: "14px 16px 16px",
+              borderTop: `1px solid ${MODOO.hairlineSoft}`,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
             }}
           >
-            {s}
-            {i < SORT_LABELS.length - 1 && (
-              <span style={{ marginLeft: 8, color: MODOO.hairline }}>·</span>
+            {hasActiveFilter && (
+              <button
+                onClick={resetFilters}
+                style={{
+                  alignSelf: "flex-start",
+                  font: `500 12px/1 ${MODOO.fonts.sans}`,
+                  color: MODOO.muted,
+                  textDecoration: "underline",
+                }}
+              >
+                필터 초기화
+              </button>
+            )}
+            {manufacturers.length > 0 && (
+              <div>
+                <div style={{ font: `700 13px/1 ${MODOO.fonts.sans}`, marginBottom: 10 }}>
+                  제조사
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {["all", ...manufacturers].map((name) => {
+                    const active = selectedManufacturer === name;
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => setSelectedManufacturer(name)}
+                        style={{
+                          padding: "7px 12px",
+                          borderRadius: 999,
+                          background: active ? brand : MODOO.surfaceAlt,
+                          color: active ? "#fff" : MODOO.body,
+                          border: active ? "none" : `1px solid ${MODOO.hairline}`,
+                          font: `600 12px/1 ${MODOO.fonts.sans}`,
+                        }}
+                      >
+                        {name === "all" ? "전체" : name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {priceBounds[1] > 0 && (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 10,
+                  }}
+                >
+                  <span style={{ font: `700 13px/1 ${MODOO.fonts.sans}` }}>가격 범위</span>
+                  <span className="num" style={{ font: `500 12px/1 ${MODOO.fonts.sans}`, color: MODOO.muted }}>
+                    {priceMin.toLocaleString()}원 ~ {priceMax.toLocaleString()}원
+                  </span>
+                </div>
+                <div style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      width: "100%",
+                      height: 4,
+                      borderRadius: 2,
+                      background: MODOO.hairline,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      height: 4,
+                      borderRadius: 2,
+                      background: brand,
+                      left: `${((priceMin - priceBounds[0]) / span) * 100}%`,
+                      right: `${100 - ((priceMax - priceBounds[0]) / span) * 100}%`,
+                    }}
+                  />
+                  <input
+                    className="v2-range"
+                    type="range"
+                    min={priceBounds[0]}
+                    max={priceBounds[1]}
+                    step={1000}
+                    value={priceMin}
+                    onChange={(e) => setPriceMin(Math.min(Number(e.target.value), priceMax))}
+                    style={{ position: "absolute", width: "100%", pointerEvents: "none" }}
+                  />
+                  <input
+                    className="v2-range"
+                    type="range"
+                    min={priceBounds[0]}
+                    max={priceBounds[1]}
+                    step={1000}
+                    value={priceMax}
+                    onChange={(e) => setPriceMax(Math.max(Number(e.target.value), priceMin))}
+                    style={{ position: "absolute", width: "100%", pointerEvents: "none" }}
+                  />
+                </div>
+              </div>
             )}
           </div>
-        ))}
+        )}
+
+        {/* 결과 수 + 정렬 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "8px 16px 10px",
+            borderTop: `1px solid ${MODOO.hairlineSoft}`,
+            borderBottom: `1px solid ${MODOO.hairlineSoft}`,
+          }}
+        >
+          <span style={{ font: `500 12px/1 ${MODOO.fonts.sans}`, color: MODOO.muted }}>
+            {filtered.length}개의 상품
+            {searchQuery && ` · "${searchQuery}" 검색`}
+          </span>
+          <div ref={sortRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowSortMenu((v) => !v)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                font: `600 12px/1 ${MODOO.fonts.sans}`,
+                color: MODOO.body,
+              }}
+            >
+              <Icon name="sort" size={15} />
+              {SORT_LABELS[sortBy]}
+            </button>
+            {showSortMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 6px)",
+                  background: "#fff",
+                  border: `1px solid ${MODOO.hairline}`,
+                  borderRadius: 12,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+                  padding: 4,
+                  zIndex: 30,
+                  minWidth: 128,
+                }}
+              >
+                {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      setSortBy(opt);
+                      setShowSortMenu(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      font: `${sortBy === opt ? 700 : 500} 12px/1 ${MODOO.fonts.sans}`,
+                      color: sortBy === opt ? brand : MODOO.body,
+                      background: sortBy === opt ? MODOO.brandSofter : "transparent",
+                    }}
+                  >
+                    {SORT_LABELS[opt]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {filtered.length === 0 && (
         <div
           style={{
-            padding: "60px 20px",
+            padding: "72px 20px",
             textAlign: "center",
             color: MODOO.muted,
-            font: `500 13px/1.5 ${MODOO.fonts.sans}`,
           }}
         >
-          표시할 상품이 없어요.
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: MODOO.hairline }}>
+            <Icon name="search" size={48} />
+          </div>
+          <div style={{ font: `700 15px/1.4 ${MODOO.fonts.sans}`, color: MODOO.body }}>
+            검색 결과가 없어요
+          </div>
+          <div style={{ font: `500 13px/1.5 ${MODOO.fonts.sans}`, marginTop: 4 }}>
+            다른 검색어나 필터를 시도해 보세요
+          </div>
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {filtered.map((p, i) => {
+        {visible.map((p, i) => {
           const tag = p.isBest
             ? "BEST"
             : p.isHot
@@ -345,6 +708,23 @@ export const Catalog: React.FC<CatalogProps> = ({
           );
         })}
       </div>
+      {hasMore && (
+        <div
+          ref={loadMoreRef}
+          style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}
+        >
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              border: `2px solid ${MODOO.hairline}`,
+              borderTopColor: brand,
+              animation: "modoo-spin 0.7s linear infinite",
+            }}
+          />
+        </div>
+      )}
       <div style={{ height: 110 }} />
       <TabBar active="shop" brand={brand} />
     </div>

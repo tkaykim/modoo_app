@@ -45,6 +45,37 @@
   height: 0;
 }
 
+.modoo input[type="range"].v2-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 18px;
+}
+.modoo input[type="range"].v2-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0052cc;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+.modoo input[type="range"].v2-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0052cc;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+.modoo input[type="range"].v2-range::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
 @keyframes modoo-pulse {
   0%,
   100% {
