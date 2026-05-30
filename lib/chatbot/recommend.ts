@@ -58,7 +58,9 @@ export interface RecommendInput {
 
 const SIZE_BUCKETS: SizeBucket[] = ['10x10', 'A4', 'A3'];
 
-// 디자인 제약상 가능한 인쇄방식. 사진·풀그래픽·그라데이션은 디지털(DTF/DTG)만.
+// 디자인 제약상 가능한 인쇄방식.
+// 사진·풀그래픽·그라데이션은 풀컬러라 나염(도수 한계)은 제외하지만,
+// 자수는 풀컬러 일러스트도 표현 가능한 경우가 있어 항상 선택지로 남긴다(DTF/DTG/자수).
 export function eligibleMethodChoices(
   designType?: DesignType,
   colorCount?: ColorCount,
@@ -66,7 +68,7 @@ export function eligibleMethodChoices(
   const digitalOnly =
     designType === '사진·그래픽' ||
     colorCount === '그라데이션';
-  if (digitalOnly) return ['DTF 전사', 'DTG 전사'];
+  if (digitalOnly) return ['DTF 전사', 'DTG 전사', '자수'];
   return ['실크 나염', 'DTF 전사', 'DTG 전사', '자수'];
 }
 
@@ -180,15 +182,24 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
     };
   });
 
-  // 최저가 (eligible + 산정가능 중 총액 최소). 30벌 미만이면 bulk(나염/자수)는 추천 대상 제외.
+  // 최저가 (eligible + 산정가능 중 총액 최소).
+  // - 자수는 프리미엄/특수라 사용자가 직접 고르지 않는 한 자동 추천하지 않음(항상 제외).
+  // - 나염 등 bulk는 30벌 미만이면 base_price 부담이 커서 추천 제외.
   const priceable = quotes.filter((q) => q.eligible && q.total !== null);
   const BULK_MIN_QTY = 30;
   const recommendable = priceable.filter((q) =>
-    qty >= BULK_MIN_QTY || !BULK_CHOICES.has(q.method),
+    q.method !== '자수' && (qty >= BULK_MIN_QTY || !BULK_CHOICES.has(q.method)),
   );
-  const pool = recommendable.length > 0 ? recommendable : priceable;
+  // 자수만 남는 극단적 경우엔 자수 제외한 산정가능분으로 폴백(그래도 없으면 전체).
+  const pool =
+    recommendable.length > 0
+      ? recommendable
+      : priceable.filter((q) => q.method !== '자수').length > 0
+        ? priceable.filter((q) => q.method !== '자수')
+        : priceable;
   if (pool.length > 0) {
-    const min = pool.reduce((a, b) => (a.total! < b.total! ? a : b));
+    // 동률이면 먼저 나온 방식(배열 순서: 나염 < DTF < DTG < 자수) 유지 — <= 로 앞쪽 우선.
+    const min = pool.reduce((a, b) => (a.total! <= b.total! ? a : b));
     min.cheapest = true;
   }
   return quotes;
@@ -197,17 +208,15 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
 // 휴리스틱 폴백 (실가격 로드 실패 시) — 제약 기반 단순 추천
 export function recommendPrintMethodHeuristic(input: RecommendInput): PrintMethodChoice {
   const eligible = eligibleMethodChoices(input.designType, input.colorCount);
-  if (input.priorities?.[0] === '퀄리티' && eligible.includes('자수')) return '자수';
+  // 자수는 자동 추천하지 않음(사용자 선택 전용).
   const isLargeQty = input.quantity === '50~100벌' || input.quantity === '100벌 이상';
   if (isLargeQty && eligible.includes('실크 나염')) return '실크 나염';
-  return eligible.includes('DTF 전사') ? 'DTF 전사' : eligible[0];
+  return eligible.includes('DTF 전사') ? 'DTF 전사' : (eligible.find((m) => m !== '자수') ?? eligible[0]);
 }
 
 // 실가격 기반 추천 방식 1개 (피커 뱃지용). 퀄리티 최우선이면 자수, 아니면 이 수량 최저가.
 export async function recommendMethod(input: RecommendInput): Promise<PrintMethodChoice> {
-  const eligible = eligibleMethodChoices(input.designType, input.colorCount);
-  const qty = input.quantityExact ?? (input.quantity ? REP_QTY[input.quantity] : 35);
-  if (input.priorities?.[0] === '퀄리티' && eligible.includes('자수') && qty >= 30) return '자수';
+  // 자수는 자동 추천하지 않음 — computeMethodQuotes의 cheapest가 자수를 배제함.
   const quotes = await computeMethodQuotes(input);
   const cheapest = quotes.find((q) => q.cheapest);
   if (cheapest) return cheapest.method;
@@ -223,10 +232,8 @@ export async function buildRecommendation(input: RecommendInput): Promise<Recomm
   const quotes = await computeMethodQuotes(input);
   const eligible = eligibleMethodChoices(input.designType, input.colorCount);
 
-  const recommended =
-    input.priorities?.[0] === '퀄리티' && eligible.includes('자수') && qty >= 30
-      ? '자수'
-      : (quotes.find((q) => q.cheapest)?.method ?? recommendPrintMethodHeuristic(input));
+  // 자수는 자동 추천하지 않음(cheapest가 이미 자수 배제). 사용자가 직접 고른 경우만 자수.
+  const recommended = quotes.find((q) => q.cheapest)?.method ?? recommendPrintMethodHeuristic(input);
 
   const method = input.chosenMethod ?? recommended;
   const chosenQuote = quotes.find((q) => q.method === method) ?? null;
