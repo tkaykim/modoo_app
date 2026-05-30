@@ -23,7 +23,8 @@ const ALLOWED_TYPES = [
   'application/vnd.adobe.illustrator',               // .ai alt
 ];
 
-const MAX_FILES = 5;
+const MAX_FILES = 10;
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50MB/파일 — 여유롭게
 
 export async function POST(req: Request) {
   const supabase = await createAuthedClient();
@@ -50,6 +51,12 @@ export async function POST(req: Request) {
     if (!isAllowed) {
       return NextResponse.json(
         { error: `File type not allowed: ${file.name}` },
+        { status: 400 },
+      );
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        { error: `파일이 너무 큽니다(최대 50MB): ${file.name}` },
         { status: 400 },
       );
     }

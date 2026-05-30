@@ -157,6 +157,7 @@ export interface InquiryReply {
   inquiry_id: string;
   admin_id: string | null;
   content: string;
+  file_urls?: string[] | null;
   created_at: string;
   updated_at: string;
 }

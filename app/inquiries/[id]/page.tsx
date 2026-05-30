@@ -42,6 +42,8 @@ export default function InquiryDetailPage() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [replyContent, setReplyContent] = useState('');
+  const [replyFiles, setReplyFiles] = useState<string[]>([]);
+  const [isUploadingReplyFiles, setIsUploadingReplyFiles] = useState(false);
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -110,6 +112,9 @@ export default function InquiryDetailPage() {
       const data = await res.json();
 
       if (data.match) {
+        // 답글 작성 시 재인증에 사용 (게시판 비밀번호 = 보통 연락처). 세션 한정.
+        try { sessionStorage.setItem(`inquiry_pw_${inquiryId}`, passwordInput.trim()); } catch {}
+        sessionStorage.setItem(`inquiry_verified_${inquiryId}`, 'true');
         setIsVerified(true);
         setIsLoading(true);
         await fetchInquiry();
@@ -140,6 +145,8 @@ export default function InquiryDetailPage() {
         replies:inquiry_replies(
           id,
           content,
+          file_urls,
+          is_admin,
           created_at,
           updated_at,
           admin:profiles!inquiry_replies_admin_id_fkey(email)
@@ -159,44 +166,64 @@ export default function InquiryDetailPage() {
     setIsLoading(false);
   };
 
-  const handleSubmitReply = async () => {
-    if (!replyContent.trim()) {
-      alert('답변 내용을 입력해주세요.');
-      return;
+  const handleUploadReplyFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingReplyFiles(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).forEach((f) => fd.append('files', f));
+      const res = await fetch('/api/inquiries/files/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || '업로드 실패');
+      const urls = (json?.files || []).map((f: { url: string }) => f.url);
+      setReplyFiles((prev) => [...prev, ...urls]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '파일 업로드에 실패했습니다.');
+    } finally {
+      setIsUploadingReplyFiles(false);
     }
+  };
 
-    if (!user) {
-      alert('로그인이 필요합니다.');
+  const handleSubmitReply = async () => {
+    if (!replyContent.trim() && replyFiles.length === 0) {
+      alert('답변 내용 또는 첨부를 입력해주세요.');
       return;
     }
 
     setIsSubmittingReply(true);
 
     try {
-      const supabase = createClient();
+      let password: string | null = null;
+      try { password = sessionStorage.getItem(`inquiry_pw_${inquiryId}`); } catch {}
 
-      const { error } = await supabase
-        .from('inquiry_replies')
-        .insert({
-          inquiry_id: inquiryId,
-          admin_id: user.id,
-          content: replyContent.trim()
-        });
-
-      if (error) throw error;
-
-      // Send email notification to inquiry writer (fire-and-forget)
-      fetch('/api/inquiries/reply-notify', {
+      const res = await fetch('/api/inquiries/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inquiryId, replyContent: replyContent.trim() }),
-      }).catch((err) => console.error('Failed to send reply notification:', err));
+        body: JSON.stringify({
+          inquiryId,
+          content: replyContent.trim(),
+          file_urls: replyFiles,
+          ...(password ? { password } : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || '답변 등록 실패');
+
+      // 관리자 답변일 때만 작성자에게 메일 알림 (fire-and-forget)
+      if (json?.is_admin && replyContent.trim()) {
+        fetch('/api/inquiries/reply-notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inquiryId, replyContent: replyContent.trim() }),
+        }).catch((err) => console.error('Failed to send reply notification:', err));
+      }
 
       setReplyContent('');
+      setReplyFiles([]);
       await fetchInquiry();
     } catch (error) {
       console.error('Error submitting reply:', error);
-      alert('답변 등록 중 오류가 발생했습니다.');
+      alert(error instanceof Error ? error.message : '답변 등록 중 오류가 발생했습니다.');
     } finally {
       setIsSubmittingReply(false);
     }
@@ -464,11 +491,11 @@ export default function InquiryDetailPage() {
           {inquiry.replies && inquiry.replies.length > 0 ? (
             <div className="space-y-4 mb-6">
               {inquiry.replies.map((reply: any) => (
-                <div key={reply.id} className="border-l-4 border-[#3B55A5] pl-4 py-2">
+                <div key={reply.id} className={`border-l-4 pl-4 py-2 ${reply.is_admin === false ? 'border-gray-300' : 'border-[#3B55A5]'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-[#3B55A5]">
-                        모두 유니폼
+                      <span className={`text-sm font-medium ${reply.is_admin === false ? 'text-gray-700' : 'text-[#3B55A5]'}`}>
+                        {reply.is_admin === false ? '고객님' : '모두 유니폼'}
                       </span>
                     </div>
                     <span className="text-xs text-gray-500">
@@ -476,6 +503,22 @@ export default function InquiryDetailPage() {
                     </span>
                   </div>
                   <p className="text-gray-700 whitespace-pre-wrap">{reply.content}</p>
+                  {reply.file_urls && reply.file_urls.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {reply.file_urls.map((url: string) =>
+                        /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) ? (
+                          <a key={url} href={url} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="첨부 이미지" className="w-28 h-28 object-cover rounded-lg border border-gray-200" />
+                          </a>
+                        ) : (
+                          <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm bg-blue-50 text-blue-700 hover:bg-blue-100">
+                            <Paperclip className="w-3.5 h-3.5" /> 첨부파일
+                          </a>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -485,25 +528,63 @@ export default function InquiryDetailPage() {
             </div>
           )}
 
-          {/* Reply Form (Admin Only) */}
-          {isAdmin && (
+          {/* Reply Form — 관리자 + 고객(작성자/비밀번호 인증) */}
+          {isVerified && (
             <div className="pt-4 border-t border-gray-200">
+              {!isAdmin && (
+                <p className="text-sm text-gray-600 mb-2">
+                  답변에 궁금한 점이나 로고·이미지가 있으시면 답글과 함께 첨부해 주세요.
+                </p>
+              )}
               <textarea
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="답변을 입력해주세요..."
+                placeholder={isAdmin ? '답변을 입력해주세요...' : '답글을 입력해주세요...'}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black transition resize-none mb-3"
                 disabled={isSubmittingReply}
               />
-              <div className="flex justify-end">
+              {replyFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {replyFiles.map((url) => (
+                    <div key={url} className="relative">
+                      {/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={url} alt="첨부" className="w-16 h-16 object-cover rounded border border-gray-200" />
+                      ) : (
+                        <span className="flex items-center justify-center w-16 h-16 rounded border border-gray-200 bg-gray-50 text-[10px] text-gray-500">파일</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setReplyFiles((prev) => prev.filter((u) => u !== url))}
+                        className="absolute -top-1.5 -right-1.5 bg-gray-800 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Paperclip className="w-4 h-4" />
+                  {isUploadingReplyFiles ? '업로드 중...' : '이미지/파일 첨부'}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf,.ai"
+                    className="hidden"
+                    disabled={isSubmittingReply || isUploadingReplyFiles}
+                    onChange={(e) => handleUploadReplyFiles(e.target.files)}
+                  />
+                </label>
                 <button
                   onClick={handleSubmitReply}
-                  disabled={isSubmittingReply || !replyContent.trim()}
+                  disabled={isSubmittingReply || (!replyContent.trim() && replyFiles.length === 0)}
                   className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  {isSubmittingReply ? '등록 중...' : '답변 등록'}
+                  {isSubmittingReply ? '등록 중...' : isAdmin ? '답변 등록' : '답글 등록'}
                 </button>
               </div>
             </div>
