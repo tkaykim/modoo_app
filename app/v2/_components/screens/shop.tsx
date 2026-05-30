@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Search, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 import { MODOO, Icon, Tee, TabBar, AppBar, Chip } from "../tokens";
 import type {
   V2CatalogProduct,
@@ -218,44 +219,52 @@ export const Catalog: React.FC<CatalogProps> = ({
           }
         />
 
-        {/* 검색 바 + 필터 토글 */}
-        <div style={{ padding: "4px 16px 10px" }}>
+        {/* 검색 바 + 필터 토글 (v1 home/search 형태) */}
+        <div style={{ padding: "4px 16px 8px" }}>
           <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <span style={{ position: "absolute", left: 12, display: "flex", color: MODOO.faint }}>
-              <Icon name="search" size={19} />
+            <span style={{ position: "absolute", left: 12, display: "flex", color: MODOO.faint, pointerEvents: "none" }}>
+              <Search size={20} />
             </span>
             <input
               type="text"
-              placeholder="상품 검색"
+              placeholder="상품 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: "100%",
-                height: 44,
-                padding: "0 84px 0 38px",
-                borderRadius: 12,
+                height: 48,
+                padding: "0 80px 0 40px",
+                borderRadius: 10,
                 border: `1px solid ${MODOO.hairline}`,
-                background: MODOO.surfaceAlt,
-                font: `500 14px/1 ${MODOO.fonts.sans}`,
+                background: "#fff",
+                font: `500 15px/1 ${MODOO.fonts.sans}`,
                 outline: "none",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = brand;
+                e.currentTarget.style.boxShadow = `0 0 0 2px ${MODOO.brandSoft}`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = MODOO.hairline;
+                e.currentTarget.style.boxShadow = "none";
               }}
             />
             <div
               style={{
                 position: "absolute",
-                right: 8,
+                right: 10,
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                gap: 6,
               }}
             >
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
                   aria-label="검색어 지우기"
-                  style={{ display: "flex", color: MODOO.faint, padding: 4 }}
+                  style={{ display: "flex", color: MODOO.faint, padding: 2 }}
                 >
-                  <Icon name="close" size={18} />
+                  <X size={20} />
                 </button>
               )}
               <button
@@ -265,20 +274,20 @@ export const Catalog: React.FC<CatalogProps> = ({
                   position: "relative",
                   display: "flex",
                   padding: 6,
-                  borderRadius: 9,
+                  borderRadius: 8,
                   background: showFilters || hasActiveFilter ? MODOO.brandSoft : "transparent",
                   color: showFilters || hasActiveFilter ? brand : MODOO.faint,
                 }}
               >
-                <Icon name="filter" size={19} />
+                <SlidersHorizontal size={20} />
                 {hasActiveFilter && (
                   <span
                     style={{
                       position: "absolute",
-                      top: 2,
-                      right: 2,
-                      width: 7,
-                      height: 7,
+                      top: 1,
+                      right: 1,
+                      width: 8,
+                      height: 8,
                       borderRadius: 4,
                       background: brand,
                     }}
@@ -448,7 +457,7 @@ export const Catalog: React.FC<CatalogProps> = ({
                 color: MODOO.body,
               }}
             >
-              <Icon name="sort" size={15} />
+              <ArrowUpDown size={14} />
               {SORT_LABELS[sortBy]}
             </button>
             {showSortMenu && (
@@ -501,7 +510,7 @@ export const Catalog: React.FC<CatalogProps> = ({
           }}
         >
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: MODOO.hairline }}>
-            <Icon name="search" size={48} />
+            <Search size={48} />
           </div>
           <div style={{ font: `700 15px/1.4 ${MODOO.fonts.sans}`, color: MODOO.body }}>
             검색 결과가 없어요
