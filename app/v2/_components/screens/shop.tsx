@@ -311,7 +311,7 @@ export const Catalog: React.FC<CatalogProps> = ({
                   </span>
                 </span>
                 <span style={{ font: `500 11px/1 ${MODOO.fonts.sans}`, color: MODOO.faint }}>
-                  / 장 · 인쇄 포함
+                  / 장 · 인쇄 별도
                 </span>
               </div>
 
