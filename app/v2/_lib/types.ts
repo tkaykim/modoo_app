@@ -14,6 +14,10 @@ export interface V2CatalogProduct {
   isBest: boolean;
   isNew: boolean;
   isHot: boolean;
+  /** 제품 사진 갤러리(메인 포함). 비어 있으면 thumbnail 단일 사용. */
+  gallery?: string[];
+  /** admin 키워드(해시태그) = products.keywords. 없으면 속성으로 자동 도출. */
+  keywords?: string[];
 }
 
 export interface V2Category {

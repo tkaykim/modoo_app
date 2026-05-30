@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MODOO, Icon, Tee, TabBar, AppBar, Chip } from "../tokens";
+import { MODOO, Icon, Tee, TabBar, AppBar, Chip, Placeholder } from "../tokens";
 import type {
   V2CatalogProduct,
   V2Category,
@@ -16,7 +16,31 @@ interface BrandProp {
 const FALLBACK_COLORS = ["#0E1116", "#FFE7B0", "#0052CC", "#5C6573", "#FFFFFF", "#16331F"];
 const SORT_LABELS = ["추천순", "인기순", "낮은 가격순", "빠른제작"];
 
-function ProductThumb({
+/* ------------------------------------------------------------------ *
+ * 인쇄 방식별 대표예시 — 제품 무관 공용 컷.
+ * imgUrl 에 실제 대표 사진을 꽂으면 placeholder 대신 그 사진이 노출됨.
+ * (라벨/단가 표현은 v2 editor 의 인쇄 방식 정의와 일치)
+ * ------------------------------------------------------------------ */
+const PRINT_EXAMPLES: {
+  key: string;
+  label: string;
+  sub: string;
+  tone: "warm" | "cool" | "blue" | "gray" | "dark";
+  imgUrl: string | null;
+}[] = [
+  { key: "dtf", label: "DTF 전사", sub: "풀컬러 · 사진", tone: "blue", imgUrl: null },
+  { key: "silk", label: "실크 나염", sub: "선명 · 대량", tone: "warm", imgUrl: null },
+  { key: "embroidery", label: "자수", sub: "고급 · 입체", tone: "gray", imgUrl: null },
+];
+
+/** admin에서 지정한 키워드(products.keywords)만 노출. 비어 있으면 표시 안 함. */
+function productHashtags(p: V2CatalogProduct): string[] {
+  return (p.keywords ?? []).slice(0, 5);
+}
+
+const RAIL_H = 144;
+
+function RailImg({
   src,
   fallbackColor,
   alt,
@@ -31,15 +55,24 @@ function ProductThumb({
       <img
         src={src}
         alt={alt}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
     );
   }
-  return <Tee color={fallbackColor} size={130} lining={fallbackColor !== "#FFFFFF"} />;
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: MODOO.surfaceWarm,
+      }}
+    >
+      <Tee color={fallbackColor} size={108} lining={fallbackColor !== "#FFFFFF"} />
+    </div>
+  );
 }
 
 interface CatalogProps extends BrandProp {
@@ -61,9 +94,7 @@ export const Catalog: React.FC<CatalogProps> = ({
       : products.filter((p) => p.category === selectedCategory);
 
   return (
-    <div
-      style={{ background: "#fff", minHeight: "100%", position: "relative" }}
-    >
+    <div style={{ background: "#fff", minHeight: "100%", position: "relative" }}>
       <AppBar
         title="상품"
         left={
@@ -121,27 +152,21 @@ export const Catalog: React.FC<CatalogProps> = ({
           </div>
         ))}
       </div>
-      <div
-        style={{
-          padding: 12,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-        }}
-      >
-        {filtered.length === 0 && (
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              padding: "60px 20px",
-              textAlign: "center",
-              color: MODOO.muted,
-              font: `500 13px/1.5 ${MODOO.fonts.sans}`,
-            }}
-          >
-            표시할 상품이 없어요.
-          </div>
-        )}
+
+      {filtered.length === 0 && (
+        <div
+          style={{
+            padding: "60px 20px",
+            textAlign: "center",
+            color: MODOO.muted,
+            font: `500 13px/1.5 ${MODOO.fonts.sans}`,
+          }}
+        >
+          표시할 상품이 없어요.
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column" }}>
         {filtered.map((p, i) => {
           const tag = p.isBest
             ? "BEST"
@@ -151,120 +176,276 @@ export const Catalog: React.FC<CatalogProps> = ({
                 ? "신상"
                 : null;
           const fallback = FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+          const gallery = (p.gallery && p.gallery.length
+            ? p.gallery
+            : p.thumbnail
+              ? [p.thumbnail]
+              : []
+          ).slice(0, 3);
+          const hashtags = productHashtags(p);
+
           return (
             <Link
               key={p.id}
               href={`/v2/product/${p.id}`}
-              style={{ textDecoration: "none", color: "inherit", position: "relative" }}
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+                padding: "16px 16px 18px",
+                borderBottom: `1px solid ${MODOO.hairlineSoft}`,
+              }}
             >
+              {/* 사진 레일: [제품 메인] + [인쇄 방식별 대표예시] 가로 스크롤 */}
               <div
                 style={{
-                  aspectRatio: "1/1.05",
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  background: MODOO.surfaceWarm,
-                  border: `1px solid ${MODOO.hairlineSoft}`,
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  position: "relative",
+                  gap: 8,
+                  overflowX: "auto",
+                  scrollbarWidth: "none",
+                  margin: "0 -16px",
+                  padding: "0 16px 2px",
                 }}
               >
-                <ProductThumb src={p.thumbnail} fallbackColor={fallback} alt={p.title} />
-                {tag && (
+                {/* 메인 제품 컷 */}
+                <div
+                  style={{
+                    position: "relative",
+                    flex: "0 0 auto",
+                    width: RAIL_H,
+                    height: RAIL_H,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    background: MODOO.surfaceWarm,
+                    border: `1px solid ${MODOO.hairlineSoft}`,
+                  }}
+                >
+                  <RailImg src={p.thumbnail} fallbackColor={fallback} alt={p.title} />
+                  {tag && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        left: 8,
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                        background:
+                          tag === "BEST"
+                            ? brand
+                            : tag === "HOT"
+                              ? MODOO.err
+                              : MODOO.ink,
+                        color: "#fff",
+                        font: `700 10px/1.2 ${MODOO.fonts.mono}`,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {tag}
+                    </div>
+                  )}
                   <div
                     style={{
                       position: "absolute",
-                      top: 8,
                       left: 8,
-                      padding: "3px 8px",
+                      bottom: 8,
+                      padding: "2px 7px",
                       borderRadius: 6,
-                      background:
-                        tag === "BEST"
-                          ? brand
-                          : tag === "HOT"
-                            ? MODOO.err
-                            : MODOO.ink,
+                      background: "rgba(14,17,22,0.62)",
                       color: "#fff",
-                      font: `700 10px/1.2 ${MODOO.fonts.mono}`,
-                      letterSpacing: "0.06em",
+                      font: `600 10px/1.3 ${MODOO.fonts.sans}`,
                     }}
                   >
-                    {tag}
+                    무지 제품
                   </div>
-                )}
+                </div>
+
+                {/* 추가 제품 사진(갤러리) */}
+                {gallery.slice(1).map((src, gi) => (
+                  <div
+                    key={`g${gi}`}
+                    style={{
+                      flex: "0 0 auto",
+                      width: RAIL_H,
+                      height: RAIL_H,
+                      borderRadius: 14,
+                      overflow: "hidden",
+                      background: MODOO.surfaceWarm,
+                      border: `1px solid ${MODOO.hairlineSoft}`,
+                    }}
+                  >
+                    <RailImg src={src} fallbackColor={fallback} alt={p.title} />
+                  </div>
+                ))}
+
+                {/* 인쇄 방식별 대표예시 */}
+                {PRINT_EXAMPLES.map((ex) => (
+                  <div
+                    key={ex.key}
+                    style={{
+                      position: "relative",
+                      flex: "0 0 auto",
+                      width: RAIL_H,
+                      height: RAIL_H,
+                      borderRadius: 14,
+                      overflow: "hidden",
+                      border: `1px solid ${MODOO.hairlineSoft}`,
+                    }}
+                  >
+                    {ex.imgUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={ex.imgUrl}
+                        alt={ex.label}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <Placeholder label={`${ex.label} 예시`} tone={ex.tone} />
+                    )}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 6,
+                        right: 6,
+                        bottom: 6,
+                        padding: "5px 8px",
+                        borderRadius: 9,
+                        background: "rgba(14,17,22,0.66)",
+                        backdropFilter: "blur(4px)",
+                        WebkitBackdropFilter: "blur(4px)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          font: `700 11px/1.2 ${MODOO.fonts.sans}`,
+                          color: "#fff",
+                        }}
+                      >
+                        {ex.label}
+                      </div>
+                      <div
+                        style={{
+                          font: `500 9px/1.2 ${MODOO.fonts.sans}`,
+                          color: "rgba(255,255,255,0.78)",
+                          marginTop: 1,
+                        }}
+                      >
+                        {ex.sub}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 본문 */}
+              <div style={{ marginTop: 12, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ font: `700 16px/1.3 ${MODOO.fonts.sans}`, letterSpacing: "-0.01em" }}>
+                    {p.title}
+                  </div>
+                  <div
+                    style={{
+                      font: `500 12px/1.2 ${MODOO.fonts.sans}`,
+                      color: MODOO.muted,
+                      marginTop: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    {p.manufacturerName && <span>{p.manufacturerName}</span>}
+                    {p.colorCount > 0 && (
+                      <>
+                        {p.manufacturerName && <span style={{ color: MODOO.hairline }}>·</span>}
+                        <span>{p.colorCount}색상</span>
+                      </>
+                    )}
+                    {p.reviewCount > 0 && (
+                      <>
+                        <span style={{ color: MODOO.hairline }}>·</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                          <Icon name="star-fill" size={11} color={MODOO.yolk} />
+                          리뷰 {p.reviewCount}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <button
                   style={{
-                    position: "absolute",
-                    right: 8,
-                    bottom: 8,
-                    width: 30,
-                    height: 30,
-                    borderRadius: 15,
+                    flex: "0 0 auto",
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
                     background: "#fff",
+                    border: `1px solid ${MODOO.hairline}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
                   }}
                 >
-                  <Icon name="heart" size={16} color={MODOO.muted} />
+                  <Icon name="heart" size={17} color={MODOO.muted} />
                 </button>
               </div>
-              <div style={{ padding: "10px 2px 0" }}>
-                <div style={{ font: `600 13px/1.3 ${MODOO.fonts.sans}` }}>
-                  {p.title}
-                </div>
-                <div
-                  style={{
-                    font: `500 11px/1.2 ${MODOO.fonts.sans}`,
-                    color: MODOO.muted,
-                    marginTop: 3,
-                  }}
-                >
-                  {p.manufacturerName ?? ""}
-                  {p.colorCount > 0 && (p.manufacturerName ? ` · ${p.colorCount}col` : `${p.colorCount}col`)}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 6,
-                    marginTop: 6,
-                  }}
-                >
-                  {p.originalPrice && (
-                    <span
-                      className="num"
-                      style={{
-                        font: `500 11px/1 ${MODOO.fonts.sans}`,
-                        color: MODOO.faint,
-                        textDecoration: "line-through",
-                      }}
-                    >
-                      {p.originalPrice.toLocaleString()}
-                    </span>
-                  )}
+
+              {/* 가격: 얼마부터 시작 */}
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                }}
+              >
+                {p.originalPrice && (
                   <span
                     className="num"
-                    style={{ font: `700 14px/1 ${MODOO.fonts.sans}` }}
+                    style={{
+                      font: `500 12px/1 ${MODOO.fonts.sans}`,
+                      color: MODOO.faint,
+                      textDecoration: "line-through",
+                    }}
                   >
+                    {p.originalPrice.toLocaleString()}
+                  </span>
+                )}
+                <span style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                  <span className="num" style={{ font: `800 19px/1 ${MODOO.fonts.sans}`, letterSpacing: "-0.02em" }}>
                     ₩{p.price.toLocaleString()}
                   </span>
-                  {p.reviewCount > 0 && (
-                    <span
-                      className="num"
-                      style={{
-                        font: `500 10px/1 ${MODOO.fonts.sans}`,
-                        color: MODOO.faint,
-                        marginLeft: "auto",
-                      }}
-                    >
-                      리뷰 {p.reviewCount}
-                    </span>
-                  )}
-                </div>
+                  <span style={{ font: `600 13px/1 ${MODOO.fonts.sans}`, color: MODOO.muted }}>
+                    부터
+                  </span>
+                </span>
+                <span style={{ font: `500 11px/1 ${MODOO.fonts.sans}`, color: MODOO.faint }}>
+                  / 장 · 인쇄 포함
+                </span>
               </div>
+
+              {/* 해시태그 (admin 키워드가 있을 때만) */}
+              {hashtags.length > 0 && (
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                }}
+              >
+                {hashtags.map((h) => (
+                  <span
+                    key={h}
+                    style={{
+                      padding: "4px 9px",
+                      borderRadius: 999,
+                      background: MODOO.brandSofter,
+                      color: MODOO.brand,
+                      font: `600 11px/1 ${MODOO.fonts.sans}`,
+                    }}
+                  >
+                    #{h}
+                  </span>
+                ))}
+              </div>
+              )}
             </Link>
           );
         })}

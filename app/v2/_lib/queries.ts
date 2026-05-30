@@ -34,7 +34,7 @@ export const getV2CatalogProducts = unstable_cache(
       supabase
         .from("products")
         .select(
-          "id, title, thumbnail_image_link, base_price, discount_rates, category, is_featured, created_at, manufacturers(name)"
+          "id, title, thumbnail_image_link, base_price, discount_rates, category, is_featured, created_at, keywords, manufacturers(name)"
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
@@ -53,6 +53,7 @@ export const getV2CatalogProducts = unstable_cache(
       category: string | null;
       is_featured: boolean | null;
       created_at: string;
+      keywords: string[] | null;
       manufacturers?: { name: string } | { name: string }[] | null;
     };
 
@@ -89,6 +90,8 @@ export const getV2CatalogProducts = unstable_cache(
         id: p.id,
         title: p.title,
         thumbnail: p.thumbnail_image_link?.[0] ?? null,
+        gallery: p.thumbnail_image_link ?? [],
+        keywords: p.keywords ?? [],
         price: discounted ?? p.base_price,
         originalPrice: discounted ? p.base_price : null,
         category: p.category,
