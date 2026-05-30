@@ -46,20 +46,24 @@ export default function PrintMethodBubble({
     <div className="mt-3">
       {digitalRequired && (
         <p className="text-xs text-amber-600 mb-2">
-          사진·풀컬러·그라데이션은 디지털 인쇄(DTF/DTG)만 가능해서 해당 방식만 보여드려요.
+          사진·풀컬러·그라데이션은 나염이 어려워 DTF·DTG를 추천드려요. (일러스트는 자수로도 표현 가능해요)
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-2 mb-2">
-        {visible.map((method) => {
+        {visible.map((method, idx) => {
           const isRecommended = method === recommendedMethod;
           const isSelected = method === selected;
+          // 홀수 개수면 마지막 항목을 전체폭으로 채워 레이아웃이 깨지지 않게.
+          const isLastOdd = visible.length % 2 === 1 && idx === visible.length - 1;
           return (
             <button
               key={method}
               onClick={() => !disabled && setSelected(method)}
               disabled={disabled}
               className={`relative px-2.5 py-3 rounded-lg transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+                isLastOdd ? 'col-span-2' : ''
+              } ${
                 isSelected
                   ? 'bg-[#3B55A5] text-white ring-2 ring-[#3B55A5] ring-offset-1'
                   : 'bg-white text-gray-700 border border-gray-300 hover:border-[#3B55A5]'
