@@ -404,19 +404,25 @@ export default function InquiryDetailPage() {
                 <Paperclip className="w-4 h-4 inline-block mr-1" />
                 첨부파일 ({inquiry.file_urls.length})
               </h3>
-              <div className="space-y-2">
+              <div className="flex flex-wrap gap-3">
                 {inquiry.file_urls.map((url: string, idx: number) => {
                   const fileName = decodeURIComponent(url.split('/').pop() || `파일 ${idx + 1}`);
-                  return (
+                  const isImg = /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url);
+                  return isImg ? (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" title={fileName}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={fileName} className="w-24 h-24 object-cover rounded-lg border border-gray-200" />
+                    </a>
+                  ) : (
                     <a
                       key={idx}
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-[#3B55A5] hover:underline"
+                      className="flex items-center gap-2 text-sm text-[#3B55A5] hover:underline px-3 py-2 border border-gray-200 rounded-lg"
                     >
                       <ExternalLink className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{fileName}</span>
+                      <span className="truncate max-w-[160px]">{fileName}</span>
                     </a>
                   );
                 })}
