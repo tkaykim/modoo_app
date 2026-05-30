@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { X, ArrowLeft, Home } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { trackChatbotStep } from '@/lib/gtm-events';
 import {
   QuickReply,
   InquiryStep,
@@ -80,6 +81,11 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   const [chatbotFaqs, setChatbotFaqs] = useState<FaqItem[]>(FAQ_ITEMS);
   useEffect(() => {
     fetchChatbotFaqs().then(setChatbotFaqs).catch(() => {});
+  }, []);
+
+  // 챗봇 진입(상담창 열림) — 퍼널 1단계. 마운트 1회.
+  useEffect(() => {
+    trackChatbotStep('open');
   }, []);
 
   // 전체화면 진입 시 환영 메시지 초기화 (플로팅은 런처의 openChat이 담당하므로 불필요)
@@ -169,6 +175,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   };
 
   const startConsult = () => {
+    trackChatbotStep('start');
     setInquiryStep('clothing_type');
     addBotMessage('clothing_type', '제작 상담을 시작할게요.');
   };
@@ -274,6 +281,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
       case 'clothing_type':
         if (CLOTHING_TYPES.includes(text as ClothingType)) {
+          trackChatbotStep('clothing', { clothing: text });
           updateInquiryData({ clothingType: text as ClothingType });
           setInquiryStep('quantity');
           addBotMessage('quantity', `${text} 좋은 선택이세요!`);
@@ -289,6 +297,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       case 'design_type':
         if (DESIGN_TYPES.includes(text as DesignType)) {
           const designType = text as DesignType;
+          trackChatbotStep('design_type', { design: designType });
           updateInquiryData({ designType });
           if (FULL_COLOR_DESIGN_TYPES.includes(designType)) {
             setInquiryStep('print_location');
@@ -304,6 +313,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
       case 'color_count':
         if (COLOR_COUNTS.includes(text as ColorCount)) {
+          trackChatbotStep('color', { color: text });
           updateInquiryData({ colorCount: text as ColorCount });
           setInquiryStep('print_location');
           addBotMessage('print_location', `${text} 확인했어요!`);
@@ -355,6 +365,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   };
 
   const handleProductClick = (productId: string) => {
+    trackChatbotStep('product_click');
     router.push(`/editor/${productId}`);
     if (variant === 'floating') closeChat();
   };
@@ -373,6 +384,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // 수량 직접 입력 → design_type
   const handleQuantitySubmit = async (qty: number) => {
     if (isTyping) return;
+    trackChatbotStep('quantity');
     addMessage({ sender: 'user', content: `${qty}벌 정도`, contentType: 'text' });
     setIsTyping(true);
     await delay(400);
@@ -386,6 +398,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // 크기별 디자인 개수 입력됨 → 실가격 로드 후 인쇄방식 피커
   const handleDesignSizeSubmit = async (counts: DesignSizeCounts) => {
     if (isTyping) return;
+    trackChatbotStep('size');
 
     const summary = [
       counts['10x10'] > 0 ? `작은 ${counts['10x10']}개` : '',
@@ -437,6 +450,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // Print method selected
   const handleMethodSelect = async (method: PrintMethodChoice) => {
     if (isTyping) return;
+    trackChatbotStep('method', { method });
 
     addMessage({ sender: 'user', content: method, contentType: 'text' });
     setIsTyping(true);
@@ -452,6 +466,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // Date submitted → priorities
   const handleDateSubmit = async (date: string | null, flexible: boolean) => {
     if (isTyping) return;
+    trackChatbotStep('date');
 
     setIsTyping(true);
     await delay(300);
@@ -467,6 +482,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // Priorities submitted → 실가격 추천 카드
   const handlePrioritiesSubmit = async (priorities: Priority[]) => {
     if (isTyping) return;
+    trackChatbotStep('priority', { priority: priorities[0] || '' });
 
     setIsTyping(true);
     await delay(400);
@@ -504,6 +520,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     const products = await fetchRecommendations(priorities[0]);
     updateInquiryData({ recommendedProductIds: products.map((p) => p.id) });
 
+    trackChatbotStep('recommendation', { method: recommendation.method });
     setInquiryStep('recommendation');
     addMessage({
       sender: 'bot',
@@ -517,6 +534,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
   const handleConsult = async () => {
     if (isTyping) return;
+    trackChatbotStep('consult_click');
     setIsTyping(true);
     await delay(300);
     updateInquiryData({ consultRequested: true });
@@ -570,6 +588,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
         throw new Error(result.error || 'Failed to submit inquiry');
       }
 
+      trackChatbotStep('submitted');
       setInquiryId(result.inquiry.id);
       setInquiryStep('completed');
 

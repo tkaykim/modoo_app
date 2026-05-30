@@ -22,6 +22,7 @@ import {
   pixelInitiateCheckout,
   pixelPurchase,
 } from './meta-pixel';
+import { track } from './analytics-tracker';
 
 export type DesignActionType =
   | 'text_add'
@@ -503,4 +504,30 @@ export const trackChatbotOpen = (p?: { source?: string }): void => {
     event: 'chatbot_open',
     source: p?.source,
   });
+};
+
+/**
+ * 챗봇 상담 퍼널 단계 추적. GA4(dataLayer) + DB(analytics_events) 동시 전송.
+ * DB에 쌓이므로 session_id 기준 단계별 distinct 집계(=몇 명)를 SQL로 바로 낼 수 있다.
+ * PII 금지 — step 이름과 비식별 태그(의류종류/인쇄방식 등)만 허용.
+ */
+export type ChatbotStep =
+  | 'open'           // 챗봇 진입(상담창 열림)
+  | 'start'          // 제작 상담 시작
+  | 'clothing'       // 의류 선택
+  | 'quantity'       // 수량 입력
+  | 'design_type'    // 디자인 종류
+  | 'color'          // 색상 수
+  | 'size'           // 크기별 개수
+  | 'method'         // 인쇄방식 선택
+  | 'date'           // 필요 날짜
+  | 'priority'       // 선호 방향
+  | 'recommendation' // 추천 카드 도달
+  | 'consult_click'  // '상담사에게 연락 받기' 클릭
+  | 'submitted'      // 연락처 제출 완료(최종 전환)
+  | 'product_click'; // 추천 상품 클릭(에디터로 self-serve)
+
+export const trackChatbotStep = (step: ChatbotStep, meta?: Record<string, string>): void => {
+  pushDataLayer({ event: 'chatbot_step', chatbot_step: step, ...(meta || {}) });
+  track({ event_type: 'chatbot_step', meta: { step, ...(meta || {}) } });
 };
