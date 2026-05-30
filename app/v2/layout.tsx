@@ -20,7 +20,7 @@ export default function V2Layout({
           maxWidth: 480,
           margin: "0 auto",
           position: "relative",
-          overflowX: "hidden",
+          overflowX: "clip",
         }}
       >
         {children}
