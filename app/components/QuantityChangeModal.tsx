@@ -267,7 +267,7 @@ export default function QuantityChangeModal({
                           return (
                             <p
                               key={index}
-                              className={`${isActive ? 'text-blue-800 font-semibold' : 'text-blue-600'}`}
+                              className={`${isActive ? 'text-blue-800 font-semibold' : 'text-[#0052CC]'}`}
                             >
                               • {tier.min_quantity}개 이상: {tier.discount_rate}% 할인
                               {isActive && ' ✓'}

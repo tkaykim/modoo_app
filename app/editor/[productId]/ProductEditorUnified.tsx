@@ -46,6 +46,7 @@ import LandingStep from "./steps/LandingStep";
 import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
 import ReviewsSection from "@/app/components/ReviewsSection";
 import DescriptionImageSection from "@/app/components/DescriptionImageSection";
+import SizeChartTable from "@/app/components/SizeChartTable";
 import QuickReplacePanel from "@/app/components/canvas/QuickReplacePanel";
 import { getTemplate, getGroup } from "@/lib/templateService";
 import { applyTemplateToStore, applyGroupTemplateToStore } from "@/lib/applyTemplate";
@@ -1379,7 +1380,11 @@ export default function ProductEditorUnified({
           <div className="px-4">
             <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
           </div>
-          {product.sizing_chart_image && (
+          {product.sizing_data ? (
+            <div className="px-4 mt-4">
+              <SizeChartTable sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
+            </div>
+          ) : product.sizing_chart_image ? (
             <div className="px-4">
               <DescriptionImageSection
                 title="사이즈 차트"
@@ -1387,7 +1392,7 @@ export default function ProductEditorUnified({
                 disableCollapse
               />
             </div>
-          )}
+          ) : null}
         </div>
 
         <QuantitySelectorModal
@@ -1398,6 +1403,7 @@ export default function ProductEditorUnified({
           pricePerItem={pricePerItem}
           isSaving={isSaving}
           sizingChartImage={product.sizing_chart_image}
+          sizingData={product.sizing_data}
           productId={product.id}
         />
 
@@ -1726,13 +1732,17 @@ export default function ProductEditorUnified({
       <div className="max-w-360 mx-auto px-6 mt-6 pb-12">
         <ReviewsSection productId={product.id} limit={10} />
         <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
-        {product.sizing_chart_image && (
+        {product.sizing_data ? (
+          <div className="mt-4">
+            <SizeChartTable sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
+          </div>
+        ) : product.sizing_chart_image ? (
           <DescriptionImageSection
             title="사이즈 차트"
             imageUrls={[product.sizing_chart_image]}
             disableCollapse
           />
-        )}
+        ) : null}
       </div>
 
       <QuantitySelectorModal
@@ -1743,6 +1753,7 @@ export default function ProductEditorUnified({
         pricePerItem={pricePerItem}
         isSaving={isSaving}
         sizingChartImage={product.sizing_chart_image}
+        sizingData={product.sizing_data}
         productId={product.id}
       />
 
@@ -1751,7 +1762,7 @@ export default function ProductEditorUnified({
         <>
           <button
             onClick={() => setLayersPanelOpen(true)}
-            className="fixed bottom-4 right-4 z-40 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+            className="fixed bottom-4 right-4 z-40 bg-[#0052CC] hover:bg-[#003D99] text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
             aria-label="레이어 & 인쇄방식 패널 열기"
           >
             <LayersIcon className="w-5 h-5" />

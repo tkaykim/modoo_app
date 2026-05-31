@@ -55,7 +55,7 @@ export async function sendCustomerInquiryConfirmation(
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
     <!-- 헤더: 로고 -->
-    <div style="background:#3B55A5;padding:24px 32px;text-align:center;">
+    <div style="background:#0052CC;padding:24px 32px;text-align:center;">
       <img src="${LOGO_URL}" alt="모두의 유니폼" style="height:36px;display:inline-block;" />
     </div>
 
@@ -69,7 +69,7 @@ export async function sendCustomerInquiryConfirmation(
 
       <!-- 상담 요약 카드 -->
       <div style="background:#f8f9ff;border:1px solid #dce3f7;border-radius:10px;padding:20px;margin-bottom:24px;">
-        <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#3B55A5;text-transform:uppercase;letter-spacing:0.05em;">상담 요약</p>
+        <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0052CC;text-transform:uppercase;letter-spacing:0.05em;">상담 요약</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px;color:#333;">
           <tr>
             <td style="padding:6px 0;width:120px;color:#888;">의류 종류</td>
@@ -89,7 +89,7 @@ export async function sendCustomerInquiryConfirmation(
           </tr>
           ${data.estimatedPayUnit != null && data.estimatedPayTotal != null ? `<tr>
             <td style="padding:6px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td>
-            <td style="padding:6px 0;font-weight:700;color:#3B55A5;">${data.quantity}벌 약 ${won(data.estimatedPayTotal)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(data.estimatedPayUnit)}</span></td>
+            <td style="padding:6px 0;font-weight:700;color:#0052CC;">${data.quantity}벌 약 ${won(data.estimatedPayTotal)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(data.estimatedPayUnit)}</span></td>
           </tr>
           <tr><td colspan="2" style="padding:2px 0 6px;color:#aaa;font-size:11px;">* 예상가이며, 실제 상담·디자인 결과에 따라 소폭 변동될 수 있습니다.</td></tr>` : `<tr>
             <td style="padding:6px 0;color:#888;">예상 인쇄비</td>
@@ -101,7 +101,7 @@ export async function sendCustomerInquiryConfirmation(
       <!-- CTA 버튼 -->
       <div style="text-align:center;margin-bottom:24px;">
         <a href="${inquiryUrl}"
-           style="display:inline-block;background:#3B55A5;color:#fff;text-decoration:none;
+           style="display:inline-block;background:#0052CC;color:#fff;text-decoration:none;
                   padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;
                   letter-spacing:0.02em;">
           내 문의 확인하기 →
@@ -112,7 +112,7 @@ export async function sendCustomerInquiryConfirmation(
       <div style="background:#fffbf0;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-bottom:24px;">
         <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
           💡 <b>문의 내역 조회 방법</b><br/>
-          로그인하셨다면 '<a href="${SITE_URL}/inquiries?tab=my" style="color:#3B55A5;font-weight:600;">내 문의</a>'에서 바로 확인하실 수 있어요.<br/>
+          로그인하셨다면 '<a href="${SITE_URL}/inquiries?tab=my" style="color:#0052CC;font-weight:600;">내 문의</a>'에서 바로 확인하실 수 있어요.<br/>
           비로그인 시에는 문의 게시판에서 <b>전화번호</b>를 입력하면 조회됩니다.
         </p>
       </div>
@@ -123,7 +123,7 @@ export async function sendCustomerInquiryConfirmation(
     <!-- 푸터 -->
     <div style="background:#f8f8f8;padding:16px 32px;text-align:center;border-top:1px solid #eee;">
       <p style="margin:0;font-size:12px;color:#aaa;line-height:1.8;">
-        모두의 유니폼 · <a href="${SITE_URL}" style="color:#3B55A5;text-decoration:none;">modoouniform.com</a><br/>
+        모두의 유니폼 · <a href="${SITE_URL}" style="color:#0052CC;text-decoration:none;">modoouniform.com</a><br/>
         궁금한 점은 문의 게시판을 이용해 주세요.
       </p>
     </div>

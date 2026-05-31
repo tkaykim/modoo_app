@@ -315,14 +315,14 @@ function InquiryForm() {
         {/* Chatbot nudge */}
         <button
           onClick={() => router.push('/chat')}
-          className="w-full flex items-center gap-3 rounded-xl bg-[#3B55A5]/5 border border-[#3B55A5]/15 px-4 py-3.5 mb-5 text-left hover:bg-[#3B55A5]/10 transition"
+          className="w-full flex items-center gap-3 rounded-xl bg-[#0052CC]/5 border border-[#0052CC]/15 px-4 py-3.5 mb-5 text-left hover:bg-[#0052CC]/10 transition"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3B55A5]/10 shrink-0">
-            <MessagesSquare className="w-5 h-5 text-[#3B55A5]" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0052CC]/10 shrink-0">
+            <MessagesSquare className="w-5 h-5 text-[#0052CC]" />
           </span>
           <span className="flex-1 min-w-0">
             <span className="text-[13px] font-semibold text-gray-800">글 쓰기가 번거로우시다면?</span>
-            <span className="block text-xs text-[#3B55A5] mt-0.5">챗봇으로 간편하게 상담받기 →</span>
+            <span className="block text-xs text-[#0052CC] mt-0.5">챗봇으로 간편하게 상담받기 →</span>
           </span>
         </button>
 
@@ -341,7 +341,7 @@ function InquiryForm() {
                   type="button"
                   onClick={() => setIsModalOpen(true)}
                   disabled={isSubmitting}
-                  className="px-4 py-1.5 text-sm bg-[#3B55A5] text-white hover:bg-[#2f4584] transition"
+                  className="px-4 py-1.5 text-sm bg-[#0052CC] text-white hover:bg-[#2f4584] transition"
                 >
                   제품선택
                 </button>
@@ -495,7 +495,7 @@ function InquiryForm() {
                 <li>프린팅 방식에 대한 지정이 없을 경우, 가장 적합한 방식으로 적용하여 시안을 전달합니다.</li>
                 <li>시안 작업에 참고할 사진 및 이미지(jpg, png 등)가 있으시다면 같이 파일 첨부해주세요.</li>
                 <li>이미지 원본 파일(ai 확장자)을 첨부해주시면 시안 작업이 빠르게 진행됩니다.</li>
-                <li>용량을 초과할 경우 <span className='text-blue-600'>modoo.contact@gmail.com</span> 메일로 첨부해주세요.</li>
+                <li>용량을 초과할 경우 <span className='text-[#0052CC]'>modoo.contact@gmail.com</span> 메일로 첨부해주세요.</li>
               </ul>
             </FormRow>
 
@@ -534,7 +534,7 @@ function InquiryForm() {
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 text-sm bg-[#3B55A5] text-white hover:bg-[#2f4584] transition shrink-0 disabled:bg-gray-400"
+                    className="px-4 py-2 text-sm bg-[#0052CC] text-white hover:bg-[#2f4584] transition shrink-0 disabled:bg-gray-400"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSubmitting || isUploading || uploadedFiles.length >= 5}
                   >
@@ -636,7 +636,7 @@ function InquiryForm() {
               type="submit"
               disabled={isSubmitting}
               aria-busy={isSubmitting}
-              className="px-8 py-3 text-sm bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 min-w-[110px]"
+              className="px-8 py-3 text-sm bg-[#0052CC] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 min-w-[110px]"
             >
               {isSubmitting ? (
                 <>

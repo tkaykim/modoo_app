@@ -192,12 +192,12 @@ function PurchaseCompleteContent() {
               <p className="text-sm text-blue-800 font-medium mb-2">
                 회원가입하고 더 편리하게 이용하세요
               </p>
-              <p className="text-xs text-blue-600 mb-3">
+              <p className="text-xs text-[#0052CC] mb-3">
                 주문 내역 관리, 디자인 저장, 쿠폰 할인 등 다양한 혜택을 받을 수 있습니다.
               </p>
               <Link
                 href="/login"
-                className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-md font-medium hover:bg-blue-700 transition"
+                className="inline-block px-4 py-2 bg-[#0052CC] text-white text-sm rounded-md font-medium hover:bg-[#003D99] transition"
               >
                 회원가입 / 로그인
               </Link>

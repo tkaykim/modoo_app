@@ -161,7 +161,7 @@ export default function MyReviewsPage() {
             <p className="text-sm text-gray-400 mb-6">주문한 상품에 리뷰를 남겨보세요</p>
             <button
               onClick={() => router.push('/home/my-page/orders')}
-              className="px-6 py-3 bg-[#3B55A5] text-white rounded-lg font-medium hover:bg-[#2D4280] transition-colors"
+              className="px-6 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-colors"
             >
               주문 내역 보기
             </button>
@@ -221,7 +221,7 @@ export default function MyReviewsPage() {
                         });
                         router.push(`/reviews/my/create?${params.toString()}`);
                       }}
-                      className="text-sm text-[#3B55A5] hover:text-[#2D4280]"
+                      className="text-sm text-[#0052CC] hover:text-[#003D99]"
                     >
                       수정
                     </button>

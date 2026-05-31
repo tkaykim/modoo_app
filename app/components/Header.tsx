@@ -85,7 +85,7 @@ export default function Header({
                   </Link>
                   <Link
                     href="/inquiries"
-                    className="px-2.5 py-1 rounded-full border border-blue-500 bg-blue-500 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+                    className="px-2.5 py-1 rounded-full border border-[#0052CC] bg-blue-500 text-xs font-semibold text-white hover:bg-[#0052CC] transition-colors"
                   >
                     문의하기
                   </Link>

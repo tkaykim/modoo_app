@@ -1507,20 +1507,20 @@ export default function CheckoutPage() {
                     isDisabled
                       ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
                       : isSelected
-                        ? 'border-[#3B55A5] bg-[#3B55A5]/5'
+                        ? 'border-[#0052CC] bg-[#0052CC]/5'
                         : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <Ticket className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#3B55A5]' : 'text-gray-400'}`} />
+                        <Ticket className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#0052CC]' : 'text-gray-400'}`} />
                         <p className="font-medium text-black text-sm truncate">
                           {coupon.display_name || coupon.code}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <p className={`font-bold text-sm ${isSelected ? 'text-[#3B55A5]' : 'text-gray-700'}`}>
+                        <p className={`font-bold text-sm ${isSelected ? 'text-[#0052CC]' : 'text-gray-700'}`}>
                           {displayInfo.discountText}
                         </p>
                         {!isDisabled && (
@@ -1539,10 +1539,10 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      isSelected ? 'border-[#3B55A5]' : 'border-gray-300'
+                      isSelected ? 'border-[#0052CC]' : 'border-gray-300'
                     }`}>
                       {isSelected && (
-                        <div className="w-3 h-3 rounded-full bg-[#3B55A5]"></div>
+                        <div className="w-3 h-3 rounded-full bg-[#0052CC]"></div>
                       )}
                     </div>
                   </div>
@@ -1572,7 +1572,7 @@ export default function CheckoutPage() {
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   placeholder="쿠폰 코드 입력"
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                   onKeyDown={(e) => e.key === 'Enter' && handleRegisterCoupon()}
                 />
                 <button
@@ -1619,7 +1619,7 @@ export default function CheckoutPage() {
                 } catch {}
                 setShowLoginModal(true);
               }}
-              className="text-sm font-medium text-[#3B55A5] hover:text-[#2D4280] shrink-0 ml-2"
+              className="text-sm font-medium text-[#0052CC] hover:text-[#003D99] shrink-0 ml-2"
             >
               로그인
             </button>
@@ -1641,18 +1641,18 @@ export default function CheckoutPage() {
           </div>
           {salesmanDiscount > 0 && (
             <div className="flex justify-between text-sm p-2 -mx-2 bg-indigo-50 rounded-lg">
-              <span className="text-indigo-700 font-medium flex items-center gap-1">
+              <span className="text-[#0052CC] font-medium flex items-center gap-1">
                 🎟️ 영업 할인 ({salesmanCoupon?.coupon?.code})
               </span>
-              <span className="text-indigo-700 font-bold">-{salesmanDiscount.toLocaleString('ko-KR')}원</span>
+              <span className="text-[#0052CC] font-bold">-{salesmanDiscount.toLocaleString('ko-KR')}원</span>
             </div>
           )}
           {couponDiscount > 0 && (
             <div className="flex justify-between text-sm p-2 -mx-2 bg-blue-50 rounded-lg">
-              <span className="text-blue-600 font-medium flex items-center gap-1">
+              <span className="text-[#0052CC] font-medium flex items-center gap-1">
                 쿠폰 할인 ({selectedCoupon?.coupon?.code})
               </span>
-              <span className="text-blue-600 font-bold">-{couponDiscount.toLocaleString('ko-KR')}원</span>
+              <span className="text-[#0052CC] font-bold">-{couponDiscount.toLocaleString('ko-KR')}원</span>
             </div>
           )}
           <div className="h-px bg-gray-200 my-3"></div>
@@ -1664,7 +1664,7 @@ export default function CheckoutPage() {
                   {(totalPrice + deliveryFee).toLocaleString('ko-KR')}원
                 </span>
               )}
-              <span className={`text-xl font-bold ${(salesmanDiscount + couponDiscount) > 0 ? 'text-[#3B55A5]' : 'text-black'}`}>
+              <span className={`text-xl font-bold ${(salesmanDiscount + couponDiscount) > 0 ? 'text-[#0052CC]' : 'text-black'}`}>
                 {finalTotal.toLocaleString('ko-KR')}원
               </span>
             </div>
@@ -1691,7 +1691,7 @@ export default function CheckoutPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#3B55A5] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-10 h-10 bg-[#0052CC] rounded-lg flex items-center justify-center text-white font-bold text-sm">
                   토스
                 </div>
                 <div>

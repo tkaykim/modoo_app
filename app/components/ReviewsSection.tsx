@@ -95,7 +95,7 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
         </div>
         <Link
           href={`/reviews/${productId}`}
-          className="text-xs text-[#3B55A5] hover:underline"
+          className="text-xs text-[#0052CC] hover:underline"
         >
           전체 보기
         </Link>
@@ -155,7 +155,7 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
       <div className="mt-3 flex justify-end">
         <Link
           href={`/inquiries/new?products=${productId}`}
-          className="inline-flex items-center gap-1.5 text-xs text-[#3B55A5] hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs text-[#0052CC] hover:underline"
         >
           <MessageSquare className="w-3.5 h-3.5" />
           이 상품 문의하기

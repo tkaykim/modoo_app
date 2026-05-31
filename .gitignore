@@ -48,3 +48,7 @@ next-env.d.ts
 
 .mcp.json
 .gstack/
+
+# dev server logs
+.app-dev.log
+*-dev.log

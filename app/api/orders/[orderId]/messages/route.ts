@@ -180,7 +180,7 @@ async function sendAdminNotification(
         text: `${customerName}님이 주문 ${orderId}의 ${orderItem?.product_title || '상품'}${designInfo}에 대해 메시지를 남겼습니다.\n\n"${messageContent}"\n\n관리자 페이지에서 확인해주세요: ${adminUrl}/orders/${orderId}`,
         html: `
           <div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: #3B55A5; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+            <div style="background: #0052CC; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
               <h1 style="color: #fff; margin: 0; font-size: 18px; font-weight: 600;">고객 디자인 메시지</h1>
             </div>
             <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-top: none;">
@@ -192,10 +192,10 @@ async function sendAdminNotification(
                   ${orderItem?.product_title || '상품'}${designInfo}
                 </p>
               </div>
-              <div style="background: #f0f4ff; border-left: 3px solid #3B55A5; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
+              <div style="background: #f0f4ff; border-left: 3px solid #0052CC; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px;">
                 <p style="margin: 0; color: #1a1a1a; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${messageContent}</p>
               </div>
-              <a href="${adminUrl}/orders/${orderId}" style="display: block; background: #3B55A5; color: #fff; text-decoration: none; padding: 14px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center;">관리자 페이지에서 답변하기</a>
+              <a href="${adminUrl}/orders/${orderId}" style="display: block; background: #0052CC; color: #fff; text-decoration: none; padding: 14px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center;">관리자 페이지에서 답변하기</a>
             </div>
             <div style="padding: 16px 24px; text-align: center; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; background: #fafafa;">
               <p style="margin: 0; font-size: 11px; color: #999;">모두의 유니폼</p>

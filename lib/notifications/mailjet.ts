@@ -63,7 +63,7 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
 <head><meta charset="utf-8" /></head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-    <div style="background:#3B55A5;padding:20px 32px;text-align:center;">
+    <div style="background:#0052CC;padding:20px 32px;text-align:center;">
       <img src="https://modoouniform.com/icons/modoo_logo.png" alt="모두의 유니폼" style="height:32px;display:inline-block;" />
       <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">${inquiry.consult_requested ? '🔥 상담원 연결 요청' : '새로운 챗봇 문의'}</p>
     </div>
@@ -80,7 +80,7 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
         ${inquiry.product_name ? `<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">선택 제품</td><td style="padding:9px 0;font-weight:600;">${inquiry.product_name}</td></tr>` : ''}
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">추천 인쇄방식</td><td style="padding:9px 0;font-weight:600;">${inquiry.recommended_print_method || '미정'}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 인쇄비</td><td style="padding:9px 0;">${formatEstPrice(inquiry.estimated_price_min, inquiry.estimated_price_max)}</td></tr>
-        ${inquiry.estimated_pay_unit != null && inquiry.estimated_pay_total != null ? `<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td><td style="padding:9px 0;font-weight:700;color:#3B55A5;">${inquiry.quantity}벌 약 ${won(inquiry.estimated_pay_total)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(inquiry.estimated_pay_unit)}</span><br><span style="font-size:11px;color:#aaa;">* 예상가이며 상담·디자인 결과 소폭 변동될 수 있습니다.</span></td></tr>` : ''}
+        ${inquiry.estimated_pay_unit != null && inquiry.estimated_pay_total != null ? `<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">예상 결제 금액<br><span style="font-size:11px;color:#aaa;">제품+인쇄</span></td><td style="padding:9px 0;font-weight:700;color:#0052CC;">${inquiry.quantity}벌 약 ${won(inquiry.estimated_pay_total)}<br><span style="font-weight:500;color:#888;">장당 약 ${won(inquiry.estimated_pay_unit)}</span><br><span style="font-size:11px;color:#aaa;">* 예상가이며 상담·디자인 결과 소폭 변동될 수 있습니다.</span></td></tr>` : ''}
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">필요 날짜</td><td style="padding:9px 0;">${neededDateDisplay}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">담당자</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_name}</td></tr>
         <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:9px 0;color:#888;">연락처</td><td style="padding:9px 0;font-weight:600;">${inquiry.contact_phone}</td></tr>
@@ -88,7 +88,7 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
       </table>
       <div style="text-align:center;margin-top:24px;">
         <a href="https://modoo-admin-gilt.vercel.app/content/chatbot"
-           style="display:inline-block;background:#3B55A5;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;">
+           style="display:inline-block;background:#0052CC;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;">
           챗봇 문의 관리에서 보기 →
         </a>
       </div>

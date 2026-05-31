@@ -97,7 +97,7 @@ body {
 .rich-content pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; font-size: 0.875em; }
 .rich-content pre code { background: none; padding: 0; }
 .rich-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.75rem 0; }
-.rich-content a { color: #2563eb; text-decoration: underline; word-break: break-all; }
+.rich-content a { color: #0052CC; text-decoration: underline; word-break: break-all; }
 .rich-content table { border-collapse: collapse; width: 100%; margin: 0.875rem 0; overflow-x: auto; display: block; }
 .rich-content table td,
 .rich-content table th { border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; min-width: 60px; font-size: 0.9em; }

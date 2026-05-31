@@ -16,13 +16,13 @@ export default function AuthCodeErrorPage() {
           <div className="space-y-2">
             <Link
               href="/login"
-              className="inline-block w-full py-2 px-4 rounded-md text-sm font-semibold text-white bg-[#3B55A5] hover:bg-[#2D4280]"
+              className="inline-block w-full py-2 px-4 rounded-md text-sm font-semibold text-white bg-[#0052CC] hover:bg-[#003D99]"
             >
               로그인으로 돌아가기
             </Link>
             <Link
               href="/reset-password"
-              className="inline-block w-full py-2 px-4 rounded-md text-sm font-semibold text-[#3B55A5] border border-[#3B55A5] hover:bg-[#3B55A5]/5"
+              className="inline-block w-full py-2 px-4 rounded-md text-sm font-semibold text-[#0052CC] border border-[#0052CC] hover:bg-[#0052CC]/5"
             >
               비밀번호 재설정 다시 요청
             </Link>

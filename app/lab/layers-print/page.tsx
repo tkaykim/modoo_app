@@ -111,7 +111,7 @@ export default function LayersPrintLabPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-5 py-8 max-w-3xl mx-auto">
       <header className="mb-8">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+        <p className="text-xs font-semibold text-[#0052CC] uppercase tracking-wider mb-1">
           modoo LAB · Phase 2.1
         </p>
         <h1 className="text-2xl font-bold text-gray-900">Layers × PrintMethod 통합 패널</h1>
@@ -182,7 +182,7 @@ export default function LayersPrintLabPage() {
                 <div className="text-sm font-semibold text-gray-900">{p.title}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{p.manufacturer}</div>
               </div>
-              <div className="text-xs font-mono text-blue-600">에디터 열기 →</div>
+              <div className="text-xs font-mono text-[#0052CC]">에디터 열기 →</div>
             </Link>
           ))}
         </div>

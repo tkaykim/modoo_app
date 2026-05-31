@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   // ── Admin email (same for both preferences) ──
   const adminHtml = `
     <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #3B55A5; border-bottom: 2px solid #3B55A5; padding-bottom: 10px;">새로운 공동구매 요청</h2>
+      <h2 style="color: #0052CC; border-bottom: 2px solid #0052CC; padding-bottom: 10px;">새로운 공동구매 요청</h2>
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; width: 120px; border: 1px solid #ddd;">요청자</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${submitterName} (${submitterEmail}${submitterPhone ? `, ${submitterPhone}` : ''})</td></tr>
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">단체명</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${title}</td></tr>
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">수령 희망일</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${formattedDate}</td></tr>
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">배송 주소</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${deliveryAddress || '-'}</td></tr>
       </table>
-      <p style="margin-top: 16px;"><a href="${requestLink}" style="color: #3B55A5;">요청 상세 보기</a></p>
+      <p style="margin-top: 16px;"><a href="${requestLink}" style="color: #0052CC;">요청 상세 보기</a></p>
       <p style="margin-top: 20px; color: #888; font-size: 12px;">이 메일은 모두의 유니폼에서 자동 발송되었습니다.</p>
     </div>
   `;
@@ -77,14 +77,14 @@ export async function POST(request: NextRequest) {
       <div style="text-align: center; padding: 24px 0; background: #f8f9fc;">
         <img src="${logoUrl}" alt="모두의 유니폼" style="height: 48px;" />
       </div>
-      <div style="height: 3px; background: #3B55A5;"></div>`;
+      <div style="height: 3px; background: #0052CC;"></div>`;
 
   const footerHtml = `
       <div style="border-top: 1px solid #e5e7eb; padding: 24px 28px; background: #f8f9fc;">
         <img src="${logoUrl}" alt="모두의 유니폼" style="height: 32px; margin-bottom: 12px;" />
         <p style="margin: 0 0 2px 0; font-size: 13px; font-weight: bold; color: #333;">MODOO UNIFORM | 모두의 유니폼</p>
         <p style="margin: 0 0 2px 0; font-size: 12px; color: #888;">서울특별시 마포구 성지3길 55, 4층</p>
-        <p style="margin: 0; font-size: 12px; color: #888;">T. 010-8140-0621 | W. <a href="https://www.modoouniform.com" style="color: #3B55A5; text-decoration: none;">www.modoouniform.com</a></p>
+        <p style="margin: 0; font-size: 12px; color: #888;">T. 010-8140-0621 | W. <a href="https://www.modoouniform.com" style="color: #0052CC; text-decoration: none;">www.modoouniform.com</a></p>
       </div>`;
 
   const contactButtonsHtml = `
@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
 
   const pricingHtml = pricing ? `
         <div style="margin: 24px 0; padding: 16px; background: #f0f4ff; border-radius: 8px; border: 1px solid #d0d9f0;">
-          <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #3B55A5;">예상 견적</h3>
+          <h3 style="margin: 0 0 12px 0; font-size: 15px; color: #0052CC;">예상 견적</h3>
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 6px 0; color: #555;">예상 수량</td><td style="padding: 6px 0; text-align: right; font-weight: bold;">${estimatedQuantity}벌</td></tr>
             <tr><td style="padding: 6px 0; color: #555;">벌당 단가</td><td style="padding: 6px 0; text-align: right; font-weight: bold;"><span style="text-decoration: line-through; color: #999;">${pricing.unitPrice.toLocaleString('ko-KR')}원</span> <span style="color: #e53e3e;">${pricing.discountedUnitPrice.toLocaleString('ko-KR')}원</span> ${pricing.note || ''}</td></tr>
-            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #3B55A5;">${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원</td></tr>
+            <tr style="border-top: 1px solid #c0c9e0;"><td style="padding: 8px 0; color: #333; font-weight: bold;">합계</td><td style="padding: 8px 0; text-align: right; font-weight: bold; font-size: 16px; color: #0052CC;">${pricing.discountedTotalPrice.toLocaleString('ko-KR')}원</td></tr>
           </table>
           <p style="margin: 8px 0 0 0; font-size: 11px; color: #888;">* 실제 금액은 디자인 확정 후 변동될 수 있습니다.</p>
         </div>` : '';
@@ -134,10 +134,10 @@ export async function POST(request: NextRequest) {
         </table>
 
         <div style="padding: 16px; background: #f0f4ff; border-radius: 8px; border: 1px solid #d0d9f0; margin-bottom: 24px;">
-          <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #3B55A5;">전화드릴 예정 날짜</p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #0052CC;">전화드릴 예정 날짜</p>
           <p style="margin: 0 0 4px 0; font-size: 13px; color: #555;">오후 3시가 지나지 않은 경우 : 오늘 ~ 다음날</p>
           <p style="margin: 0; font-size: 13px; color: #555;">오후 3시가 지난 경우 : 내일 ~ 모레</p>
-          <p style="margin: 8px 0 0 0; font-size: 13px; color: #3B55A5; font-weight: bold;">→ 예상: ${callSchedule}</p>
+          <p style="margin: 8px 0 0 0; font-size: 13px; color: #0052CC; font-weight: bold;">→ 예상: ${callSchedule}</p>
         </div>
 
         ${pricingHtml}

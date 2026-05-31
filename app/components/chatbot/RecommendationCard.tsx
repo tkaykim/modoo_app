@@ -31,10 +31,10 @@ export default function RecommendationCard({
   const comboTotal = comboUnit != null ? comboUnit * quantity : null;
 
   return (
-    <div className="mt-3 rounded-xl border border-[#3B55A5]/30 bg-white overflow-hidden">
-      <div className="bg-[#3B55A5]/5 px-3 py-2 flex items-center gap-1.5">
-        <Sparkles className="w-4 h-4 text-[#3B55A5]" />
-        <span className="text-sm font-semibold text-[#3B55A5]">맞춤 추천</span>
+    <div className="mt-3 rounded-xl border border-[#0052CC]/30 bg-white overflow-hidden">
+      <div className="bg-[#0052CC]/5 px-3 py-2 flex items-center gap-1.5">
+        <Sparkles className="w-4 h-4 text-[#0052CC]" />
+        <span className="text-sm font-semibold text-[#0052CC]">맞춤 추천</span>
       </div>
 
       <div className="p-3 space-y-3">
@@ -95,7 +95,7 @@ export default function RecommendationCard({
 
         {/* 선택된 제품: 합산 예상비용 + 변동 안내 + 액션 2개 */}
         {selected && (
-          <div className="rounded-lg border border-[#3B55A5]/30 bg-[#3B55A5]/5 p-3 space-y-2">
+          <div className="rounded-lg border border-[#0052CC]/30 bg-[#0052CC]/5 p-3 space-y-2">
             <p className="text-xs text-gray-500">선택한 제품 · 제품 + 인쇄 예상비용</p>
             {comboUnit != null ? (
               <p className="text-sm font-bold text-gray-900">
@@ -113,7 +113,7 @@ export default function RecommendationCard({
               <button
                 onClick={() => !disabled && onProductClick(selected.id)}
                 disabled={disabled}
-                className="w-full py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="w-full py-2.5 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Palette className="w-4 h-4" />
                 이대로 직접 디자인 해보기
@@ -121,7 +121,7 @@ export default function RecommendationCard({
               <button
                 onClick={() => !disabled && onConsult(selected.id)}
                 disabled={disabled}
-                className="w-full py-2.5 bg-white text-[#3B55A5] border border-[#3B55A5] text-sm font-medium rounded-lg hover:bg-[#3B55A5]/5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="w-full py-2.5 bg-white text-[#0052CC] border border-[#0052CC] text-sm font-medium rounded-lg hover:bg-[#0052CC]/5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <Headset className="w-4 h-4" />
                 상담사에게 연락 요청
@@ -135,7 +135,7 @@ export default function RecommendationCard({
           <button
             onClick={() => !disabled && onConsult()}
             disabled={disabled}
-            className="w-full py-2.5 bg-white text-[#3B55A5] border border-[#3B55A5] text-sm font-medium rounded-lg hover:bg-[#3B55A5]/5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full py-2.5 bg-white text-[#0052CC] border border-[#0052CC] text-sm font-medium rounded-lg hover:bg-[#0052CC]/5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             <Headset className="w-4 h-4" />
             상담사에게 연락 요청

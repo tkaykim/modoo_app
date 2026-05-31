@@ -63,7 +63,7 @@ export default function ContactFormBubble({ onSubmit, disabled, isSubmitting }: 
         onChange={(e) => { setError(null); setContactForm((prev) => ({ ...prev, [key]: e.target.value })); }}
         placeholder={placeholder}
         disabled={disabled || isSubmitting}
-        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B55A5] focus:border-transparent bg-white disabled:opacity-50"
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent bg-white disabled:opacity-50"
       />
     </div>
   );
@@ -79,7 +79,7 @@ export default function ContactFormBubble({ onSubmit, disabled, isSubmitting }: 
           checked={privacyConsent}
           onChange={(e) => { setError(null); setPrivacyConsent(e.target.checked); }}
           disabled={disabled || isSubmitting}
-          className="w-4 h-4 text-[#3B55A5] border-gray-300 rounded focus:ring-[#3B55A5]"
+          className="w-4 h-4 text-[#0052CC] border-gray-300 rounded focus:ring-[#0052CC]"
         />
         <span className="text-xs text-gray-600">개인정보 활용 동의 *</span>
       </label>
@@ -133,7 +133,7 @@ export default function ContactFormBubble({ onSubmit, disabled, isSubmitting }: 
       <button
         onClick={handleSubmit}
         disabled={disabled || isSubmitting}
-        className="w-full py-2.5 bg-[#3B55A5] text-white text-sm font-medium rounded-lg hover:bg-[#2D4280] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? '접수 중...' : '상담 신청하기'}
       </button>

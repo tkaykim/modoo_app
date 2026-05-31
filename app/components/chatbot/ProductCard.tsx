@@ -22,7 +22,7 @@ export default function ProductCard({ product, onClick, selected }: ProductCardP
       aria-pressed={selected}
       className={`flex items-center gap-3 p-2 rounded-lg transition-colors text-left w-full ${
         selected
-          ? 'bg-[#3B55A5]/5 border-2 border-[#3B55A5] ring-2 ring-[#3B55A5]/20'
+          ? 'bg-[#0052CC]/5 border-2 border-[#0052CC] ring-2 ring-[#0052CC]/20'
           : 'bg-white border border-gray-200 hover:border-gray-300'
       }`}
     >
@@ -46,7 +46,7 @@ export default function ProductCard({ product, onClick, selected }: ProductCardP
         <p className="text-sm font-medium text-gray-900 truncate">
           {product.title}
         </p>
-        <p className="text-sm text-blue-600 font-semibold">
+        <p className="text-sm text-[#0052CC] font-semibold">
           {product.base_price.toLocaleString()}원
         </p>
         {keywords.length > 0 && (
@@ -59,7 +59,7 @@ export default function ProductCard({ product, onClick, selected }: ProductCardP
           </div>
         )}
       </div>
-      {selected && <span className="text-[#3B55A5] text-xs font-semibold shrink-0">선택됨</span>}
+      {selected && <span className="text-[#0052CC] text-xs font-semibold shrink-0">선택됨</span>}
     </button>
   );
 }

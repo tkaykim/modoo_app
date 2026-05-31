@@ -159,7 +159,7 @@ function ColorSwatchButton({ colorOption, selected, onClick }: {
     <button
       onClick={onClick}
       className={`w-8 h-8 rounded-full border-2 transition-all ${
-        selected ? 'border-blue-500 scale-110 shadow-md' : 'border-gray-300 hover:border-gray-400 hover:scale-105'
+        selected ? 'border-[#0052CC] scale-110 shadow-md' : 'border-gray-300 hover:border-gray-400 hover:scale-105'
       }`}
       style={{ backgroundColor: colorOption.hex }}
       aria-label={`${colorOption.colorCode} (${colorOption.hex})`}

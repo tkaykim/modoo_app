@@ -26,7 +26,7 @@ export default function PrintPricingLabPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-5 py-8 max-w-xl mx-auto">
       <header className="mb-6">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+        <p className="text-xs font-semibold text-[#0052CC] uppercase tracking-wider mb-1">
           modoo LAB · Phase 2
         </p>
         <h1 className="text-2xl font-bold text-gray-900">인쇄방식별 가격</h1>
@@ -52,7 +52,7 @@ export default function PrintPricingLabPage() {
                 }}
                 className={`px-2.5 py-1 text-xs rounded-md border transition ${
                   active
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-[#0052CC] text-white border-[#0052CC]'
                     : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                 }`}
               >

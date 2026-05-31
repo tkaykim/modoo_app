@@ -116,14 +116,16 @@ export async function GET(
     // Fetch sizing_chart_image and configuration for each product
     const productIds = [...new Set((orderItems || []).map(item => item.product_id).filter(Boolean))];
     const sizingChartMap = new Map<string, string>();
+    const sizingDataMap = new Map<string, unknown>();
     const productConfigMap = new Map<string, { sides: Array<{ id: string; name: string; imageUrl?: string; printArea: { x: number; y: number; width: number; height: number }; layers?: Array<{ id: string; imageUrl: string; zIndex: number }>; zoomScale?: number }> }>();
     if (productIds.length > 0) {
       const { data: productsData } = await adminClient
         .from('products')
-        .select('id, sizing_chart_image, configuration')
+        .select('id, sizing_chart_image, sizing_data, configuration')
         .in('id', productIds);
       productsData?.forEach(p => {
         if (p.sizing_chart_image) sizingChartMap.set(p.id, p.sizing_chart_image);
+        if (p.sizing_data) sizingDataMap.set(p.id, p.sizing_data);
         if (p.configuration) {
           const config = typeof p.configuration === 'string' ? JSON.parse(p.configuration) : p.configuration;
           const sides = Array.isArray(config) ? config : config?.sides;
@@ -141,6 +143,7 @@ export async function GET(
         design_preview_url: (item.design_id && designPreviewMap.get(item.design_id)) || item.thumbnail_url || null,
         design_title: (item.design_id && designTitleMap.get(item.design_id)) || null,
         sizing_chart_image: (item.product_id && sizingChartMap.get(item.product_id)) || null,
+        sizing_data: (item.product_id && sizingDataMap.get(item.product_id)) || null,
         product_sides: productConfig?.sides || null,
       };
     });

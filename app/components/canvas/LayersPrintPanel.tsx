@@ -250,7 +250,7 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
             </div>
             <button
               onClick={onClose}
-              className="text-sm font-semibold text-blue-600 px-3 py-1 hover:bg-blue-50 rounded-lg transition"
+              className="text-sm font-semibold text-[#0052CC] px-3 py-1 hover:bg-blue-50 rounded-lg transition"
               aria-label="닫기"
             >
               완료

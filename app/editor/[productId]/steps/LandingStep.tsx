@@ -3,6 +3,7 @@ import { Product, PrintMethodRecord } from '@/types/types'
 import ProductImageGallery from './ProductImageGallery'
 import ReviewsSection from '@/app/components/ReviewsSection'
 import DescriptionImageSection from '@/app/components/DescriptionImageSection'
+import SizeChartTable from '@/app/components/SizeChartTable'
 import ShareProductButton from '@/app/components/ShareProductButton'
 import SimilarProducts from '@/app/components/SimilarProducts'
 import ProductTemplatesStrip from '@/app/components/templates/ProductTemplatesStrip'
@@ -74,13 +75,17 @@ export default function LandingStep({
         {/* Product Details & Size Chart */}
         <div className="px-4 lg:px-0 lg:mt-4">
           <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
-          {sizingChartImageUrl && (
+          {product.sizing_data ? (
+            <section className="mt-4">
+              <SizeChartTable sizingData={product.sizing_data} sizingChartImage={sizingChartImageUrl} />
+            </section>
+          ) : sizingChartImageUrl ? (
             <DescriptionImageSection
               title="사이즈 차트"
               imageUrls={[sizingChartImageUrl]}
               disableCollapse
             />
-          )}
+          ) : null}
         </div>
 
         {/* Similar Products */}

@@ -43,7 +43,7 @@ const orderStatusMap: Record<string, { label: string; color: string }> = {
   payment_pending: { label: '결제대기', color: 'bg-amber-100 text-amber-700' },
   payment_completed: { label: '결제완료', color: 'bg-blue-100 text-blue-700' },
   in_production: { label: '제작중', color: 'bg-yellow-100 text-yellow-700' },
-  shipping: { label: '배송중', color: 'bg-indigo-100 text-indigo-700' },
+  shipping: { label: '배송중', color: 'bg-indigo-100 text-[#0052CC]' },
   delivered: { label: '배송완료', color: 'bg-green-100 text-green-700' },
   cancelled: { label: '취소', color: 'bg-red-100 text-red-600' },
 };
@@ -120,7 +120,7 @@ function OrderLookupContent() {
                 type="text"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                 placeholder="ORD-XXXXXXXX-XXXXXX"
               />
             </div>
@@ -130,14 +130,14 @@ function OrderLookupContent() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-black text-sm focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                 placeholder="주문 시 입력한 이메일"
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 bg-[#3B55A5] text-white rounded-lg font-medium hover:bg-[#2D4280] transition disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm"
+              className="w-full py-2.5 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -175,8 +175,8 @@ function OrderLookupContent() {
                 <div className="flex items-center gap-1">
                   {progressSteps.map((step, idx) => (
                     <div key={step.key} className="flex-1 flex flex-col items-center">
-                      <div className={`w-full h-1.5 rounded-full ${idx < currentStep ? 'bg-[#3B55A5]' : 'bg-gray-200'}`} />
-                      <span className={`text-[10px] mt-1 ${idx < currentStep ? 'text-[#3B55A5] font-medium' : 'text-gray-400'}`}>
+                      <div className={`w-full h-1.5 rounded-full ${idx < currentStep ? 'bg-[#0052CC]' : 'bg-gray-200'}`} />
+                      <span className={`text-[10px] mt-1 ${idx < currentStep ? 'text-[#0052CC] font-medium' : 'text-gray-400'}`}>
                         {step.label}
                       </span>
                     </div>
@@ -256,12 +256,12 @@ function OrderLookupContent() {
                       </div>
                       {order.coupon_discount > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-blue-600">쿠폰 할인</span>
-                          <span className="text-blue-600">-{order.coupon_discount.toLocaleString('ko-KR')}원</span>
+                          <span className="text-[#0052CC]">쿠폰 할인</span>
+                          <span className="text-[#0052CC]">-{order.coupon_discount.toLocaleString('ko-KR')}원</span>
                         </div>
                       )}
                       {workCost !== 0 && (
-                        <div className={`flex justify-between ${workCost > 0 ? 'text-indigo-600' : 'text-green-600'}`}>
+                        <div className={`flex justify-between ${workCost > 0 ? 'text-[#0052CC]' : 'text-green-600'}`}>
                           <span>작업비용</span>
                           <span>{workCost > 0 ? '+' : ''}{workCost.toLocaleString('ko-KR')}원</span>
                         </div>
@@ -287,7 +287,7 @@ export default function OrderLookupPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#3B55A5] rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#0052CC] rounded-full animate-spin"></div>
       </div>
     }>
       <OrderLookupContent />

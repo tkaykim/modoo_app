@@ -16,7 +16,7 @@ const EditButton = ({className} : {className? : string}) => {
   return (
     <button
       onClick={handleEditClick}
-      className={`px-8 py-3 bg-blue-600 w-full text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-xl text-sm ${className}`}
+      className={`px-8 py-3 bg-[#0052CC] w-full text-white rounded-lg font-semibold hover:bg-[#003D99] transition shadow-xl text-sm ${className}`}
     >
       디자인하기
     </button>

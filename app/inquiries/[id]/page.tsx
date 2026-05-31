@@ -328,7 +328,7 @@ export default function InquiryDetailPage() {
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="전화번호 또는 비밀번호"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#3B55A5] transition mb-3"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#0052CC] transition mb-3"
                   autoFocus
                   disabled={isVerifying}
                 />
@@ -338,7 +338,7 @@ export default function InquiryDetailPage() {
                 <button
                   type="submit"
                   disabled={isVerifying || !passwordInput.trim()}
-                  className="w-full py-3 bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                  className="w-full py-3 bg-[#0052CC] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
                 >
                   {isVerifying ? '확인 중...' : '확인'}
                 </button>
@@ -444,7 +444,7 @@ export default function InquiryDetailPage() {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-[#3B55A5] hover:underline px-3 py-2 border border-gray-200 rounded-lg"
+                      className="flex items-center gap-2 text-sm text-[#0052CC] hover:underline px-3 py-2 border border-gray-200 rounded-lg"
                     >
                       <ExternalLink className="w-3 h-3 shrink-0" />
                       <span className="truncate max-w-[160px]">{fileName}</span>
@@ -496,7 +496,7 @@ export default function InquiryDetailPage() {
                     className={`
                       px-4 py-2 rounded-lg text-sm font-medium transition
                       ${inquiry.status === status
-                        ? 'bg-[#3B55A5] text-white cursor-default'
+                        ? 'bg-[#0052CC] text-white cursor-default'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }
                       disabled:opacity-50 disabled:cursor-not-allowed
@@ -546,7 +546,7 @@ export default function InquiryDetailPage() {
                       {item && (
                         <p className="text-sm text-gray-600 mt-1">{item.unitPrice.toLocaleString()}원 × {item.quantity}개</p>
                       )}
-                      <p className="text-base font-bold text-[#3B55A5] mt-1">총 {ord.totalAmount.toLocaleString()}원</p>
+                      <p className="text-base font-bold text-[#0052CC] mt-1">총 {ord.totalAmount.toLocaleString()}원</p>
                     </div>
                     <div className="shrink-0">
                       {paid ? (
@@ -554,7 +554,7 @@ export default function InquiryDetailPage() {
                       ) : ord.payUrl ? (
                         <a
                           href={ord.payUrl}
-                          className="inline-block px-5 py-2.5 rounded-lg text-sm font-bold bg-[#3B55A5] text-white hover:bg-[#2f4584] transition"
+                          className="inline-block px-5 py-2.5 rounded-lg text-sm font-bold bg-[#0052CC] text-white hover:bg-[#2f4584] transition"
                         >
                           바로 결제하기
                         </a>
@@ -579,10 +579,10 @@ export default function InquiryDetailPage() {
           {inquiry.replies && inquiry.replies.length > 0 ? (
             <div className="space-y-4 mb-6">
               {inquiry.replies.map((reply: any) => (
-                <div key={reply.id} className={`border-l-4 pl-4 py-2 ${reply.is_admin === false ? 'border-gray-300' : 'border-[#3B55A5]'}`}>
+                <div key={reply.id} className={`border-l-4 pl-4 py-2 ${reply.is_admin === false ? 'border-gray-300' : 'border-[#0052CC]'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${reply.is_admin === false ? 'text-gray-700' : 'text-[#3B55A5]'}`}>
+                      <span className={`text-sm font-medium ${reply.is_admin === false ? 'text-gray-700' : 'text-[#0052CC]'}`}>
                         {reply.is_admin === false ? '고객님' : '모두 유니폼'}
                       </span>
                     </div>

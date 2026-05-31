@@ -56,7 +56,7 @@ export default function CustomOrderSuccessPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[#0052CC] mx-auto mb-4" />
           <p className="text-gray-600 font-medium">결제를 확인하고 있습니다...</p>
           <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
         </div>
@@ -98,7 +98,7 @@ export default function CustomOrderSuccessPage() {
         {amount != null && (
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
             <p className="text-sm text-gray-500 mb-1">결제 금액</p>
-            <p className="font-bold text-xl text-blue-600">
+            <p className="font-bold text-xl text-[#0052CC]">
               {Number(amount) === 0 ? '무료' : `${Number(amount).toLocaleString()}원`}
             </p>
           </div>

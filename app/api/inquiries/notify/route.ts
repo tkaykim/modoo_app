@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   const html = `
     <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #3B55A5; border-bottom: 2px solid #3B55A5; padding-bottom: 10px;">새로운 문의가 등록되었습니다</h2>
+      <h2 style="color: #0052CC; border-bottom: 2px solid #0052CC; padding-bottom: 10px;">새로운 문의가 등록되었습니다</h2>
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; width: 120px; border: 1px solid #ddd;">제목</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${title}</td></tr>
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">단체명</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${groupName}</td></tr>

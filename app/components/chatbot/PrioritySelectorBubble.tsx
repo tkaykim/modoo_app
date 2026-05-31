@@ -22,7 +22,7 @@ export default function PrioritySelectorBubble({ onSubmit, disabled }: PriorityS
           key={o.value}
           onClick={() => !disabled && onSubmit([o.value])}
           disabled={disabled}
-          className="w-full text-left p-3 rounded-lg border border-gray-300 bg-white hover:border-[#3B55A5] hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-left p-3 rounded-lg border border-gray-300 bg-white hover:border-[#0052CC] hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="block text-sm font-semibold text-gray-900">{o.title}</span>
           <span className="block text-xs text-gray-500 mt-0.5">{o.desc}</span>

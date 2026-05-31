@@ -474,8 +474,8 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
               disabled={isUploadingFont}
               className="w-full px-3 py-2 flex items-center gap-2 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Upload className="size-4 text-blue-600" />
-              <span className="flex-1 text-sm font-medium text-blue-600">
+              <Upload className="size-4 text-[#0052CC]" />
+              <span className="flex-1 text-sm font-medium text-[#0052CC]">
                 {isUploadingFont ? '업로드 중...' : '커스텀 폰트 업로드'}
               </span>
             </button>
@@ -600,7 +600,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-blue-100 rounded-full">
-                <Pencil className="size-5 text-blue-600" />
+                <Pencil className="size-5 text-[#0052CC]" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">텍스트 편집</h3>
             </div>
@@ -685,7 +685,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
             {/* Persistent Edit Button */}
             <button
               onClick={handleOpenTextEdit}
-              className="ml-2 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center"
+              className="ml-2 p-2 rounded-lg bg-[#0052CC] text-white hover:bg-[#003D99] transition flex items-center justify-center"
               title="텍스트 편집"
             >
               <Pencil className="size-4" />

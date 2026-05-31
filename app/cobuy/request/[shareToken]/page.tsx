@@ -28,7 +28,7 @@ type RequestWithProduct = CoBuyRequest & {
 
 const statusConfig: Record<CoBuyRequestStatus, { label: string; icon: typeof Clock; color: string; bgColor: string }> = {
   pending: { label: '검토 대기중', icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
-  in_progress: { label: '디자인 작업중', icon: Pencil, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  in_progress: { label: '디자인 작업중', icon: Pencil, color: 'text-[#0052CC]', bgColor: 'bg-blue-50' },
   design_shared: { label: '디자인 확인 요청', icon: Eye, color: 'text-purple-600', bgColor: 'bg-purple-50' },
   feedback: { label: '피드백 전달됨', icon: MessageSquare, color: 'text-orange-600', bgColor: 'bg-orange-50' },
   confirmed: { label: '디자인 확정', icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-50' },
@@ -206,7 +206,7 @@ export default function CoBuyRequestFeedbackPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#3B55A5] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-10 h-10 border-3 border-[#0052CC] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-gray-500">요청 정보를 불러오는 중...</p>
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function CoBuyRequestFeedbackPage() {
                     <div className="flex flex-col items-center" style={{ width: 28 }}>
                       <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
                         isCurrent
-                          ? 'bg-[#3B55A5] text-white animate-pulse'
+                          ? 'bg-[#0052CC] text-white animate-pulse'
                           : isDone
                             ? 'bg-gray-300 text-white'
                             : 'border-2 border-dashed border-gray-300 text-gray-400'
@@ -273,7 +273,7 @@ export default function CoBuyRequestFeedbackPage() {
                         {idx + 1}
                       </div>
                       <p className={`text-[9px] mt-1.5 text-center leading-tight whitespace-nowrap ${
-                        isCurrent ? 'text-[#3B55A5] font-semibold' : isDone ? 'text-gray-400 font-medium' : 'text-gray-400'
+                        isCurrent ? 'text-[#0052CC] font-semibold' : isDone ? 'text-gray-400 font-medium' : 'text-gray-400'
                       }`}>
                         {statusConfig[status].label}
                       </p>
@@ -282,7 +282,7 @@ export default function CoBuyRequestFeedbackPage() {
                     {!isLast && (
                       <div className="flex-1 flex items-center" style={{ height: 28 }}>
                         <div className={`w-full border-t-2 border-dashed mx-1 ${
-                          isDone ? 'border-[#3B55A5]' : 'border-gray-300'
+                          isDone ? 'border-[#0052CC]' : 'border-gray-300'
                         }`} />
                       </div>
                     )}
@@ -342,7 +342,7 @@ export default function CoBuyRequestFeedbackPage() {
             <button
               onClick={handleConfirmDesign}
               disabled={isConfirming}
-              className="w-full py-3.5 bg-[#3B55A5] text-white rounded-xl text-sm font-bold hover:bg-[#2D4280] disabled:opacity-50 transition flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-[#0052CC] text-white rounded-xl text-sm font-bold hover:bg-[#003D99] disabled:opacity-50 transition flex items-center justify-center gap-2"
             >
               {isConfirming ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -374,7 +374,7 @@ export default function CoBuyRequestFeedbackPage() {
                   </div>
                   <div className="border-t border-gray-100 pt-1.5 flex justify-between text-sm">
                     <span className="text-gray-700 font-medium">합계 금액</span>
-                    <span className="font-bold text-[#3B55A5]">
+                    <span className="font-bold text-[#0052CC]">
                       {(Number(request.confirmed_price) * estimatedPricing.qty).toLocaleString()}원
                     </span>
                   </div>
@@ -402,7 +402,7 @@ export default function CoBuyRequestFeedbackPage() {
                 </div>
                 <div className="border-t border-gray-100 pt-1.5 flex justify-between text-sm">
                   <span className="text-gray-700 font-medium">예상 합계</span>
-                  <span className="font-bold text-[#3B55A5]">
+                  <span className="font-bold text-[#0052CC]">
                     {estimatedPricing.pricing.discountedTotalPrice.toLocaleString()}원
                   </span>
                 </div>
@@ -482,12 +482,12 @@ export default function CoBuyRequestFeedbackPage() {
               onChange={e => setCommentText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }}
               placeholder="피드백을 입력해주세요..."
-              className="feedback-comment-input flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#3B55A5] transition"
+              className="feedback-comment-input flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] transition"
             />
             <button
               onClick={handleSendComment}
               disabled={!commentText.trim() || isSending}
-              className="px-4 py-2.5 bg-[#3B55A5] text-white rounded-xl text-sm font-medium hover:bg-[#2D4280] disabled:opacity-50 transition flex items-center gap-1.5"
+              className="px-4 py-2.5 bg-[#0052CC] text-white rounded-xl text-sm font-medium hover:bg-[#003D99] disabled:opacity-50 transition flex items-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
               전송

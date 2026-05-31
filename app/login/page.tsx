@@ -191,7 +191,7 @@ export default function LoginPage() {
               onClick={() => switchTab(false)}
               className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 ${
                 !isSignUp
-                  ? 'bg-white text-[#3B55A5] shadow-sm'
+                  ? 'bg-white text-[#0052CC] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -202,7 +202,7 @@ export default function LoginPage() {
               onClick={() => switchTab(true)}
               className={`flex-1 py-2 text-xs font-semibold rounded-md transition-all duration-200 ${
                 isSignUp
-                  ? 'bg-white text-[#3B55A5] shadow-sm'
+                  ? 'bg-white text-[#0052CC] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -236,7 +236,7 @@ export default function LoginPage() {
                         autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="example@email.com"
                         tabIndex={isSignUp ? -1 : 0}
                       />
@@ -250,7 +250,7 @@ export default function LoginPage() {
                       </label>
                       <Link
                         href="/reset-password"
-                        className="text-[11px] text-[#3B55A5]/70 hover:text-[#3B55A5] transition-colors"
+                        className="text-[11px] text-[#0052CC]/70 hover:text-[#0052CC] transition-colors"
                         tabIndex={isSignUp ? -1 : 0}
                       >
                         비밀번호 찾기
@@ -264,7 +264,7 @@ export default function LoginPage() {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="block w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="••••••••"
                         tabIndex={isSignUp ? -1 : 0}
                       />
@@ -317,7 +317,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={isLoading || isSignUp}
-                    className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-[#3B55A5] hover:bg-[#2D4280] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3B55A5] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+                    className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-[#0052CC] hover:bg-[#003D99] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0052CC] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
                     tabIndex={isSignUp ? -1 : 0}
                   >
                     {isLoading && !isSignUp ? (
@@ -390,7 +390,7 @@ export default function LoginPage() {
                         autoComplete="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="홍길동"
                         tabIndex={isSignUp ? 0 : -1}
                       />
@@ -409,7 +409,7 @@ export default function LoginPage() {
                         autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="example@email.com"
                         tabIndex={isSignUp ? 0 : -1}
                       />
@@ -428,7 +428,7 @@ export default function LoginPage() {
                         autoComplete="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="01012345678"
                         tabIndex={isSignUp ? 0 : -1}
                       />
@@ -447,7 +447,7 @@ export default function LoginPage() {
                         autoComplete="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="block w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3B55A5]/20 focus:border-[#3B55A5] text-sm text-gray-900 transition-colors"
+                        className="block w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
                         placeholder="6자 이상"
                         tabIndex={isSignUp ? 0 : -1}
                       />
@@ -489,7 +489,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={isLoading || !isSignUp}
-                    className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-[#3B55A5] hover:bg-[#2D4280] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3B55A5] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+                    className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-[#0052CC] hover:bg-[#003D99] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0052CC] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
                     tabIndex={isSignUp ? 0 : -1}
                   >
                     {isLoading && isSignUp ? (

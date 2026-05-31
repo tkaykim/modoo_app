@@ -3,8 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
-import { SizeOption, CartItem } from '@/types/types';
+import { SizeOption, CartItem, SizingData } from '@/types/types';
 import { trackQuantityModalDismiss } from '@/lib/gtm-events';
+import SizeChartTable from './SizeChartTable';
 
 interface QuantitySelectorModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface QuantitySelectorModalProps {
   isSaving?: boolean;
   defaultDesignName?: string;
   sizingChartImage?: string | null;
+  sizingData?: SizingData | null;
   productId?: string;
   /**
    * 제품 미리보기 영역에 임의 노드를 렌더 (없으면 기본은 빈 영역).
@@ -37,6 +39,7 @@ export default function QuantitySelectorModal({
   isSaving = false,
   defaultDesignName = '',
   sizingChartImage,
+  sizingData,
   productId,
   previewSlot,
 }: QuantitySelectorModalProps) {
@@ -288,14 +291,24 @@ export default function QuantitySelectorModal({
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                   <h3 className="text-sm font-medium text-gray-700">사이즈 및 수량</h3>
-                  {sizingChartImage && (
+                  {sizingData ? (
+                    <SizeChartTable
+                      sizingData={sizingData}
+                      sizingChartImage={sizingChartImage}
+                      trigger={
+                        <button className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs text-gray-500 hover:bg-gray-100">
+                          ?
+                        </button>
+                      }
+                    />
+                  ) : sizingChartImage ? (
                     <button
                       onClick={() => setShowSizeChart(true)}
                       className="w-5 h-5 rounded-full border border-gray-300 flex items-center justify-center text-xs text-gray-500 hover:bg-gray-100"
                     >
                       ?
                     </button>
-                  )}
+                  ) : null}
                 </div>
                 <div className="space-y-3">
                   {sizeOptions.map((size) => {

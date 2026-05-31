@@ -50,7 +50,7 @@ export default function PurchaseOptionModal({
               type="button"
               onClick={onSelectCoBuy}
               disabled={isDisabled}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               공동구매하기
             </button>

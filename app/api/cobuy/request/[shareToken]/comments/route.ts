@@ -113,7 +113,7 @@ export async function POST(
             <div style="text-align: center; padding: 24px 0; background: #f8f9fc;">
               <img src="${logoUrl}" alt="모두의 유니폼" style="height: 48px;" />
             </div>
-            <div style="height: 3px; background: #3B55A5;"></div>
+            <div style="height: 3px; background: #0052CC;"></div>
             <div style="padding: 32px 28px;">
               <p style="font-size: 17px; color: #222; line-height: 1.7; margin: 0 0 16px 0;">
                 <strong>${customerName}</strong>님이 <strong>"${request.title}"</strong>에 메시지를 보냈습니다.
@@ -122,7 +122,7 @@ export async function POST(
                 <p style="font-size: 13px; color: #666; margin: 0;">${content.trim()}</p>
               </div>
               <div style="text-align: center; margin: 28px 0;">
-                <a href="${adminLink}" style="display: inline-block; padding: 14px 32px; background-color: #3B55A5; color: #ffffff; border-radius: 10px; font-weight: bold; font-size: 14px; text-decoration: none;">관리자 페이지에서 확인하기</a>
+                <a href="${adminLink}" style="display: inline-block; padding: 14px 32px; background-color: #0052CC; color: #ffffff; border-radius: 10px; font-weight: bold; font-size: 14px; text-decoration: none;">관리자 페이지에서 확인하기</a>
               </div>
             </div>
             <div style="border-top: 1px solid #e5e7eb; padding: 20px 28px; background: #f8f9fc;">

@@ -68,7 +68,7 @@ export default async function InquirySuccessPage() {
             문의가 접수되었습니다
           </h1>
           <p className="text-sm lg:text-base text-gray-600 leading-relaxed">
-            담당자가 <span className="font-semibold text-[#3B55A5]">이메일 또는 문의 게시판</span>을 통해
+            담당자가 <span className="font-semibold text-[#0052CC]">이메일 또는 문의 게시판</span>을 통해
             견적서와 시안을 전달드릴게요.
           </p>
 
@@ -84,7 +84,7 @@ export default async function InquirySuccessPage() {
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-2">
             <Link
               href="/inquiries"
-              className="w-full sm:w-auto px-6 py-3 text-sm bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition"
+              className="w-full sm:w-auto px-6 py-3 text-sm bg-[#0052CC] text-white rounded-lg hover:bg-[#2f4584] transition"
             >
               내 문의 내역 보기
             </Link>
@@ -101,7 +101,7 @@ export default async function InquirySuccessPage() {
         {products.length > 0 && (
           <section className="mt-10">
             <div className="flex items-start gap-2 mb-3">
-              <Sparkles className="w-5 h-5 text-[#3B55A5] mt-0.5 shrink-0" />
+              <Sparkles className="w-5 h-5 text-[#0052CC] mt-0.5 shrink-0" />
               <div>
                 <h2 className="text-lg lg:text-xl font-bold text-gray-900">
                   견적을 직접 내볼 수도 있어요!

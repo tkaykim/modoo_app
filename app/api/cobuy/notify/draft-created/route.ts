@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       <div style="text-align: center; padding: 24px 0; background: #f8f9fc;">
         <img src="${logoUrl}" alt="모두의 유니폼" style="height: 48px;" />
       </div>
-      <div style="height: 3px; background: #3B55A5;"></div>
+      <div style="height: 3px; background: #0052CC;"></div>
 
       <!-- Body -->
       <div style="padding: 32px 28px;">

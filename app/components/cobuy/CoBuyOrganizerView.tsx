@@ -669,7 +669,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
         <div className="space-y-1.5 pt-2 mt-2 border-t border-gray-100">
           <div className="flex items-center gap-2 text-sm">
             {isDelivery ? (
-              <Truck className="w-4 h-4 text-[#3B55A5]" />
+              <Truck className="w-4 h-4 text-[#0052CC]" />
             ) : (
               <MapPin className="w-4 h-4 text-green-600" />
             )}
@@ -701,7 +701,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
       <div className="space-y-1">
         <div className="flex items-center gap-1.5">
           {isDelivery ? (
-            <Truck className="w-3.5 h-3.5 text-[#3B55A5]" />
+            <Truck className="w-3.5 h-3.5 text-[#0052CC]" />
           ) : (
             <MapPin className="w-3.5 h-3.5 text-green-600" />
           )}
@@ -983,7 +983,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                   <button
                     onClick={handleCreateOrders}
                     disabled={session.status === 'cancelled' || ['order_complete', 'manufacturing', 'manufacture_complete', 'delivering'].includes(session.status)}
-                    className="px-4 py-2 bg-[#3B55A5] text-white text-sm rounded-lg hover:bg-[#2D4280] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 py-2 bg-[#0052CC] text-white text-sm rounded-lg hover:bg-[#003D99] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <PackageCheck className="w-4 h-4" />
                     <span>주문 생성</span>
@@ -1022,7 +1022,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
               {/* 배송받을 장소 */}
               <div className="rounded-xl bg-gray-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Truck className="w-4 h-4 text-[#3B55A5]" />
+                  <Truck className="w-4 h-4 text-[#0052CC]" />
                   <p className="text-sm font-medium text-gray-700">배송받을 장소</p>
                 </div>
                 {session.delivery_settings.deliveryAddress ? (
@@ -1113,9 +1113,9 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
 
           {/* Min Quantity Info */}
           {session.min_quantity && (
-            <div className="mt-4 p-4 bg-[#3B55A5]/10 rounded-xl">
+            <div className="mt-4 p-4 bg-[#0052CC]/10 rounded-xl">
               <div className="flex items-start gap-2">
-                <Info className="w-5 h-5 text-[#3B55A5] shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-[#0052CC] shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-xs text-gray-600">
                     최소 수량: {session.min_quantity}벌
@@ -1159,7 +1159,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
           {/* Survey-mode deposit hint banner */}
           {isSurveyMode && !depositHintDismissed && (
             <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs sm:text-sm text-blue-800">
-              <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />
+              <Info className="w-4 h-4 mt-0.5 shrink-0 text-[#0052CC]" />
               <p className="flex-1 leading-relaxed">
                 참여자 이름을 검색해서 입금 칩을 클릭하면 <span className="font-semibold">&apos;대표자 입금 완료&apos;</span>로 표시할 수 있어요. 다시 클릭하면 <span className="font-semibold">&apos;대표자 입금 대기&apos;</span>로 되돌립니다.
               </p>
@@ -1447,7 +1447,7 @@ export default function CoBuyOrganizerView({ access }: CoBuyOrganizerViewProps) 
                               <button
                                 onClick={() => { setEditingParticipant(participant); setShowParticipantModal(true); }}
                                 title="수정"
-                                className="p-2 text-gray-500 hover:text-[#3B55A5] hover:bg-blue-50 rounded-md transition-colors"
+                                className="p-2 text-gray-500 hover:text-[#0052CC] hover:bg-blue-50 rounded-md transition-colors"
                               >
                                 <Pencil className="w-4 h-4" />
                               </button>

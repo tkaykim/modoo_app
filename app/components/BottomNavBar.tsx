@@ -77,7 +77,7 @@ export default function BottomNavBar() {
               href={item.href}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 active:scale-95 ${
                 isActive(item.href)
-                  ? 'text-[#3B55A5]'
+                  ? 'text-[#0052CC]'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >

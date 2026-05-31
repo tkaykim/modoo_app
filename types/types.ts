@@ -93,9 +93,17 @@ export interface Product {
   thumbnail_image_link?: string[] | null;
   description_image?: string[] | null;
   sizing_chart_image?: string | null;
+  sizing_data?: SizingData | null;
   manufacturer_name?: string | null;
   product_code?: string | null;
   keywords?: string[] | null;
+}
+
+export interface SizingData {
+  unit: string;
+  headers: string[];
+  rows: Record<string, (number | string)[]>;
+  order?: string[];
 }
 
 export interface ProductionExample {
@@ -581,6 +589,7 @@ export interface OrderItem {
   };
   thumbnail_url: string | null;
   sizing_chart_image?: string | null;
+  sizing_data?: SizingData | null;
   text_svg_exports: TextSvgExports | null;
   image_urls: Record<string, unknown> | null;
 

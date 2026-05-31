@@ -106,7 +106,7 @@ export default function CoBuyListPage() {
           <p className="text-gray-500 mb-4">로그인이 필요합니다</p>
           <button
             onClick={() => router.push('/login')}
-            className="px-6 py-3 bg-[#3B55A5] text-white rounded-xl font-medium"
+            className="px-6 py-3 bg-[#0052CC] text-white rounded-xl font-medium"
           >
             로그인하기
           </button>
@@ -146,7 +146,7 @@ export default function CoBuyListPage() {
 
         {isLoading ? (
           <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B55A5]" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0052CC]" />
           </div>
         ) : activeTab === 'requests' ? (
           /* ============ REQUESTS TAB ============ */
@@ -157,7 +157,7 @@ export default function CoBuyListPage() {
               <p className="text-xs text-gray-400 mb-4">공동구매 요청을 만들어보세요</p>
               <button
                 onClick={() => router.push('/home/cobuy/request/create')}
-                className="px-5 py-2.5 bg-[#3B55A5] text-white rounded-xl text-sm font-medium"
+                className="px-5 py-2.5 bg-[#0052CC] text-white rounded-xl text-sm font-medium"
               >
                 새 요청 만들기
               </button>
@@ -210,7 +210,7 @@ export default function CoBuyListPage() {
 
               <button
                 onClick={() => router.push('/home/cobuy/request/create')}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-[#3B55A5] hover:text-[#3B55A5] transition"
+                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-[#0052CC] hover:text-[#0052CC] transition"
               >
                 + 새 요청 만들기
               </button>
@@ -336,10 +336,10 @@ function RequestStatusBar({ status }: { status: CoBuyRequestStatus }) {
           <div key={step.key} className="flex-1 flex flex-col items-center gap-1">
             <div
               className={`w-full h-1 rounded-full ${
-                isPast || isCurrent ? 'bg-[#3B55A5]' : 'bg-gray-200'
+                isPast || isCurrent ? 'bg-[#0052CC]' : 'bg-gray-200'
               }`}
             />
-            <span className={`text-[9px] ${isPast || isCurrent ? 'text-[#3B55A5] font-medium' : 'text-gray-300'}`}>
+            <span className={`text-[9px] ${isPast || isCurrent ? 'text-[#0052CC] font-medium' : 'text-gray-300'}`}>
               {step.label}
             </span>
           </div>

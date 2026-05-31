@@ -138,7 +138,7 @@ async function sendAdminNotificationFromReply(
             <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
               <p style="margin: 0; color: #1a1a1a; font-size: 14px; white-space: pre-wrap;">${messageContent}</p>
             </div>
-            <a href="${adminUrl}/orders/${orderId}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;">관리자 페이지에서 확인</a>
+            <a href="${adminUrl}/orders/${orderId}" style="display: inline-block; background: #0052CC; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;">관리자 페이지에서 확인</a>
           </div>
         `,
       });

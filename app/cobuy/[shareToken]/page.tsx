@@ -473,7 +473,7 @@ export default function CoBuySharePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#3B55A5] border-r-transparent mb-4" />
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#0052CC] border-r-transparent mb-4" />
           <p className="text-gray-500">공동구매 정보를 불러오는 중...</p>
         </div>
       </div>
@@ -557,7 +557,7 @@ export default function CoBuySharePage() {
           <div className="px-4 pb-3 md:px-6 md:pb-4">
             <div className="h-1 md:h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out"
+                className="h-full bg-gradient-to-r from-[#0052CC] to-[#003D99] rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -576,10 +576,10 @@ export default function CoBuySharePage() {
             <div className="max-w-lg mx-auto py-6 px-4 md:py-8 md:px-6">
               {/* Session Info */}
               <div className="text-center mb-6">
-                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#4A66B5] to-[#3B55A5] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#3B55A5]/25">
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#0052CC] to-[#003D99] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#0052CC]/25">
                   <Users className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
-                <p className="text-xs md:text-sm text-[#3B55A5] font-medium mb-2">공동구매 참여</p>
+                <p className="text-xs md:text-sm text-[#0052CC] font-medium mb-2">공동구매 참여</p>
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{session.title}</h1>
                 {session.description && (
                   <p className="text-sm md:text-base text-gray-600">{session.description}</p>
@@ -668,7 +668,7 @@ export default function CoBuySharePage() {
 
               {!deliverySettings?.enabled && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-2">
-                  <Truck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <Truck className="w-4 h-4 text-[#0052CC] mt-0.5 shrink-0" />
                   <p className="text-xs md:text-sm text-blue-800">
                     이 공동구매는 <span className="font-semibold">대표자가 일괄 수령</span>합니다. 별도 배송비는 없습니다.
                   </p>
@@ -691,7 +691,7 @@ export default function CoBuySharePage() {
               {/* Start Button */}
               <button
                 onClick={handleNext}
-                className="w-full py-3 md:py-4 bg-gradient-to-r from-[#3B55A5] to-[#2D4280] text-white rounded-2xl font-semibold hover:from-[#2D4280] hover:to-[#243366] transition-all shadow-lg shadow-[#3B55A5]/25 flex items-center justify-center gap-2 text-sm md:text-base"
+                className="w-full py-3 md:py-4 bg-gradient-to-r from-[#0052CC] to-[#003D99] text-white rounded-2xl font-semibold hover:from-[#003D99] hover:to-[#243366] transition-all shadow-lg shadow-[#0052CC]/25 flex items-center justify-center gap-2 text-sm md:text-base"
               >
                 <span>참여하기</span>
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
@@ -703,8 +703,8 @@ export default function CoBuySharePage() {
           {currentStep === 'size-quantity' && (
             <div className="max-w-lg mx-auto py-6 px-4 md:py-8 md:px-6">
               <div className="mb-6">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#3B55A5]/20 flex items-center justify-center mb-3">
-                  <Ruler className="w-5 h-5 md:w-6 md:h-6 text-[#3B55A5]" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#0052CC]/20 flex items-center justify-center mb-3">
+                  <Ruler className="w-5 h-5 md:w-6 md:h-6 text-[#0052CC]" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">사이즈와 수량을 선택해주세요</h2>
                 <p className="text-sm md:text-base text-gray-600">
@@ -731,7 +731,7 @@ export default function CoBuySharePage() {
                       <select
                         value={item.size}
                         onChange={(e) => handleItemSizeChange(index, e.target.value)}
-                        className={`w-full px-3 py-2.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base ${
+                        className={`w-full px-3 py-2.5 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0052CC] text-sm md:text-base ${
                           errors[`item-${index}-size`] ? 'border-red-500' : 'border-gray-200'
                         }`}
                       >
@@ -796,10 +796,10 @@ export default function CoBuySharePage() {
 
               {/* Order Summary */}
               {getTotalQuantity() > 0 && (
-                <div className="bg-[#3B55A5]/10 rounded-xl p-4 space-y-2">
+                <div className="bg-[#0052CC]/10 rounded-xl p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-700">총 수량</span>
-                    <span className="font-bold text-[#3B55A5]">{getTotalQuantity()}벌</span>
+                    <span className="font-bold text-[#0052CC]">{getTotalQuantity()}벌</span>
                   </div>
                   {sizePriceRange && sizePriceRange.varies ? (
                     <div className="space-y-1 pt-1">
@@ -810,7 +810,7 @@ export default function CoBuySharePage() {
                             <span className="text-gray-700">
                               {item.size} ({formatPrice(getItemPrice(item.size))}) × {item.quantity}벌
                             </span>
-                            <span className="font-medium text-[#3B55A5]">
+                            <span className="font-medium text-[#0052CC]">
                               {formatPrice(getItemPrice(item.size) * item.quantity)}
                             </span>
                           </div>
@@ -819,14 +819,14 @@ export default function CoBuySharePage() {
                   ) : (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-700">단가</span>
-                      <span className="font-medium text-[#3B55A5]">
+                      <span className="font-medium text-[#0052CC]">
                         {formatPrice(sizePriceRange ? sizePriceRange.min : currentPrice)}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm pt-2 border-t border-blue-200">
                     <span className="text-gray-700 font-medium">예상 금액</span>
-                    <span className="font-bold text-[#3B55A5] text-lg">{formatPrice(calcItemsTotal())}</span>
+                    <span className="font-bold text-[#0052CC] text-lg">{formatPrice(calcItemsTotal())}</span>
                   </div>
 
                 </div>
@@ -931,20 +931,20 @@ export default function CoBuySharePage() {
                   }}
                   className={`w-full p-4 md:p-5 rounded-2xl border-2 text-left transition-all ${
                     deliveryMethod === 'pickup'
-                      ? 'border-[#3B55A5] bg-[#3B55A5]/10 ring-4 ring-[#3B55A5]/10'
+                      ? 'border-[#0052CC] bg-[#0052CC]/10 ring-4 ring-[#0052CC]/10'
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div className="flex items-start gap-3 md:gap-4">
                     <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center ${
-                      deliveryMethod === 'pickup' ? 'bg-[#3B55A5] text-white' : 'bg-gray-100 text-gray-500'
+                      deliveryMethod === 'pickup' ? 'bg-[#0052CC] text-white' : 'bg-gray-100 text-gray-500'
                     }`}>
                       <MapPin className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-gray-900 text-sm md:text-base">직접 수령</span>
-                        {deliveryMethod === 'pickup' && <Check className="w-4 h-4 md:w-5 md:h-5 text-[#3B55A5]" />}
+                        {deliveryMethod === 'pickup' && <Check className="w-4 h-4 md:w-5 md:h-5 text-[#0052CC]" />}
                       </div>
                       <p className="text-xs md:text-sm text-gray-600 mt-1">무료</p>
                       {deliverySettings?.pickupLocation && (
@@ -963,20 +963,20 @@ export default function CoBuySharePage() {
                   }}
                   className={`w-full p-4 md:p-5 rounded-2xl border-2 text-left transition-all ${
                     deliveryMethod === 'delivery'
-                      ? 'border-[#3B55A5] bg-[#3B55A5]/10 ring-4 ring-[#3B55A5]/10'
+                      ? 'border-[#0052CC] bg-[#0052CC]/10 ring-4 ring-[#0052CC]/10'
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
                   <div className="flex items-start gap-3 md:gap-4">
                     <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center ${
-                      deliveryMethod === 'delivery' ? 'bg-[#3B55A5] text-white' : 'bg-gray-100 text-gray-500'
+                      deliveryMethod === 'delivery' ? 'bg-[#0052CC] text-white' : 'bg-gray-100 text-gray-500'
                     }`}>
                       <Truck className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-gray-900 text-sm md:text-base">배송</span>
-                        {deliveryMethod === 'delivery' && <Check className="w-4 h-4 md:w-5 md:h-5 text-[#3B55A5]" />}
+                        {deliveryMethod === 'delivery' && <Check className="w-4 h-4 md:w-5 md:h-5 text-[#0052CC]" />}
                       </div>
                       <p className="text-xs md:text-sm text-gray-600 mt-1">
                         {(deliverySettings?.deliveryFee || 0) > 0
@@ -999,7 +999,7 @@ export default function CoBuySharePage() {
             <div className="max-w-lg mx-auto py-6 px-4 md:py-8 md:px-6">
               <div className="mb-6">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-indigo-100 flex items-center justify-center mb-3">
-                  <MapPin className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
+                  <MapPin className="w-5 h-5 md:w-6 md:h-6 text-[#0052CC]" />
                 </div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">배송 정보를 입력해주세요</h2>
                 <p className="text-sm md:text-base text-gray-600">
@@ -1020,7 +1020,7 @@ export default function CoBuySharePage() {
                       setDeliveryInfo(prev => ({ ...prev!, recipientName: e.target.value }));
                       setErrors(prev => { const n = { ...prev }; delete n.recipientName; return n; });
                     }}
-                    className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base ${
+                    className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0052CC] text-sm md:text-base ${
                       errors.recipientName ? 'border-red-500' : 'border-gray-200'
                     }`}
                     placeholder="수령인 이름"
@@ -1040,7 +1040,7 @@ export default function CoBuySharePage() {
                       setDeliveryInfo(prev => ({ ...prev!, phone: e.target.value.replace(/[^0-9]/g, '') }));
                       setErrors(prev => { const n = { ...prev }; delete n.deliveryPhone; return n; });
                     }}
-                    className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base ${
+                    className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0052CC] text-sm md:text-base ${
                       errors.deliveryPhone ? 'border-red-500' : 'border-gray-200'
                     }`}
                     placeholder="01012345678"
@@ -1064,7 +1064,7 @@ export default function CoBuySharePage() {
                     <button
                       type="button"
                       onClick={handleAddressSearch}
-                      className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
+                      className="flex-1 px-4 py-3 bg-[#0052CC] text-white rounded-xl hover:bg-[#003D99] transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
                     >
                       <Search className="w-4 h-4" />
                       주소 검색
@@ -1096,7 +1096,7 @@ export default function CoBuySharePage() {
                           setDeliveryInfo(prev => ({ ...prev!, addressDetail: e.target.value }));
                           setErrors(prev => { const n = { ...prev }; delete n.addressDetail; return n; });
                         }}
-                        className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base ${
+                        className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0052CC] text-sm md:text-base ${
                           errors.addressDetail ? 'border-red-500' : 'border-gray-200'
                         }`}
                         placeholder="아파트 동/호수, 건물명 등"
@@ -1115,7 +1115,7 @@ export default function CoBuySharePage() {
                     type="text"
                     value={deliveryInfo?.memo || ''}
                     onChange={(e) => setDeliveryInfo(prev => ({ ...prev!, memo: e.target.value }))}
-                    className="w-full px-3 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
+                    className="w-full px-3 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0052CC] text-sm md:text-base"
                     placeholder="예: 문 앞에 놓아주세요"
                     maxLength={100}
                   />
@@ -1286,7 +1286,7 @@ export default function CoBuySharePage() {
                   )}
                   <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
                     <span>{isSurveyMode ? '예상 결제 금액' : '총 결제 금액'}</span>
-                    <span className="text-[#3B55A5]">{formatPrice(totalAmount)}</span>
+                    <span className="text-[#0052CC]">{formatPrice(totalAmount)}</span>
                   </div>
                   {isSurveyMode && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -1320,7 +1320,7 @@ export default function CoBuySharePage() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                 <p className="text-blue-800 text-sm font-medium mb-1">예상 결제 금액</p>
                 <p className="text-2xl font-bold text-blue-900">{formatPrice(totalAmount)}</p>
-                <p className="text-blue-600 text-xs mt-1">
+                <p className="text-[#0052CC] text-xs mt-1">
                   실제 결제는 대표자가 모집 완료 후 일괄 진행합니다
                 </p>
               </div>
@@ -1419,7 +1419,7 @@ export default function CoBuySharePage() {
             {currentStep !== 'review' ? (
               <button
                 onClick={handleNext}
-                className="flex-1 py-3 md:py-4 bg-gradient-to-r from-[#3B55A5] to-[#2D4280] text-white rounded-2xl font-semibold hover:from-[#2D4280] hover:to-[#243366] transition-all shadow-lg shadow-[#3B55A5]/25 flex items-center justify-center gap-1.5 md:gap-2 text-sm md:text-base"
+                className="flex-1 py-3 md:py-4 bg-gradient-to-r from-[#0052CC] to-[#003D99] text-white rounded-2xl font-semibold hover:from-[#003D99] hover:to-[#243366] transition-all shadow-lg shadow-[#0052CC]/25 flex items-center justify-center gap-1.5 md:gap-2 text-sm md:text-base"
               >
                 <span>다음</span>
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />

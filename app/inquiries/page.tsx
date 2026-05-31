@@ -19,7 +19,7 @@ type View = 'landing' | 'all' | 'my';
 
 function statusLabel(status: string) {
   if (status === 'completed') return { text: '답변완료', cls: 'text-green-600' };
-  if (status === 'ongoing') return { text: '진행중', cls: 'text-blue-600' };
+  if (status === 'ongoing') return { text: '진행중', cls: 'text-[#0052CC]' };
   return { text: '대기중', cls: 'text-gray-400' };
 }
 
@@ -216,7 +216,7 @@ export default function InquiriesPage() {
               value={faqSearch}
               onChange={(e) => setFaqSearch(e.target.value)}
               placeholder="궁금한 점을 검색해 보세요 (예: 색상, 샘플, 가격, 인쇄방식 등)"
-              className="w-full pl-11 pr-4 py-3.5 rounded-full border border-gray-300 text-sm focus:outline-none focus:border-[#3B55A5] transition"
+              className="w-full pl-11 pr-4 py-3.5 rounded-full border border-gray-300 text-sm focus:outline-none focus:border-[#0052CC] transition"
             />
           </div>
         </section>
@@ -253,13 +253,13 @@ export default function InquiriesPage() {
             onClick={() => router.push('/chat')}
             className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 transition border-b border-gray-100"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3B55A5]/10 shrink-0">
-              <MessagesSquare className="w-5 h-5 text-[#3B55A5]" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0052CC]/10 shrink-0">
+              <MessagesSquare className="w-5 h-5 text-[#0052CC]" />
             </span>
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-2">
                 <span className="text-sm font-bold text-gray-900">채팅 상담</span>
-                <span className="text-[11px] font-medium text-[#3B55A5] bg-[#3B55A5]/10 px-1.5 py-0.5 rounded">바로 답변 가능</span>
+                <span className="text-[11px] font-medium text-[#0052CC] bg-[#0052CC]/10 px-1.5 py-0.5 rounded">바로 답변 가능</span>
               </span>
               <span className="block text-xs text-gray-500 mt-0.5">제품 추천·예상 견적을 바로 안내해 드려요</span>
             </span>
@@ -297,7 +297,7 @@ export default function InquiriesPage() {
               <h2 className="text-base font-bold">실시간 문의</h2>
               <p className="text-xs text-gray-400 mt-0.5">지금도 많은 분들이 상담받고 계세요</p>
             </div>
-            <button onClick={() => router.push('/inquiries?tab=all')} className="text-xs text-gray-500 flex items-center gap-0.5 hover:text-[#3B55A5]">
+            <button onClick={() => router.push('/inquiries?tab=all')} className="text-xs text-gray-500 flex items-center gap-0.5 hover:text-[#0052CC]">
               전체보기 <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -314,13 +314,13 @@ export default function InquiriesPage() {
         <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 p-3 flex gap-2">
           <button
             onClick={() => router.push('/chat')}
-            className="flex-1 py-3.5 bg-white text-[#3B55A5] border border-[#3B55A5] rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-1.5"
+            className="flex-1 py-3.5 bg-white text-[#0052CC] border border-[#0052CC] rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-1.5"
           >
             <MessagesSquare className="w-4 h-4" /> 채팅 상담 시작하기
           </button>
           <button
             onClick={() => router.push('/inquiries?tab=all')}
-            className="flex-1 py-3.5 bg-[#3B55A5] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5"
+            className="flex-1 py-3.5 bg-[#0052CC] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5"
           >
             <FileText className="w-4 h-4" /> 1:1 문의 게시판
           </button>
@@ -350,7 +350,7 @@ export default function InquiriesPage() {
           <div className="text-center py-16">
             <MessageSquare className="w-14 h-14 mx-auto text-gray-200 mb-3" />
             <p className="text-gray-400 text-sm mb-5">등록된 문의가 없습니다.</p>
-            <button onClick={() => router.push('/inquiries/new')} className="px-6 py-3 bg-[#3B55A5] text-white rounded-lg text-sm hover:bg-[#2f4584] transition">
+            <button onClick={() => router.push('/inquiries/new')} className="px-6 py-3 bg-[#0052CC] text-white rounded-lg text-sm hover:bg-[#2f4584] transition">
               첫 문의 등록하기
             </button>
           </div>
@@ -377,11 +377,11 @@ export default function InquiriesPage() {
 
       <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 p-3 flex gap-2">
         <button onClick={() => router.push('/chat')}
-          className="flex-1 py-3.5 bg-white text-[#3B55A5] border border-[#3B55A5] rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-1.5">
+          className="flex-1 py-3.5 bg-white text-[#0052CC] border border-[#0052CC] rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-1.5">
           <MessagesSquare className="w-4 h-4" /> 채팅 상담
         </button>
         <button onClick={() => router.push('/inquiries/new')}
-          className="flex-1 py-3.5 bg-[#3B55A5] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5">
+          className="flex-1 py-3.5 bg-[#0052CC] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5">
           <Plus className="w-4 h-4" /> 1:1 문의하기
         </button>
       </div>
@@ -401,10 +401,10 @@ export default function InquiriesPage() {
           <form onSubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }}>
             <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="비밀번호 입력" autoFocus disabled={isVerifying}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#3B55A5] transition mb-3" />
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#0052CC] transition mb-3" />
             {passwordError && <p className="text-sm text-red-500 mb-3">{passwordError}</p>}
             <button type="submit" disabled={isVerifying || !passwordInput.trim()}
-              className="w-full py-3 bg-[#3B55A5] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 text-sm font-medium">
+              className="w-full py-3 bg-[#0052CC] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 text-sm font-medium">
               {isVerifying ? '확인 중...' : '확인'}
             </button>
           </form>

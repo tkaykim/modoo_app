@@ -78,7 +78,7 @@ function renderHtml(message: string, isError: boolean, replyUrl?: string): strin
     .icon { font-size: 48px; margin-bottom: 16px; }
     h2 { font-size: 18px; color: #1a1a1a; margin: 0 0 8px; }
     p { font-size: 14px; color: #666; margin: 0 0 20px; }
-    .btn { display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+    .btn { display: inline-block; background: #0052CC; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; }
     .btn:hover { background: #1d4ed8; }
   </style>
 </head>

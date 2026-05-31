@@ -333,7 +333,7 @@ export default function DesignEditorViewer({
                 </div>
                 <div className={`rounded-lg transition-shadow ${
                   isActive
-                    ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-neutral-700'
+                    ? 'ring-2 ring-[#0052CC] ring-offset-2 ring-offset-neutral-700'
                     : 'ring-1 ring-neutral-600'
                 }`}>
                   <SingleSideCanvas

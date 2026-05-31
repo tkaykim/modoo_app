@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard, Building2, Clock, Minus, Plus, ChevronDown, ChevronUp, X, Ruler, Eye } from 'lucide-react';
 import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
-import { CustomOrderData } from '@/types/types';
+import { CustomOrderData, SizingData } from '@/types/types';
+import SizeChartTable from '@/app/components/SizeChartTable';
 import DesignPreviewModal from './DesignPreviewModal';
 
 type ShippingMethod = 'domestic' | 'pickup';
@@ -364,7 +365,7 @@ export default function CustomOrderPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[#0052CC] mx-auto mb-4" />
           <p className="text-gray-600">주문 정보를 불러오는 중...</p>
         </div>
       </div>
@@ -413,7 +414,7 @@ export default function CustomOrderPage() {
             <div className="p-4 border-b">
               <h2 className="font-semibold text-gray-900">주문 상품</h2>
               {isQtyEditable && totalQuantity <= 0 && (
-                <p className="text-xs text-[#3B55A5] mt-1">아래에서 사이즈별 수량을 선택하면 결제 금액이 계산됩니다.</p>
+                <p className="text-xs text-[#0052CC] mt-1">아래에서 사이즈별 수량을 선택하면 결제 금액이 계산됩니다.</p>
               )}
             </div>
             <div className="divide-y">
@@ -491,7 +492,7 @@ export default function CustomOrderPage() {
                               <button
                                 type="button"
                                 onClick={() => setExpandedQtyItems(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                                className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${showEditable && itemQty === 0 ? 'text-[#3B55A5]' : 'text-gray-800 hover:text-gray-900'}`}
+                                className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${showEditable && itemQty === 0 ? 'text-[#0052CC]' : 'text-gray-800 hover:text-gray-900'}`}
                               >
                                 <span>
                                   {showEditable
@@ -502,14 +503,30 @@ export default function CustomOrderPage() {
                               </button>
                             ) : <div />}
                             {showSizeChart && (
-                              <button
-                                type="button"
-                                onClick={() => setSizeChartUrl(item.sizing_chart_image!)}
-                                className="flex items-center gap-1 text-xs text-[#3B55A5] hover:opacity-80 font-medium transition-colors"
-                              >
-                                <Ruler className="w-3.5 h-3.5" />
-                                사이즈표
-                              </button>
+                              item.sizing_data ? (
+                                <SizeChartTable
+                                  sizingData={item.sizing_data}
+                                  sizingChartImage={item.sizing_chart_image}
+                                  trigger={
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-1 text-xs text-[#0052CC] hover:opacity-80 font-medium transition-colors"
+                                    >
+                                      <Ruler className="w-3.5 h-3.5" />
+                                      사이즈표
+                                    </button>
+                                  }
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setSizeChartUrl(item.sizing_chart_image!)}
+                                  className="flex items-center gap-1 text-xs text-[#0052CC] hover:opacity-80 font-medium transition-colors"
+                                >
+                                  <Ruler className="w-3.5 h-3.5" />
+                                  사이즈표
+                                </button>
+                              )
                             )}
                           </div>
 
@@ -518,7 +535,7 @@ export default function CustomOrderPage() {
                             <button
                               type="button"
                               onClick={() => setExpandedQtyItems(prev => ({ ...prev, [item.id]: true }))}
-                              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#3B55A5]/5 border border-dashed border-[#3B55A5]/40 text-sm font-medium text-[#3B55A5] hover:bg-[#3B55A5]/10 transition-colors"
+                              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#0052CC]/5 border border-dashed border-[#0052CC]/40 text-sm font-medium text-[#0052CC] hover:bg-[#0052CC]/10 transition-colors"
                             >
                               사이즈별 수량을 선택해주세요
                               <ChevronDown className="w-4 h-4" />
@@ -544,7 +561,7 @@ export default function CustomOrderPage() {
                                       min="0"
                                       value={v.quantity}
                                       onChange={(e) => handleVariantQtyInput(item.id, vi, e.target.value)}
-                                      className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
+                                      className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                                     />
                                     <button
                                       type="button"
@@ -620,7 +637,7 @@ export default function CustomOrderPage() {
                 if (diff === 0) return null;
                 if (computedTotal < 0 && totalAmount === 0) return null;
                 return (
-                  <div className={`flex justify-between text-sm ${diff > 0 ? 'text-indigo-600' : 'text-green-600'}`}>
+                  <div className={`flex justify-between text-sm ${diff > 0 ? 'text-[#0052CC]' : 'text-green-600'}`}>
                     <span>기타 조정</span>
                     <span>{diff > 0 ? '+' : ''}{diff.toLocaleString()}원</span>
                   </div>
@@ -632,7 +649,7 @@ export default function CustomOrderPage() {
               <div className="border-t my-2" />
               <div className="flex justify-between font-bold text-lg">
                 <span>총 결제 금액</span>
-                <span className="text-[#3B55A5]">
+                <span className="text-[#0052CC]">
                   {isQtyEditable && totalQuantity <= 0
                     ? <span className="text-sm font-medium text-gray-400">수량 선택 후 계산</span>
                     : `${totalAmount.toLocaleString()}원`}
@@ -658,7 +675,7 @@ export default function CustomOrderPage() {
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="이름을 입력해주세요"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                     />
                   </div>
                   <div>
@@ -670,7 +687,7 @@ export default function CustomOrderPage() {
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder="email@example.com"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                     />
                   </div>
                   <div>
@@ -680,7 +697,7 @@ export default function CustomOrderPage() {
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="01012345678"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                     />
                   </div>
                 </div>
@@ -694,11 +711,11 @@ export default function CustomOrderPage() {
                 <div className="p-4 space-y-4">
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="shipping" value="domestic" checked={shippingMethod === 'domestic'} onChange={() => setShippingMethod('domestic')} className="w-4 h-4 text-blue-600" />
+                      <input type="radio" name="shipping" value="domestic" checked={shippingMethod === 'domestic'} onChange={() => setShippingMethod('domestic')} className="w-4 h-4 text-[#0052CC]" />
                       <span className="text-sm text-gray-700">국내 배송</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="shipping" value="pickup" checked={shippingMethod === 'pickup'} onChange={() => setShippingMethod('pickup')} className="w-4 h-4 text-blue-600" />
+                      <input type="radio" name="shipping" value="pickup" checked={shippingMethod === 'pickup'} onChange={() => setShippingMethod('pickup')} className="w-4 h-4 text-[#0052CC]" />
                       <span className="text-sm text-gray-700">직접 수령</span>
                     </label>
                   </div>
@@ -708,7 +725,7 @@ export default function CustomOrderPage() {
                       <button
                         type="button"
                         onClick={handleAddressSearch}
-                        className="w-full p-3 border border-gray-300 rounded-lg bg-white text-left flex items-center gap-2 hover:border-blue-500 transition-colors"
+                        className="w-full p-3 border border-gray-300 rounded-lg bg-white text-left flex items-center gap-2 hover:border-[#0052CC] transition-colors"
                       >
                         <Search className="w-4 h-4 text-gray-400" />
                         {domesticAddress.roadAddress ? (
@@ -721,7 +738,7 @@ export default function CustomOrderPage() {
                       {domesticAddress.roadAddress && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <div className="flex items-start gap-2">
-                            <MapPin className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                            <MapPin className="w-4 h-4 text-[#0052CC] mt-0.5 shrink-0" />
                             <div>
                               <p className="text-sm font-medium text-gray-900">
                                 [{domesticAddress.postalCode}] {domesticAddress.roadAddress}
@@ -736,7 +753,7 @@ export default function CustomOrderPage() {
                         value={domesticAddress.detailAddress}
                         onChange={(e) => setDomesticAddress(prev => ({ ...prev, detailAddress: e.target.value }))}
                         placeholder="상세 주소 입력"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
                       />
                     </div>
                   )}
@@ -753,7 +770,7 @@ export default function CustomOrderPage() {
               <button
                 onClick={handleProceedToPayment}
                 disabled={freeOrderLoading}
-                className="w-full py-4 bg-[#3B55A5] text-white rounded-xl font-medium text-lg hover:bg-[#2f4584] transition-colors disabled:opacity-50"
+                className="w-full py-4 bg-[#0052CC] text-white rounded-xl font-medium text-lg hover:bg-[#2f4584] transition-colors disabled:opacity-50"
               >
                 {freeOrderLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -783,18 +800,18 @@ export default function CustomOrderPage() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('card')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${paymentMethod === 'card' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${paymentMethod === 'card' ? 'border-[#0052CC] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
-                    <CreditCard className={`w-6 h-6 ${paymentMethod === 'card' ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span className={`text-sm font-medium ${paymentMethod === 'card' ? 'text-blue-600' : 'text-gray-600'}`}>카드결제</span>
+                    <CreditCard className={`w-6 h-6 ${paymentMethod === 'card' ? 'text-[#0052CC]' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'card' ? 'text-[#0052CC]' : 'text-gray-600'}`}>카드결제</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('bank_transfer')}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${paymentMethod === 'bank_transfer' ? 'border-[#0052CC] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                   >
-                    <Building2 className={`w-6 h-6 ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span className={`text-sm font-medium ${paymentMethod === 'bank_transfer' ? 'text-blue-600' : 'text-gray-600'}`}>직접 계좌이체</span>
+                    <Building2 className={`w-6 h-6 ${paymentMethod === 'bank_transfer' ? 'text-[#0052CC]' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'bank_transfer' ? 'text-[#0052CC]' : 'text-gray-600'}`}>직접 계좌이체</span>
                   </button>
                 </div>
               </div>
@@ -835,7 +852,7 @@ export default function CustomOrderPage() {
                       </div>
                       <div className="flex justify-between items-center px-1">
                         <span className="text-sm text-gray-600">입금 금액</span>
-                        <span className="text-base font-bold text-blue-600">{totalAmount.toLocaleString()}원</span>
+                        <span className="text-base font-bold text-[#0052CC]">{totalAmount.toLocaleString()}원</span>
                       </div>
                     </div>
                   </div>
