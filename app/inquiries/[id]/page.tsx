@@ -32,6 +32,23 @@ function DetailRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+interface LinkedOrderItem {
+  productTitle: string | null;
+  thumbnailUrl: string | null;
+  unitPrice: number;
+  quantity: number;
+  keywords: string[];
+}
+interface LinkedOrder {
+  orderId: string;
+  orderCategory: string | null;
+  paymentStatus: string;
+  orderStatus: string;
+  totalAmount: number;
+  payUrl: string | null;
+  items: LinkedOrderItem[];
+}
+
 export default function InquiryDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -52,6 +69,9 @@ export default function InquiryDetailPage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  // 문의에 연결된 주문(간이주문 등) — 구매 카드
+  const [linkedOrders, setLinkedOrders] = useState<LinkedOrder[]>([]);
 
   useEffect(() => {
     checkUserAndFetchInquiry();
@@ -157,6 +177,11 @@ export default function InquiryDetailPage() {
 
     if (!error && data) {
       setInquiry(data as any);
+      try {
+        const ordRes = await fetch(`/api/inquiries/orders?inquiryId=${inquiryId}`);
+        const ordJson = await ordRes.json();
+        setLinkedOrders(Array.isArray(ordJson?.data) ? ordJson.data : []);
+      } catch { /* 주문 카드 로드 실패는 무시 */ }
     } else {
       console.error('Error fetching inquiry:', error);
       alert('문의를 불러올 수 없습니다.');
@@ -484,6 +509,60 @@ export default function InquiryDetailPage() {
             </div>
           )}
         </div>
+
+        {/* 주문/결제 카드 — 문의에 연결된 (간이)주문 */}
+        {linkedOrders.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold">주문/결제</h3>
+              <p className="text-sm text-gray-500 mt-1">담당자가 안내드린 제품입니다. 아래에서 바로 결제하실 수 있어요.</p>
+            </div>
+            <div className="p-4 space-y-3">
+              {linkedOrders.map((ord) => {
+                const item = ord.items?.[0];
+                const paid = ord.paymentStatus === 'completed';
+                return (
+                  <div key={ord.orderId} className="border border-gray-200 rounded-lg p-4 flex gap-4 items-center">
+                    <div className="w-20 h-20 bg-gray-100 rounded-md overflow-hidden shrink-0 flex items-center justify-center">
+                      {item?.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.thumbnailUrl} alt={item?.productTitle || '제품'} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-gray-300 text-xs">이미지</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{item?.productTitle || '주문 상품'}</p>
+                      {item && item.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.keywords.slice(0, 5).map((k) => (
+                            <span key={k} className="text-[11px] text-gray-500 bg-gray-100 rounded px-1.5 py-0.5">#{k.replace(/^#/, '')}</span>
+                          ))}
+                        </div>
+                      )}
+                      {item && (
+                        <p className="text-sm text-gray-600 mt-1">{item.unitPrice.toLocaleString()}원 × {item.quantity}개</p>
+                      )}
+                      <p className="text-base font-bold text-[#3B55A5] mt-1">총 {ord.totalAmount.toLocaleString()}원</p>
+                    </div>
+                    <div className="shrink-0">
+                      {paid ? (
+                        <span className="inline-block px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-800">결제 완료</span>
+                      ) : ord.payUrl ? (
+                        <a
+                          href={ord.payUrl}
+                          className="inline-block px-5 py-2.5 rounded-lg text-sm font-bold bg-[#3B55A5] text-white hover:bg-[#2f4584] transition"
+                        >
+                          바로 결제하기
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Replies */}
         <div className="bg-white rounded-lg p-6 shadow-sm">
