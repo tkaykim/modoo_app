@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, total_amount, payment_status, payment_link_token, order_status')
+      .select('id, total_amount, payment_status, payment_link_token, order_status, inquiry_id')
       .eq('payment_link_token', token)
       .single();
 
@@ -118,6 +118,21 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error('Failed to update order after payment:', updateError);
       return NextResponse.json({ error: '결제는 완료되었으나 주문 정보 업데이트에 실패했습니다.' }, { status: 500 });
+    }
+
+    // 간이주문(문의 연결)이면 결제 완료를 문의 스레드에 기록 — fire-and-forget, 결제 결과에 영향 없음
+    if (order.inquiry_id) {
+      try {
+        await adminClient.from('inquiry_replies').insert({
+          inquiry_id: order.inquiry_id,
+          admin_id: null,
+          is_admin: true,
+          content: `✅ 결제가 완료되었습니다.\n주문번호: ${order.id}\n결제금액: ${Number(amount).toLocaleString('ko-KR')}원\n\n간이주문 결제분입니다. 디자이너 목업·면별 아트워크 작업 후 공장 배정을 진행해 주세요.`,
+          file_urls: [],
+        });
+      } catch (noteErr) {
+        console.error('[order/custom/confirm] inquiry note failed:', noteErr);
+      }
     }
 
     // 서버사이드 purchase 이벤트 (custom order는 order_items를 별도 조회)
