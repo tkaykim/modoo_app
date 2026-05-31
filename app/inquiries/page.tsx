@@ -375,9 +375,13 @@ export default function InquiriesPage() {
         )}
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 p-3">
+      <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 p-3 flex gap-2">
+        <button onClick={() => router.push('/chat')}
+          className="flex-1 py-3.5 bg-white text-[#3B55A5] border border-[#3B55A5] rounded-xl font-bold text-sm hover:bg-blue-50 transition flex items-center justify-center gap-1.5">
+          <MessagesSquare className="w-4 h-4" /> 채팅 상담
+        </button>
         <button onClick={() => router.push('/inquiries/new')}
-          className="w-full py-3.5 bg-[#3B55A5] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5">
+          className="flex-1 py-3.5 bg-[#3B55A5] text-white rounded-xl font-bold text-sm hover:bg-[#2f4584] transition flex items-center justify-center gap-1.5">
           <Plus className="w-4 h-4" /> 1:1 문의하기
         </button>
       </div>

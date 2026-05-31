@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Product } from '@/types/types';
 import { createClient } from '@/lib/supabase-client';
 import ProductSelectionModal from '@/app/components/ProductSelectionModal';
-import { ChevronLeft, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, X, Loader2, MessagesSquare } from 'lucide-react';
 import { useRef } from 'react';
 import { trackGenerateLead, trackGenerateLeadFail } from '@/lib/gtm-events';
 import { getQuantityRange } from '@/lib/gtm';
@@ -312,6 +312,20 @@ function InquiryForm() {
       </header>
 
       <div className="w-full px-4 py-6 pb-24">
+        {/* Chatbot nudge */}
+        <button
+          onClick={() => router.push('/chat')}
+          className="w-full flex items-center gap-3 rounded-xl bg-[#3B55A5]/5 border border-[#3B55A5]/15 px-4 py-3.5 mb-5 text-left hover:bg-[#3B55A5]/10 transition"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3B55A5]/10 shrink-0">
+            <MessagesSquare className="w-5 h-5 text-[#3B55A5]" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="text-[13px] font-semibold text-gray-800">글 쓰기가 번거로우시다면?</span>
+            <span className="block text-xs text-[#3B55A5] mt-0.5">챗봇으로 간편하게 상담받기 →</span>
+          </span>
+        </button>
+
         <p className="text-sm text-gray-600 mb-6">
           작성해주시면 담당자가 이메일 또는 문의 게시판을 통해 빠르게 안내드려요.
         </p>
