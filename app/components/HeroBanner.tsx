@@ -46,7 +46,7 @@ export default function HeroBanner() {
   if (loading) {
     return (
       <section className="w-full">
-        <div className="h-70 sm:h-72 lg:h-84 bg-gray-100 rounded-2xl animate-pulse" />
+        <div className="h-35 sm:h-36 lg:h-42 bg-gray-100 rounded-2xl animate-pulse" />
       </section>
     );
   }
@@ -83,7 +83,7 @@ export default function HeroBanner() {
             centeredSlidesBounds: true
           },
         }}
-        className="h-70 sm:h-72 lg:h-84 hero-swiper"
+        className="h-35 sm:h-36 lg:h-42 hero-swiper"
       >
         {banners.map((banner) => {
 
