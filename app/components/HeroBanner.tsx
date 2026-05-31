@@ -17,6 +17,7 @@ export default function HeroBanner() {
   const [banners, setBanners] = useState<HeroBannerType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     async function fetchBanners() {
@@ -83,14 +84,17 @@ export default function HeroBanner() {
             centeredSlidesBounds: true
           },
         }}
+        onSwiper={(s) => setActiveIndex(s.realIndex)}
+        onSlideChange={(s) => setActiveIndex(s.realIndex)}
         className="h-35 sm:h-36 lg:h-42 hero-swiper"
       >
-        {banners.map((banner) => {
+        {banners.map((banner, index) => {
+          const isActive = index === activeIndex;
 
           const BannerContent = (
             <>
-              {/* Background Image - Using regular img tag for better compatibility */}
-              {banner.image_link && (
+              {/* Background Image — 이미지 자체에 카피가 디자인되어 있어 별도 텍스트/오버레이 없음 */}
+              {banner.image_link ? (
                 <Image
                   src={banner.image_link}
                   alt={banner.title}
@@ -98,22 +102,18 @@ export default function HeroBanner() {
                   unoptimized
                   className="absolute inset-0 w-full h-full object-cover object-top"
                 />
-              )}
-
-              {!banner.image_link && (
+              ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/50 text-sm">
                   No image URL
                 </div>
               )}
 
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent rounded-2xl lg:rounded-[20px] pointer-events-none z-10" />
-
-              {/* Content */}
-              <div className="relative z-20">
-                <h2 className="text-lg lg:text-xl font-bold mb-1">{banner.title}</h2>
-                <p className="text-sm text-white/90">{banner.subtitle}</p>
-              </div>
+              {/* 인디케이터: 활성(가운데) 배너 우하단에 현재/전체 카운터 */}
+              {isActive && banners.length > 1 && (
+                <div className="absolute bottom-2 right-2 z-20 rounded-full bg-black/45 px-2 py-1 text-[11px] font-medium leading-none text-white tabular-nums backdrop-blur-sm">
+                  {activeIndex + 1}/{banners.length}
+                </div>
+              )}
             </>
           );
 
@@ -122,13 +122,13 @@ export default function HeroBanner() {
               {banner.redirect_link ? (
                 <Link
                   href={banner.redirect_link}
-                  className={`h-full rounded-2xl lg:rounded-[20px] flex flex-col items-start justify-end text-white py-5 lg:py-6 px-5 lg:px-6 relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto cursor-pointer hover:opacity-95 transition-opacity`}
+                  className={`block h-full w-full rounded-2xl lg:rounded-[20px] relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto cursor-pointer hover:opacity-95 transition-opacity`}
                 >
                   {BannerContent}
                 </Link>
               ) : (
                 <div
-                  className={`h-full rounded-2xl lg:rounded-[20px] flex flex-col items-start justify-end text-white py-5 lg:py-6 px-5 lg:px-6 relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto`}
+                  className={`block h-full w-full rounded-2xl lg:rounded-[20px] relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto`}
                 >
                   {BannerContent}
                 </div>
