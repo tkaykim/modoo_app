@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAuthedClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { inquiryKeyMatches } from '@/lib/inquiry-access';
 
 export const runtime = 'nodejs';
 
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const { data: inquiry, error: inqErr } = await admin
     .from('inquiries')
-    .select('id, user_id, password')
+    .select('id, user_id, password, phone')
     .eq('id', inquiryId)
     .single();
   if (inqErr || !inquiry) {
@@ -55,8 +56,8 @@ export async function POST(req: Request) {
   } catch {
     /* 비로그인 — 아래 비밀번호 검증으로 진행 */
   }
-  if (!allowed && password && inquiry.password && password === inquiry.password) {
-    allowed = true; // 비밀번호 인증 고객
+  if (!allowed && inquiryKeyMatches(password, inquiry)) {
+    allowed = true; // 전화번호 또는 비밀번호 인증 고객
   }
   if (!allowed) {
     return NextResponse.json({ error: '답변 권한이 없습니다.' }, { status: 403 });

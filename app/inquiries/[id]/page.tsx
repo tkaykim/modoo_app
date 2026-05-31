@@ -119,7 +119,7 @@ export default function InquiryDetailPage() {
         setIsLoading(true);
         await fetchInquiry();
       } else {
-        setPasswordError('비밀번호가 일치하지 않습니다.');
+        setPasswordError('전화번호 또는 비밀번호가 일치하지 않습니다.');
       }
     } catch {
       setPasswordError('오류가 발생했습니다.');
@@ -288,9 +288,9 @@ export default function InquiryDetailPage() {
           <div className="w-full max-w-sm">
             <div className="bg-white rounded-lg p-8 shadow-sm text-center">
               <Lock className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-              <h2 className="text-lg font-bold mb-2">비밀글입니다</h2>
+              <h2 className="text-lg font-bold mb-2">본인 확인</h2>
               <p className="text-sm text-gray-500 mb-6">
-                이 문의를 보려면 비밀번호를 입력해주세요.
+                문의하신 <b>전화번호</b> 또는 작성 시 설정하신 <b>비밀번호</b>를 입력해주세요.
               </p>
               <form
                 onSubmit={(e) => {
@@ -302,7 +302,7 @@ export default function InquiryDetailPage() {
                   type="password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="비밀번호 입력"
+                  placeholder="전화번호 또는 비밀번호"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#3B55A5] transition mb-3"
                   autoFocus
                   disabled={isVerifying}
