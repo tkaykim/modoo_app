@@ -232,7 +232,12 @@ export default function CustomOrderPage() {
       return false;
     }
     if (isQtyEditable && totalQuantity <= 0) {
-      setFormError('최소 하나 이상의 수량을 선택해주세요.');
+      setFormError('사이즈별 수량을 먼저 선택해주세요.');
+      // 사이즈 입력 영역을 펼치고 그쪽으로 스크롤해 유도 (버튼을 막지 않고 안내)
+      if (orderData?.order_items) {
+        setExpandedQtyItems(Object.fromEntries(orderData.order_items.map((it) => [it.id, true])));
+      }
+      try { document.getElementById('order-items-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* noop */ }
       return false;
     }
     if (shippingMethod === 'domestic' && !domesticAddress.roadAddress) {
@@ -369,9 +374,12 @@ export default function CustomOrderPage() {
 
         <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
           {/* Order Items */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div id="order-items-card" className="bg-white rounded-xl shadow-sm overflow-hidden scroll-mt-4">
             <div className="p-4 border-b">
               <h2 className="font-semibold text-gray-900">주문 상품</h2>
+              {isQtyEditable && totalQuantity <= 0 && (
+                <p className="text-xs text-[#3B55A5] mt-1">아래에서 사이즈별 수량을 선택하면 결제 금액이 계산됩니다.</p>
+              )}
             </div>
             <div className="divide-y">
               {orderData.order_items.map((item, idx) => {
@@ -448,11 +456,11 @@ export default function CustomOrderPage() {
                               <button
                                 type="button"
                                 onClick={() => setExpandedQtyItems(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                                className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${showEditable && itemQty === 0 ? 'text-[#3B55A5]' : 'text-gray-800 hover:text-gray-900'}`}
                               >
                                 <span>
                                   {showEditable
-                                    ? `사이즈별 수량 선택 (${variants.filter(v => v.quantity > 0).length}개 선택)`
+                                    ? (itemQty > 0 ? `사이즈별 수량 · 총 ${itemQty}개` : '사이즈별 수량 선택')
                                     : `사이즈별 수량 (${readOnlyVariants.length}개)`}
                                 </span>
                                 {expandedQtyItems[item.id] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -462,13 +470,25 @@ export default function CustomOrderPage() {
                               <button
                                 type="button"
                                 onClick={() => setSizeChartUrl(item.sizing_chart_image!)}
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                className="flex items-center gap-1 text-xs text-[#3B55A5] hover:opacity-80 font-medium transition-colors"
                               >
                                 <Ruler className="w-3.5 h-3.5" />
                                 사이즈표
                               </button>
                             )}
                           </div>
+
+                          {/* 0개 선택 + 접힘: 눈에 띄는 안내 배너(누르면 펼쳐져 사이즈 입력) */}
+                          {showEditable && !expandedQtyItems[item.id] && itemQty === 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedQtyItems(prev => ({ ...prev, [item.id]: true }))}
+                              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#3B55A5]/5 border border-dashed border-[#3B55A5]/40 text-sm font-medium text-[#3B55A5] hover:bg-[#3B55A5]/10 transition-colors"
+                            >
+                              사이즈별 수량을 선택해주세요
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                          )}
 
                           {expandedQtyItems[item.id] && showEditable && (
                             <div className="space-y-2">
@@ -489,7 +509,7 @@ export default function CustomOrderPage() {
                                       min="0"
                                       value={v.quantity}
                                       onChange={(e) => handleVariantQtyInput(item.id, vi, e.target.value)}
-                                      className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      className="w-14 text-center p-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#3B55A5]"
                                     />
                                     <button
                                       type="button"
@@ -577,7 +597,11 @@ export default function CustomOrderPage() {
               <div className="border-t my-2" />
               <div className="flex justify-between font-bold text-lg">
                 <span>총 결제 금액</span>
-                <span className="text-blue-600">{totalAmount.toLocaleString()}원</span>
+                <span className="text-[#3B55A5]">
+                  {isQtyEditable && totalQuantity <= 0
+                    ? <span className="text-sm font-medium text-gray-400">수량 선택 후 계산</span>
+                    : `${totalAmount.toLocaleString()}원`}
+                </span>
               </div>
             </div>
           </div>
@@ -690,13 +714,12 @@ export default function CustomOrderPage() {
                 </div>
               )}
 
-              {/* Proceed to Payment Button */}
+              {/* Proceed to Payment Button — 0개여도 비활성화하지 않고, 클릭 시 사이즈 영역으로 유도 */}
               <button
                 onClick={handleProceedToPayment}
-                disabled={isQtyEditable && totalQuantity <= 0}
-                className="w-full py-4 bg-black text-white rounded-xl font-medium text-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-[#3B55A5] text-white rounded-xl font-medium text-lg hover:bg-[#2f4584] transition-colors"
               >
-                {isQtyEditable && totalQuantity <= 0 ? '수량을 선택해주세요' : '결제하기'}
+                {isQtyEditable && totalQuantity <= 0 ? '사이즈별 수량을 선택해주세요' : '결제하기'}
               </button>
 
               <div className="flex items-center justify-center gap-2 text-gray-400 text-xs pb-4">
