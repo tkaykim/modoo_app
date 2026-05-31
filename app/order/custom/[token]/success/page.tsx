@@ -95,11 +95,11 @@ export default function CustomOrderSuccessPage() {
           </div>
         )}
 
-        {amount && (
+        {amount != null && (
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
             <p className="text-sm text-gray-500 mb-1">결제 금액</p>
             <p className="font-bold text-xl text-blue-600">
-              {Number(amount).toLocaleString()}원
+              {Number(amount) === 0 ? '무료' : `${Number(amount).toLocaleString()}원`}
             </p>
           </div>
         )}

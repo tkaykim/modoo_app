@@ -30,9 +30,11 @@ export async function POST(request: Request) {
 
     const { paymentKey, orderId, amount, token } = payload;
 
-    if (!paymentKey || !orderId || !amount || !token) {
+    if (!paymentKey || !orderId || amount == null || !token) {
       return NextResponse.json({ error: '필수 결제 정보가 누락되었습니다.' }, { status: 400 });
     }
+
+    const isFreeOrder = paymentKey === 'FREE_ORDER' && amount === 0;
 
     const adminClient = createAdminClient();
 
@@ -58,35 +60,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '결제 금액이 일치하지 않습니다.' }, { status: 400 });
     }
 
-    // Confirm payment with Toss
-    if (!widgetSecretKey) {
-      return NextResponse.json({ error: '결제 설정 오류입니다.' }, { status: 500 });
-    }
+    // Confirm payment with Toss (or skip for free orders)
+    if (!isFreeOrder) {
+      if (!widgetSecretKey) {
+        return NextResponse.json({ error: '결제 설정 오류입니다.' }, { status: 500 });
+      }
 
-    const encryptedSecretKey = 'Basic ' + Buffer.from(widgetSecretKey + ':').toString('base64');
+      const encryptedSecretKey = 'Basic ' + Buffer.from(widgetSecretKey + ':').toString('base64');
 
-    const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-      method: 'POST',
-      headers: {
-        Authorization: encryptedSecretKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
-    });
+      const tossResponse = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+        method: 'POST',
+        headers: {
+          Authorization: encryptedSecretKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paymentKey, orderId, amount }),
+      });
 
-    if (!tossResponse.ok) {
-      const tossError = await tossResponse.json().catch(() => ({}));
-      console.error('Toss payment confirmation failed:', tossError);
-      return NextResponse.json({
-        error: tossError.message || '결제 확인에 실패했습니다.',
-      }, { status: 400 });
+      if (!tossResponse.ok) {
+        const tossError = await tossResponse.json().catch(() => ({}));
+        console.error('Toss payment confirmation failed:', tossError);
+        return NextResponse.json({
+          error: tossError.message || '결제 확인에 실패했습니다.',
+        }, { status: 400 });
+      }
     }
 
     // Update order with payment info and customer info
     const updatePayload: Record<string, unknown> = {
-      payment_key: paymentKey,
+      payment_key: isFreeOrder ? null : paymentKey,
       payment_status: 'completed',
-      payment_method: 'toss',
+      payment_method: isFreeOrder ? 'free' : 'toss',
       updated_at: new Date().toISOString(),
     };
 

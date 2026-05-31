@@ -56,6 +56,7 @@ export default function CustomOrderPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer'>('card');
   const [bankTransferLoading, setBankTransferLoading] = useState(false);
+  const [freeOrderLoading, setFreeOrderLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [itemQuantities, setItemQuantities] = useState<ItemQuantities>({});
@@ -292,7 +293,41 @@ export default function CustomOrderPage() {
       return;
     }
 
+    if (totalAmount <= 0) {
+      await handleFreeOrder();
+      return;
+    }
+
     setShowPayment(true);
+  };
+
+  const handleFreeOrder = async () => {
+    setFreeOrderLoading(true);
+    try {
+      const res = await fetch('/api/order/custom/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentKey: 'FREE_ORDER',
+          orderId: orderData!.id,
+          amount: 0,
+          token,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setFormError(data.error || '주문 처리에 실패했습니다.');
+        return;
+      }
+
+      router.push(`/payment/complete?orderId=${orderData!.id}`);
+    } catch {
+      setFormError('주문 처리 중 오류가 발생했습니다.');
+    } finally {
+      setFreeOrderLoading(false);
+    }
   };
 
   const handleBankTransferOrder = async () => {
@@ -717,9 +752,19 @@ export default function CustomOrderPage() {
               {/* Proceed to Payment Button — 0개여도 비활성화하지 않고, 클릭 시 사이즈 영역으로 유도 */}
               <button
                 onClick={handleProceedToPayment}
-                className="w-full py-4 bg-[#3B55A5] text-white rounded-xl font-medium text-lg hover:bg-[#2f4584] transition-colors"
+                disabled={freeOrderLoading}
+                className="w-full py-4 bg-[#3B55A5] text-white rounded-xl font-medium text-lg hover:bg-[#2f4584] transition-colors disabled:opacity-50"
               >
-                {isQtyEditable && totalQuantity <= 0 ? '사이즈별 수량을 선택해주세요' : '결제하기'}
+                {freeOrderLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    주문 처리 중...
+                  </span>
+                ) : isQtyEditable && totalQuantity <= 0
+                  ? '사이즈별 수량을 선택해주세요'
+                  : totalAmount <= 0
+                    ? '주문 완료하기'
+                    : '결제하기'}
               </button>
 
               <div className="flex items-center justify-center gap-2 text-gray-400 text-xs pb-4">
