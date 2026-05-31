@@ -87,7 +87,7 @@ export async function sendEmailNotification(inquiry: ChatbotInquiryNotification)
         <tr><td style="padding:9px 0;color:#888;">이메일</td><td style="padding:9px 0;">${inquiry.contact_email || '미입력'}</td></tr>
       </table>
       <div style="text-align:center;margin-top:24px;">
-        <a href="https://modoo-admin.vercel.app/content/chatbot"
+        <a href="https://modoo-admin-gilt.vercel.app/content/chatbot"
            style="display:inline-block;background:#3B55A5;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;">
           챗봇 문의 관리에서 보기 →
         </a>
