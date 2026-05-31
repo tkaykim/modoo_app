@@ -7,7 +7,8 @@ interface NotifyBody {
   title: string;
   groupName: string;
   managerName: string;
-  phone: string;
+  email: string;
+  phone?: string;
   kakaoId?: string;
   desiredDate?: string;
   expectedQty?: number;
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     title,
     groupName,
     managerName,
+    email,
     phone,
     kakaoId,
     desiredDate,
@@ -51,7 +53,8 @@ export async function POST(req: Request) {
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; width: 120px; border: 1px solid #ddd;">제목</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${title}</td></tr>
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">단체명</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${groupName}</td></tr>
         <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">담당자명</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${managerName}</td></tr>
-        <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">연락처</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${phone}</td></tr>
+        <tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">이메일</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${email}</td></tr>
+        ${phone ? `<tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">전화번호</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${phone}</td></tr>` : ''}
         ${kakaoId ? `<tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">카카오톡 ID</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${kakaoId}</td></tr>` : ''}
         ${desiredDate ? `<tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">착용희망날짜</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${desiredDate}</td></tr>` : ''}
         ${expectedQty ? `<tr><td style="padding: 8px 12px; background: #f5f5f5; font-weight: bold; border: 1px solid #ddd;">예상수량</td><td style="padding: 8px 12px; border: 1px solid #ddd;">${expectedQty}개</td></tr>` : ''}
@@ -64,7 +67,7 @@ export async function POST(req: Request) {
     </div>
   `;
 
-  const text = `새로운 문의: ${title}\n담당자: ${managerName} (${groupName})\n연락처: ${phone}\n${content ? `내용: ${content}` : ''}`;
+  const text = `새로운 문의: ${title}\n담당자: ${managerName} (${groupName})\n이메일: ${email}${phone ? `\n전화: ${phone}` : ''}${kakaoId ? `\n카카오톡: ${kakaoId}` : ''}\n${content ? `내용: ${content}` : ''}`;
 
   const success = await sendGmailEmail({
     to: [{ email: adminEmail, name: '관리자' }],

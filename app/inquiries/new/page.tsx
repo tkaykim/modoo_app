@@ -98,6 +98,7 @@ function InquiryForm() {
   const [title, setTitle] = useState('');
   const [groupName, setGroupName] = useState('');
   const [managerName, setManagerName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [kakaoId, setKakaoId] = useState('');
   const [desiredDate, setDesiredDate] = useState('');
@@ -208,7 +209,8 @@ function InquiryForm() {
     if (!title) { alert('제목을 선택해주세요.'); return; }
     if (!groupName.trim()) { alert('단체명을 입력해주세요.'); return; }
     if (!managerName.trim()) { alert('담당자명을 입력해주세요.'); return; }
-    if (!phone.trim() && !kakaoId.trim()) { alert('연락처(전화번호 또는 카카오톡 아이디)를 하나 이상 입력해주세요.'); return; }
+    if (!email.trim()) { alert('이메일을 입력해주세요. 답변과 진행 알림을 이메일로 빠르게 보내드립니다.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { alert('올바른 이메일 형식을 입력해주세요. (예: name@example.com)'); return; }
     if (!password.trim()) { alert('비밀번호를 입력해주세요.'); return; }
     if (consent !== 'agree') { alert('개인정보 수집 및 이용에 동의해주세요.'); return; }
 
@@ -226,7 +228,8 @@ function InquiryForm() {
           status: 'pending',
           group_name: groupName.trim(),
           manager_name: managerName.trim(),
-          phone: phone.trim(),
+          email: email.trim(),
+          phone: phone.trim() || null,
           kakao_id: kakaoId.trim() || null,
           desired_date: desiredDate || null,
           expected_qty: expectedQty ? parseInt(expectedQty, 10) : null,
@@ -258,7 +261,8 @@ function InquiryForm() {
           title: title.trim(),
           groupName: groupName.trim(),
           managerName: managerName.trim(),
-          phone: phone.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
           kakaoId: kakaoId.trim() || undefined,
           desiredDate: desiredDate || undefined,
           expectedQty: expectedQty ? parseInt(expectedQty, 10) : undefined,
@@ -383,16 +387,36 @@ function InquiryForm() {
               />
             </FormRow>
 
-            {/* 연락처 */}
-            <FormRow label="연락처" required>
+            {/* 이메일 (1순위·필수) */}
+            <FormRow label="이메일" required>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className={inputClass}
+                  disabled={isSubmitting}
+                  autoComplete="email"
+                  inputMode="email"
+                />
+                <p className="text-xs text-gray-500">
+                  ▶ 답변과 진행 알림을 이메일로 빠르게 보내드려요. 가장 정확하고 빠른 연락 수단이라 꼭 입력해주세요.
+                </p>
+              </div>
+            </FormRow>
+
+            {/* 전화·카톡 (선택) */}
+            <FormRow label="전화·카톡">
               <div className="flex flex-col gap-2">
                 <input
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="전화번호, 카카오톡 아이디, 이메일 등"
+                  placeholder="전화번호 (선택)"
                   className={inputClass}
                   disabled={isSubmitting}
+                  inputMode="tel"
                 />
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500 shrink-0">카카오톡 아이디</span>
@@ -400,13 +424,13 @@ function InquiryForm() {
                     type="text"
                     value={kakaoId}
                     onChange={(e) => setKakaoId(e.target.value)}
-                    placeholder="카카오톡 아이디"
+                    placeholder="카카오톡 아이디 (선택)"
                     className={inputClass + ' flex-1'}
                     disabled={isSubmitting}
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  ▶ 전화번호 또는 카카오톡 아이디 중 하나 이상 입력해주세요. 담당자가 이메일 또는 문의 게시판을 통해 연락드립니다.
+                  ▶ 담당자의 전화·카카오톡 직접 연락을 원하시면 입력해주세요. (선택)
                 </p>
               </div>
             </FormRow>
