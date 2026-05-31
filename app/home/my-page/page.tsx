@@ -35,7 +35,7 @@ const supportMenuItems: MenuItem[] = [
 
 export default function MyPage() {
   const router = useRouter();
-  const { user, isAuthenticated, setUser, logout, setLoading } = useAuthStore();
+  const { user, isAuthenticated, setUser, logout, clearLocalAuth, setLoading } = useAuthStore();
   const [stats, setStats] = useState({
     orders: 0,
     designs: 0,
@@ -48,7 +48,10 @@ export default function MyPage() {
       setLoading(true);
       try {
         const supabase = createClient();
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        // 로컬 쿠키 기반 세션으로 판정 (네트워크 getUser는 레이트리밋/순간 실패 시 null을
+        // 반환할 수 있는데, 그걸로 세션을 끊으면 로그인 직후에도 비로그인으로 튕긴다).
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUser = session?.user ?? null;
 
         if (supabaseUser) {
           // Fetch user profile with role
@@ -68,18 +71,21 @@ export default function MyPage() {
             role: profile?.role || 'customer',
           });
         } else {
-          logout();
+          // 세션이 없으면 로컬 상태만 비운다. signOut()으로 세션을 능동 파괴하지 않는다
+          // (일시적 실패를 영구 로그아웃으로 키우지 않기 위함).
+          clearLocalAuth();
         }
       } catch (error) {
+        // 네트워크/일시 오류 시 세션을 파괴하지 않고 로딩만 종료 (기존 상태 유지).
         console.error('Error checking auth:', error);
-        logout();
+        setLoading(false);
       } finally {
         setLoading(false);
       }
     };
 
     checkAuth();
-  }, [setUser, logout, setLoading]);
+  }, [setUser, clearLocalAuth, setLoading]);
 
   useEffect(() => {
     const fetchStats = async () => {

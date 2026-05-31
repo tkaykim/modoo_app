@@ -29,8 +29,12 @@ interface AuthState {
   // Set user data and mark as authenticated
   setUser: (user: UserData) => void;
 
-  // Clear user data and mark as not authenticated
+  // Clear user data and mark as not authenticated (also signs out of Supabase)
   logout: () => void;
+
+  // Clear ONLY local auth state without signing out of Supabase.
+  // 일시적인 getUser/getSession 실패로 세션을 능동적으로 파괴하면 안 되는 경우에 사용.
+  clearLocalAuth: () => void;
 
   // Update user profile
   updateUser: (updates: Partial<UserData>) => void;
@@ -124,6 +128,13 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
       },
+
+      clearLocalAuth: () =>
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        }),
 
       updateUser: (updates) =>
         set((state) => ({
