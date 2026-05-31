@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, total_amount, payment_status, payment_link_token, order_status, inquiry_id')
+      .select('id, total_amount, payment_status, payment_link_token, order_status, inquiry_id, parent_order_id')
       .eq('payment_link_token', token)
       .single();
 
@@ -124,14 +124,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '결제는 완료되었으나 주문 정보 업데이트에 실패했습니다.' }, { status: 500 });
     }
 
-    // 간이주문(문의 연결)이면 결제 완료를 문의 스레드에 기록 — fire-and-forget, 결제 결과에 영향 없음
+    // 간이주문/차액주문(문의 연결)이면 결제 완료를 문의 스레드에 기록 — fire-and-forget, 결제 결과에 영향 없음
     if (order.inquiry_id) {
       try {
+        const noteContent = order.parent_order_id
+          ? `✅ 차액(추가) 결제가 완료되었습니다.\n주문번호: ${order.id}\n원주문: ${order.parent_order_id}\n결제금액: ${Number(amount).toLocaleString('ko-KR')}원\n\n원주문 사양/수량 변경분에 대한 추가 결제입니다. 생산 사양 반영 후 공장 배정을 진행해 주세요.`
+          : `✅ 결제가 완료되었습니다.\n주문번호: ${order.id}\n결제금액: ${Number(amount).toLocaleString('ko-KR')}원\n\n간이주문 결제분입니다. 디자이너 목업·면별 아트워크 작업 후 공장 배정을 진행해 주세요.`;
         await adminClient.from('inquiry_replies').insert({
           inquiry_id: order.inquiry_id,
           admin_id: null,
           is_admin: true,
-          content: `✅ 결제가 완료되었습니다.\n주문번호: ${order.id}\n결제금액: ${Number(amount).toLocaleString('ko-KR')}원\n\n간이주문 결제분입니다. 디자이너 목업·면별 아트워크 작업 후 공장 배정을 진행해 주세요.`,
+          content: noteContent,
           file_urls: [],
         });
       } catch (noteErr) {

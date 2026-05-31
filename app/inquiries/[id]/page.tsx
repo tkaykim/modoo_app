@@ -532,6 +532,9 @@ export default function InquiryDetailPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
+                      {ord.orderCategory === 'surcharge' && (
+                        <span className="inline-block mb-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-orange-100 text-orange-800">차액(추가) 결제</span>
+                      )}
                       <p className="font-medium text-gray-900 truncate">{item?.productTitle || '주문 상품'}</p>
                       {item && item.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
