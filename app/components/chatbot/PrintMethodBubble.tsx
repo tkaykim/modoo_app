@@ -65,8 +65,8 @@ export default function PrintMethodBubble({
                 isLastOdd ? 'col-span-2' : ''
               } ${
                 isSelected
-                  ? 'bg-[#0052CC] text-white ring-2 ring-[#0052CC] ring-offset-1'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:border-[#0052CC]'
+                  ? 'bg-brand text-white ring-2 ring-brand ring-offset-1'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-brand'
               }`}
             >
               {isRecommended && (
@@ -94,7 +94,7 @@ export default function PrintMethodBubble({
       <button
         onClick={() => !disabled && selected && onSelect(selected)}
         disabled={disabled || !selected}
-        className="w-full py-2.5 mb-2 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 mb-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-deep transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {selected ? `${selected}으로 진행` : '인쇄방식을 선택해주세요'}
         <ArrowRight className="w-4 h-4" />
@@ -102,7 +102,7 @@ export default function PrintMethodBubble({
 
       <button
         onClick={() => setShowGuide((v) => !v)}
-        className="w-full py-2 text-sm font-medium text-[#0052CC] bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
+        className="w-full py-2 text-sm font-medium text-brand bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
       >
         <HelpCircle className="w-4 h-4" />
         {showGuide ? '설명 접기' : '잘 모르겠어요 — 방식별 설명 보기'}
@@ -121,7 +121,7 @@ export default function PrintMethodBubble({
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-semibold text-gray-900">{meta.label}</span>
-                  <span className="text-[11px] text-[#0052CC] bg-blue-50 px-1.5 py-0.5 rounded">
+                  <span className="text-[11px] text-brand bg-blue-50 px-1.5 py-0.5 rounded">
                     추천: {meta.best}
                   </span>
                 </div>

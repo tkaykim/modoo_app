@@ -105,7 +105,7 @@ function ChatReplyContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#0052CC] border-r-transparent" />
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-brand border-r-transparent" />
           <p className="text-gray-500 mt-4 text-sm">불러오는 중...</p>
         </div>
       </div>
@@ -130,7 +130,7 @@ function ChatReplyContent() {
       <div className="bg-white border-b border-gray-200 px-4 py-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <span className="text-[#0052CC] text-lg font-bold">M</span>
+            <span className="text-brand text-lg font-bold">M</span>
           </div>
           <div className="min-w-0">
             <h1 className="text-base font-bold text-gray-900">모두의 유니폼</h1>
@@ -168,7 +168,7 @@ function ChatReplyContent() {
                 <div
                   className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap ${
                     isMe
-                      ? 'bg-[#0052CC] text-white rounded-br-md'
+                      ? 'bg-brand text-white rounded-br-md'
                       : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md shadow-sm'
                   }`}
                 >
@@ -212,13 +212,13 @@ function ChatReplyContent() {
             }}
             placeholder="답변을 입력하세요..."
             rows={1}
-            className="flex-1 resize-none border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent"
+            className="flex-1 resize-none border border-gray-300 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
             style={{ maxHeight: '80px' }}
           />
           <button
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
-            className="px-5 py-2.5 bg-[#0052CC] text-white rounded-full text-sm font-medium hover:bg-[#003D99] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="px-5 py-2.5 bg-brand text-white rounded-full text-sm font-medium hover:bg-brand-deep disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
           >
             {sending ? '전송중...' : '전송'}
           </button>
@@ -233,7 +233,7 @@ export default function ChatReplyPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-[#0052CC] border-r-transparent" />
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-brand border-r-transparent" />
         </div>
       }
     >

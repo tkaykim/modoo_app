@@ -32,7 +32,7 @@ export default function SizeChartTable({ sizingData, sizingChartImage, trigger }
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1 text-xs text-[#0052CC] hover:opacity-80 font-medium transition-colors"
+          className="flex items-center gap-1 text-xs text-brand hover:opacity-80 font-medium transition-colors"
         >
           <Ruler className="w-3.5 h-3.5" />
           사이즈표

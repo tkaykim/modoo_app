@@ -820,7 +820,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
               className="flex flex-col items-center gap-1.5 group"
               title="초기화"
             >
-              <div className="w-12 h-12 rounded-full border border-gray-200 bg-blue-500 flex items-center justify-center hover:bg-[#0052CC] transition shadow-sm">
+              <div className="w-12 h-12 rounded-full border border-gray-200 bg-blue-500 flex items-center justify-center hover:bg-brand transition shadow-sm">
                 <RefreshCcw className="size-5 text-white" />
               </div>
               <span className="text-xs text-gray-600 font-medium">초기화</span>
@@ -1029,7 +1029,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
                   onClick={() => handleSideSelect(side.id)}
                   className={`w-full p-2 rounded-lg border-2 transition-all text-left flex items-center gap-4 ${
                     side.id === activeSideId
-                      ? 'border-[#0052CC] bg-gray-100'
+                      ? 'border-brand bg-gray-100'
                       : 'border-gray-200 hover:border-gray-400'
                   }`}
                 >
@@ -1108,8 +1108,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
             )}
             {layersLabEnabled && (
               <button onClick={() => setLayersPanelOpen(true)} className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl hover:bg-blue-50 active:bg-blue-100 transition min-w-[52px]">
-                <Layers className="size-5 text-[#0052CC]" />
-                <span className="text-[10px] font-medium text-[#0052CC]">레이어</span>
+                <Layers className="size-5 text-brand" />
+                <span className="text-[10px] font-medium text-brand">레이어</span>
               </button>
             )}
           </div>

@@ -14,7 +14,7 @@ export default function CreateCoBuyRedirect() {
   return (
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-[#0052CC] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-gray-600">이동 중...</p>
       </div>
     </div>

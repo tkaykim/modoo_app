@@ -181,7 +181,7 @@ export default function MyPage() {
               </div>
               <Link
                 href="/login"
-                className="shrink-0 px-4 py-1.5 bg-[#0052CC] text-white text-sm rounded-lg font-medium hover:bg-[#003D99] transition-colors md:px-6 md:py-2"
+                className="shrink-0 px-4 py-1.5 bg-brand text-white text-sm rounded-lg font-medium hover:bg-brand-deep transition-colors md:px-6 md:py-2"
               >
                 로그인
               </Link>

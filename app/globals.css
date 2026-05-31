@@ -18,6 +18,21 @@
   --font-mono: ui-monospace, "SFMono-Regular", "Segoe UI Mono", monospace;
 }
 
+/*
+ * 브랜드 키컬러 — 단일 출처(single source of truth).
+ * Tailwind 유틸 자동 생성: bg-brand, text-brand, border-brand, ring-brand,
+ * from-brand, to-brand (+ -deep/-soft/-softer/-ink 변형, /opacity 지원).
+ * 신규 UI는 hex(#0052cc) 대신 이 토큰 유틸을 사용할 것.
+ * 이메일/서버 HTML·inline style 등 클래스를 못 쓰는 곳은 lib/brand.ts의 BRAND 상수 사용.
+ */
+@theme {
+  --color-brand: #0052cc;
+  --color-brand-deep: #003d99;
+  --color-brand-soft: #e6eefb;
+  --color-brand-softer: #f2f6fc;
+  --color-brand-ink: #001f5c;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -668,7 +668,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           <button
             onClick={handleBack}
             disabled={isTyping}
-            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-[#0052CC] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-brand transition-colors disabled:opacity-40"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             이전 단계
@@ -682,13 +682,13 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
     return (
       <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
         <div
-          className="shrink-0 grid grid-cols-3 items-center px-3 py-4 bg-[#0052CC] text-white shadow-md"
+          className="shrink-0 grid grid-cols-3 items-center px-3 py-4 bg-brand text-white shadow-md"
           style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}
         >
           <div className="flex justify-start">
             <button
               onClick={() => router.push('/home')}
-              className="p-2 hover:bg-[#003D99] rounded-full transition-colors"
+              className="p-2 hover:bg-brand-deep rounded-full transition-colors"
               aria-label="홈으로"
             >
               <Home className="w-6 h-6" />
@@ -715,7 +715,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // floating
   return (
     <div className="fixed bottom-24 right-4 md:bottom-8 md:right-24 z-[9998] w-[calc(100vw-2rem)] max-w-[380px] h-[70vh] md:h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0052CC] text-white">
+      <div className="flex items-center justify-between px-4 py-3 bg-brand text-white">
         <div>
           <h3 className="font-semibold">모두의 유니폼</h3>
           <p className="text-xs text-blue-200">맞춤 상품 추천</p>
@@ -729,7 +729,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
           </button>
           <button
             onClick={closeChat}
-            className="p-1 hover:bg-[#003D99] rounded-full transition-colors"
+            className="p-1 hover:bg-brand-deep rounded-full transition-colors"
             aria-label="채팅 닫기"
           >
             <X className="w-5 h-5" />

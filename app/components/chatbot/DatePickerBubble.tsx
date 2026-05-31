@@ -34,7 +34,7 @@ export default function DatePickerBubble({ onSubmit, disabled }: DatePickerBubbl
           onChange={(e) => setSelectedDate(e.target.value)}
           min={new Date().toISOString().split('T')[0]}
           disabled={disabled}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent bg-white disabled:opacity-50"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent bg-white disabled:opacity-50"
         />
       </div>
       <div className="flex gap-2">
@@ -48,7 +48,7 @@ export default function DatePickerBubble({ onSubmit, disabled }: DatePickerBubbl
         <button
           onClick={handleDateSubmit}
           disabled={!selectedDate || disabled}
-          className="flex-1 py-2.5 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="flex-1 py-2.5 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           선택 완료
         </button>

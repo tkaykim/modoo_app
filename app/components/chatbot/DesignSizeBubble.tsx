@@ -54,7 +54,7 @@ export default function DesignSizeBubble({ onSubmit, disabled }: DesignSizeBubbl
             onChange={(e) => setVal(r.key, e.target.value)}
             placeholder="0"
             disabled={disabled}
-            className="w-14 px-2 py-2 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:border-[#0052CC] disabled:opacity-50 shrink-0"
+            className="w-14 px-2 py-2 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:border-brand disabled:opacity-50 shrink-0"
           />
           <span className="text-sm text-gray-500 shrink-0">개</span>
         </div>
@@ -63,7 +63,7 @@ export default function DesignSizeBubble({ onSubmit, disabled }: DesignSizeBubbl
       <button
         onClick={submit}
         disabled={disabled}
-        className="w-full py-2.5 mt-1 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+        className="w-full py-2.5 mt-1 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
       >
         <Check className="w-4 h-4" /> 확인
       </button>

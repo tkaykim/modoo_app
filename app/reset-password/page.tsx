@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
         <div className="max-w-[400px] w-full">
           <div className="mb-4">
-            <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#0052CC] transition-colors">
+            <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-brand transition-colors">
               <ArrowLeft className="w-3.5 h-3.5" />
               로그인으로 돌아가기
             </Link>
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-white flex items-center justify-center px-4 py-8">
       <div className="max-w-[400px] w-full">
         <div className="mb-4">
-          <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#0052CC] transition-colors">
+          <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-brand transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             로그인으로 돌아가기
           </Link>
@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] text-sm text-gray-900 transition-colors"
+                  className="block w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand text-sm text-gray-900 transition-colors"
                   placeholder="example@email.com"
                 />
               </div>
@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-[#0052CC] hover:bg-[#003D99] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0052CC] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+              className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-brand hover:bg-brand-deep active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">

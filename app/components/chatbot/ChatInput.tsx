@@ -29,12 +29,12 @@ export default function ChatInput({ value, onChange, onSend, disabled, placehold
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
       />
       <button
         onClick={onSend}
         disabled={!value.trim() || disabled}
-        className="p-2 bg-[#0052CC] text-white rounded-full hover:bg-[#003D99] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="p-2 bg-brand text-white rounded-full hover:bg-brand-deep disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
       >
         <Send className="w-4 h-4" />
       </button>

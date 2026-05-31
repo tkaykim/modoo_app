@@ -122,7 +122,7 @@ export default function CustomFieldBuilder({
                     onChange={(e) => updateField(field.id, { label: e.target.value })}
                     disabled={field.fixed}
                     placeholder="필드 이름"
-                    className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -130,7 +130,7 @@ export default function CustomFieldBuilder({
                       checked={field.required}
                       onChange={(e) => updateField(field.id, { required: e.target.checked })}
                       disabled={field.fixed}
-                      className="w-4 h-4 rounded border-gray-300 text-[#0052CC] focus:ring-[#0052CC] disabled:opacity-50"
+                      className="w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-50"
                     />
                     <span className={field.fixed ? 'text-gray-400' : ''}>필수</span>
                   </label>
@@ -146,7 +146,7 @@ export default function CustomFieldBuilder({
                           value={option}
                           onChange={(e) => updateDropdownOption(field.id, index, e.target.value)}
                           placeholder={`옵션 ${index + 1}`}
-                          className="flex-1 px-3 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-[#0052CC]"
+                          className="flex-1 px-3 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand"
                         />
                         <button
                           onClick={() => removeDropdownOption(field.id, index)}
@@ -158,7 +158,7 @@ export default function CustomFieldBuilder({
                     ))}
                     <button
                       onClick={() => addDropdownOption(field.id)}
-                      className="text-sm text-[#0052CC] hover:text-blue-700 flex items-center gap-1"
+                      className="text-sm text-brand hover:text-blue-700 flex items-center gap-1"
                     >
                       <Plus className="w-4 h-4" />
                       <span>옵션 추가</span>
@@ -193,7 +193,7 @@ export default function CustomFieldBuilder({
         <div className="relative">
           <button
             onClick={() => setShowAddMenu(!showAddMenu)}
-            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-[#0052CC] hover:text-[#0052CC] transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-brand hover:text-brand transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
             <span>필드 추가</span>

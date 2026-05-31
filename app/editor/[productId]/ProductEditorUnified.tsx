@@ -1762,7 +1762,7 @@ export default function ProductEditorUnified({
         <>
           <button
             onClick={() => setLayersPanelOpen(true)}
-            className="fixed bottom-4 right-4 z-40 bg-[#0052CC] hover:bg-[#003D99] text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
+            className="fixed bottom-4 right-4 z-40 bg-brand hover:bg-brand-deep text-white rounded-full shadow-lg p-3 flex items-center gap-2 transition"
             aria-label="레이어 & 인쇄방식 패널 열기"
           >
             <LayersIcon className="w-5 h-5" />

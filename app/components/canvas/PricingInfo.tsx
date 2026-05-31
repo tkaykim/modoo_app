@@ -113,7 +113,7 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
                       {pickerEnabled && (
                         <button
                           onClick={() => setPickerForObjectId(objPricing.objectId)}
-                          className="text-[10px] font-semibold text-[#0052CC] hover:text-blue-800 underline underline-offset-2"
+                          className="text-[10px] font-semibold text-brand hover:text-blue-800 underline underline-offset-2"
                         >
                           변경
                         </button>
@@ -129,7 +129,7 @@ export default function PricingInfo({ basePrice, sides }: PricingInfoProps) {
                     </span>
                     {/* Show recommendation if auto-selected */}
                     {objPricing.recommendation?.suggested && (
-                      <span className="flex items-center gap-1 text-[#0052CC] text-[10px] italic">
+                      <span className="flex items-center gap-1 text-brand text-[10px] italic">
                         <Sparkles className="size-3 shrink-0" />
                         {objPricing.recommendation.reason}
                       </span>

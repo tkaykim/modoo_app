@@ -121,7 +121,7 @@ export default function OrdersPage() {
             </p>
             <button
               onClick={() => router.push('/home')}
-              className="px-6 py-3 bg-[#0052CC] text-white rounded-lg font-medium hover:bg-[#003D99] transition-colors"
+              className="px-6 py-3 bg-brand text-white rounded-lg font-medium hover:bg-brand-deep transition-colors"
             >
               쇼핑하러 가기
             </button>

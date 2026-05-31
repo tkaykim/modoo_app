@@ -1402,11 +1402,11 @@ export default function CreateCoBuyRequestPage() {
                 const isSuccess = currentStep === ('success' as Step);
                 return (
                   <div key={step.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                    isCurrent && !isSuccess ? 'bg-[#0052CC]/10 text-[#0052CC] font-semibold'
+                    isCurrent && !isSuccess ? 'bg-brand/10 text-brand font-semibold'
                     : isPast || isSuccess ? 'text-gray-500' : 'text-gray-300'
                   }`}>
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                      isCurrent && !isSuccess ? 'bg-[#0052CC] text-white shadow-md shadow-[#0052CC]/25'
+                      isCurrent && !isSuccess ? 'bg-brand text-white shadow-md shadow-brand/25'
                       : isPast || isSuccess ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-300'
                     }`}>
                       {isPast || isSuccess ? <Check className="w-3.5 h-3.5" /> : step.icon}
@@ -1450,7 +1450,7 @@ export default function CreateCoBuyRequestPage() {
               {currentStep !== ('success' as Step) && (
                 <div className="px-4 pb-3 md:px-6 md:pb-4 lg:hidden">
                   <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#0052CC] to-[#003D99] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                    <div className="h-full bg-gradient-to-r from-brand to-brand-deep rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                   </div>
                   <p className="text-[10px] text-gray-500 mt-1.5">{currentStepIndex + 1} / {visibleSteps.length}</p>
                 </div>
@@ -1493,7 +1493,7 @@ export default function CreateCoBuyRequestPage() {
                         value={expectedQuantity}
                         onChange={e => setExpectedQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                         min={5}
-                        className="w-20 px-2 py-1 text-xl font-bold text-center border-2 border-gray-300 rounded-lg focus:outline-none focus:border-[#0052CC] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                        className="w-20 px-2 py-1 text-xl font-bold text-center border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <span className="text-sm text-gray-600 font-medium">벌</span>
                     </div>
@@ -1505,7 +1505,7 @@ export default function CreateCoBuyRequestPage() {
                         step={1}
                         value={expectedQuantity === '' ? 100 : Number(expectedQuantity)}
                         onChange={e => setExpectedQuantity(parseInt(e.target.value))}
-                        className="w-48 h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#0052CC] [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#0052CC] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-md"
+                        className="w-48 h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-brand [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:shadow-md"
                       />
                     </div>
                     {(() => {
@@ -1702,7 +1702,7 @@ export default function CreateCoBuyRequestPage() {
                     {isImageLoading && (
                       <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20">
                         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-lg">
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-[#0052CC]" />
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-brand" />
                           <span className="text-xs text-gray-600">이미지 로딩중...</span>
                         </div>
                       </div>
@@ -1860,7 +1860,7 @@ export default function CreateCoBuyRequestPage() {
                           <span className="text-[10px] text-gray-400 shrink-0">글자</span>
                           {['#000000', '#FFFFFF', '#0052CC', '#DC2626'].map(c => (
                             <button key={c} onClick={() => changeTextColor(c)}
-                              className={`w-6 h-6 rounded-full border-2 transition-all ${textColor === c ? 'border-[#0052CC] scale-110' : 'border-gray-300'}`}
+                              className={`w-6 h-6 rounded-full border-2 transition-all ${textColor === c ? 'border-brand scale-110' : 'border-gray-300'}`}
                               style={{ backgroundColor: c }} />
                           ))}
                           <button onClick={() => textColorInputRef.current?.click()}
@@ -1876,7 +1876,7 @@ export default function CreateCoBuyRequestPage() {
                           <span className="text-[10px] text-gray-400 shrink-0">테두리</span>
                           {['none', '#000000', '#FFFFFF'].map(c => (
                             <button key={c} onClick={() => changeTextStroke(c === 'none' ? '' : c)}
-                              className={`w-6 h-6 rounded-full border-2 transition-all ${textStroke === (c === 'none' ? '' : c) ? 'border-[#0052CC] scale-110' : 'border-gray-300'}`}
+                              className={`w-6 h-6 rounded-full border-2 transition-all ${textStroke === (c === 'none' ? '' : c) ? 'border-brand scale-110' : 'border-gray-300'}`}
                               style={c === 'none' ? { background: 'linear-gradient(135deg, #fff 45%, #ef4444 50%, #fff 55%)' } : { backgroundColor: c }} />
                           ))}
                           <button onClick={() => strokeColorInputRef.current?.click()}
@@ -1914,7 +1914,7 @@ export default function CreateCoBuyRequestPage() {
                       <button onClick={handleBack} className="py-3 px-5 border-2 border-gray-200 rounded-2xl font-semibold hover:bg-gray-50 flex items-center gap-1.5 text-sm text-gray-700">
                         <ArrowLeft className="w-4 h-4" /> 이전
                       </button>
-                      <button onClick={handleNext} className="flex-1 py-3 bg-gradient-to-r from-[#0052CC] to-[#003D99] text-white rounded-2xl font-semibold shadow-lg shadow-[#0052CC]/25 flex items-center justify-center gap-1.5 text-sm">
+                      <button onClick={handleNext} className="flex-1 py-3 bg-gradient-to-r from-brand to-brand-deep text-white rounded-2xl font-semibold shadow-lg shadow-brand/25 flex items-center justify-center gap-1.5 text-sm">
                         다음 <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -1934,7 +1934,7 @@ export default function CreateCoBuyRequestPage() {
                             onChange={e => setTextEditModal(prev => ({ ...prev, value: e.target.value }))}
                             autoFocus
                             onKeyDown={e => { if (e.key === 'Enter') handleTextEditConfirm(); }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                           />
                         </div>
                         <div className="flex border-t border-gray-200">
@@ -1946,7 +1946,7 @@ export default function CreateCoBuyRequestPage() {
                           </button>
                           <button
                             onClick={handleTextEditConfirm}
-                            className="flex-1 py-3 text-sm font-semibold text-white bg-[#0052CC] hover:bg-[#2f4584] transition"
+                            className="flex-1 py-3 text-sm font-semibold text-white bg-brand hover:bg-[#2f4584] transition"
                           >
                             확인
                           </button>
@@ -2031,7 +2031,7 @@ export default function CreateCoBuyRequestPage() {
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       placeholder={"예: 디자인 파일이 없어요, OO부분을 수정해주세요"}
-                      className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 resize-none"
+                      className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 resize-none"
                       rows={4}
                       maxLength={500}
                     />
@@ -2041,8 +2041,8 @@ export default function CreateCoBuyRequestPage() {
                   {/* Reference file upload */}
                   <div className="mt-4">
                     <label className="block text-xs font-medium text-gray-700 mb-1.5">참고 파일 첨부 (선택)</label>
-                    <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-[#0052CC] hover:text-[#0052CC] transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-[#0052CC] rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                    <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-brand hover:text-brand transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-brand rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
                       {isUploadingRef ? '업로드 중...' : '파일 선택'}
                       <input type="file" accept="image/*,.pdf,.ai,.psd,.zip" multiple className="hidden" onChange={handleReferenceFileUpload} />
                     </label>
@@ -2101,20 +2101,20 @@ export default function CreateCoBuyRequestPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => { if (receiveByDate === 'undecided') setReceiveByDate(''); }}
-                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${receiveByDate !== 'undecided' ? 'bg-[#0052CC] text-white shadow-md shadow-[#0052CC]/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${receiveByDate !== 'undecided' ? 'bg-brand text-white shadow-md shadow-brand/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
                         >
                           날짜 입력하기
                         </button>
                         <button
                           onClick={() => setReceiveByDate('undecided')}
-                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${receiveByDate === 'undecided' ? 'bg-[#0052CC] text-white shadow-md shadow-[#0052CC]/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${receiveByDate === 'undecided' ? 'bg-brand text-white shadow-md shadow-brand/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
                         >
                           아직 모르겠어요
                         </button>
                       </div>
                       {receiveByDate !== 'undecided' && (
                         <input type="date" value={receiveByDate} onChange={e => setReceiveByDate(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC]" />
+                          className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand" />
                       )}
                     </div>
 
@@ -2125,13 +2125,13 @@ export default function CreateCoBuyRequestPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => setSkipDelivery(false)}
-                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${!skipDelivery ? 'bg-[#0052CC] text-white shadow-md shadow-[#0052CC]/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${!skipDelivery ? 'bg-brand text-white shadow-md shadow-brand/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
                         >
                           주소 입력하기
                         </button>
                         <button
                           onClick={() => setSkipDelivery(true)}
-                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${skipDelivery ? 'bg-[#0052CC] text-white shadow-md shadow-[#0052CC]/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${skipDelivery ? 'bg-brand text-white shadow-md shadow-brand/20' : 'border-2 border-gray-200 text-gray-500 hover:border-gray-300'}`}
                         >
                           아직 모르겠어요
                         </button>
@@ -2140,7 +2140,7 @@ export default function CreateCoBuyRequestPage() {
                         <>
                           {!deliverySettings.deliveryAddress?.roadAddress ? (
                             <button type="button" onClick={() => handleAddressSearch('delivery')}
-                              className="w-full px-3 py-2.5 bg-white border-2 border-[#0052CC] text-[#0052CC] rounded-xl hover:bg-[#0052CC]/5 font-medium flex items-center justify-center gap-1.5 text-sm">
+                              className="w-full px-3 py-2.5 bg-white border-2 border-brand text-brand rounded-xl hover:bg-brand/5 font-medium flex items-center justify-center gap-1.5 text-sm">
                               <Search className="w-4 h-4" /> 주소 검색
                             </button>
                           ) : (
@@ -2149,14 +2149,14 @@ export default function CreateCoBuyRequestPage() {
                                 <input type="text" value={deliverySettings.deliveryAddress.postalCode || ''} readOnly
                                   className="w-24 px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl bg-gray-50" placeholder="우편번호" />
                                 <button type="button" onClick={() => handleAddressSearch('delivery')}
-                                  className="flex-1 px-3 py-2.5 bg-white border-2 border-[#0052CC] text-[#0052CC] rounded-xl hover:bg-[#0052CC]/5 font-medium flex items-center justify-center gap-1.5 text-sm">
+                                  className="flex-1 px-3 py-2.5 bg-white border-2 border-brand text-brand rounded-xl hover:bg-brand/5 font-medium flex items-center justify-center gap-1.5 text-sm">
                                   <Search className="w-4 h-4" /> 주소 검색
                                 </button>
                               </div>
                               <input type="text" value={deliverySettings.deliveryAddress.roadAddress} readOnly className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl bg-gray-50" />
                               <input type="text" value={deliverySettings.deliveryAddress.addressDetail || ''}
                                 onChange={e => setDeliverySettings(prev => ({ ...prev, deliveryAddress: prev.deliveryAddress ? { ...prev.deliveryAddress, addressDetail: e.target.value } : undefined }))}
-                                placeholder="상세주소" className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC]" maxLength={100} />
+                                placeholder="상세주소" className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand" maxLength={100} />
                             </div>
                           )}
                         </>
@@ -2203,7 +2203,7 @@ export default function CreateCoBuyRequestPage() {
                         value={title}
                         onChange={e => setTitle(e.target.value)}
                         placeholder="예: 서울대학교 컴퓨터공학과"
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10"
+                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
                         maxLength={100}
                       />
                     </div>
@@ -2216,7 +2216,7 @@ export default function CreateCoBuyRequestPage() {
                         value={contactName}
                         onChange={e => setContactName(e.target.value)}
                         placeholder="홍길동"
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10"
+                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
                       />
                     </div>
 
@@ -2224,13 +2224,13 @@ export default function CreateCoBuyRequestPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setContactPreference('phone')}
-                        className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${contactPreference === 'phone' ? 'bg-[#0052CC] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${contactPreference === 'phone' ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                       >
                         전화가 편해요
                       </button>
                       <button
                         onClick={() => setContactPreference('email')}
-                        className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${contactPreference === 'email' ? 'bg-[#0052CC] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                        className={`flex-1 py-2.5 text-sm rounded-xl font-medium transition ${contactPreference === 'email' ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                       >
                         이메일이 편해요
                       </button>
@@ -2247,7 +2247,7 @@ export default function CreateCoBuyRequestPage() {
                         value={contactEmail}
                         onChange={e => setContactEmail(e.target.value)}
                         placeholder="example@email.com"
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10"
+                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
                       />
                     </div>
                     )}
@@ -2268,7 +2268,7 @@ export default function CreateCoBuyRequestPage() {
                           setContactPhone(formatted);
                         }}
                         placeholder="010-0000-0000"
-                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10"
+                        className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
                       />
                     </div>
                     )}
@@ -2281,13 +2281,13 @@ export default function CreateCoBuyRequestPage() {
                           value={description}
                           onChange={e => setDescription(e.target.value)}
                           placeholder="원하시는 디자인, 참고 이미지 링크 등 자유롭게 남겨주세요."
-                          className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] focus:ring-4 focus:ring-[#0052CC]/10 resize-none"
+                          className="w-full px-3 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 resize-none"
                           rows={3}
                           maxLength={500}
                         />
                         <p className="text-xs text-gray-400">{description.length}/500자</p>
-                        <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-[#0052CC] hover:text-[#0052CC] transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
-                          {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-[#0052CC] rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                        <label className={`flex items-center justify-center gap-1.5 w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 cursor-pointer hover:border-brand hover:text-brand transition ${isUploadingRef ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploadingRef ? <div className="w-4 h-4 border-2 border-gray-300 border-t-brand rounded-full animate-spin" /> : <ImagePlus className="w-4 h-4" />}
                           {isUploadingRef ? '업로드 중...' : '참고 파일 첨부'}
                           <input type="file" accept="image/*,.pdf,.ai,.psd,.zip" multiple className="hidden" onChange={handleReferenceFileUpload} />
                         </label>
@@ -2320,7 +2320,7 @@ export default function CreateCoBuyRequestPage() {
                           type="checkbox"
                           checked={privacyConsent}
                           onChange={e => setPrivacyConsent(e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#0052CC] focus:ring-[#0052CC]"
+                          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand"
                         />
                         <span className="text-xs text-gray-700">
                           <span className="font-semibold text-red-500">[필수]</span> 개인정보 수집 및 이용에 동의합니다. 입력하신 이름, 연락처, 주소 정보는 공동구매 요청 처리 및 배송 목적으로만 사용됩니다.
@@ -2354,7 +2354,7 @@ export default function CreateCoBuyRequestPage() {
                       </button>
                     </div>
                   </div>
-                  <button onClick={() => router.push(`/cobuy/request/${createdShareToken}`)} className="w-full max-w-sm py-3 bg-gradient-to-r from-[#0052CC] to-[#003D99] text-white rounded-2xl font-semibold flex items-center justify-center gap-1.5 text-sm">
+                  <button onClick={() => router.push(`/cobuy/request/${createdShareToken}`)} className="w-full max-w-sm py-3 bg-gradient-to-r from-brand to-brand-deep text-white rounded-2xl font-semibold flex items-center justify-center gap-1.5 text-sm">
                     확인 <ChevronRight className="w-4 h-4" />
                   </button>
                   <a
@@ -2392,7 +2392,7 @@ export default function CreateCoBuyRequestPage() {
                   )}
                   {currentStep === 'user-info' ? (
                     <button onClick={() => handleSubmit(skipDelivery)} disabled={isCreating}
-                      className="flex-1 py-3 bg-gradient-to-r from-[#0052CC] to-[#3B55A0] text-white rounded-2xl font-semibold shadow-lg flex items-center justify-center gap-1.5 text-sm disabled:opacity-50">
+                      className="flex-1 py-3 bg-gradient-to-r from-brand to-[#3B55A0] text-white rounded-2xl font-semibold shadow-lg flex items-center justify-center gap-1.5 text-sm disabled:opacity-50">
                       {isCreating ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 제출 중...</> : <>제출하기</>}
                     </button>
                   ) : currentStep === 'basic-info' ? (
@@ -2408,7 +2408,7 @@ export default function CreateCoBuyRequestPage() {
                     <button onClick={handleNext} disabled={!canProceed}
                       className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-1.5 text-sm transition-all ${
                         canProceed
-                          ? 'bg-gradient-to-r from-[#0052CC] to-[#003D99] text-white hover:from-[#003D99] hover:to-[#243366] shadow-lg shadow-[#0052CC]/25'
+                          ? 'bg-gradient-to-r from-brand to-brand-deep text-white hover:from-brand-deep hover:to-[#243366] shadow-lg shadow-brand/25'
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       }`}>
                       다음 <ArrowRight className="w-4 h-4" />
@@ -2440,7 +2440,7 @@ export default function CreateCoBuyRequestPage() {
             <div className="px-5 pb-6 grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleDesignChoice('design')}
-                className="group relative text-center p-5 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 hover:border-[#0052CC] hover:shadow-lg hover:shadow-[#0052CC]/10 transition-all duration-200 active:scale-[0.97] flex flex-col items-center"
+                className="group relative text-center p-5 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 hover:border-brand hover:shadow-lg hover:shadow-brand/10 transition-all duration-200 active:scale-[0.97] flex flex-col items-center"
               >
                 <div className="text-5xl mb-3 group-hover:scale-110 transition-transform duration-200">🎨</div>
                 <p className="text-[13px] font-bold text-gray-900 mb-2">제가 직접 <br></br>디자인 해볼래요</p>
@@ -2585,7 +2585,7 @@ function ColorSwatch({ hex, selected, onClick }: { hex: string; selected: boolea
   return (
     <button
       onClick={onClick}
-      className={`w-10 h-10 rounded-full border-2 shrink-0 transition-all ${selected ? 'border-[#0052CC] scale-110 shadow-md' : 'border-gray-200 hover:scale-105'}`}
+      className={`w-10 h-10 rounded-full border-2 shrink-0 transition-all ${selected ? 'border-brand scale-110 shadow-md' : 'border-gray-200 hover:scale-105'}`}
       style={{ backgroundColor: hex }}
     >
       {selected && (

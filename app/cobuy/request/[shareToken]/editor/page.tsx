@@ -228,12 +228,12 @@ export default function CoBuyRequestEditorPage() {
                   onChange={e => setCommentText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }}
                   placeholder="피드백을 입력해주세요..."
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#0052CC] transition"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-brand transition"
                 />
                 <button
                   onClick={handleSendComment}
                   disabled={!commentText.trim() || isSending}
-                  className="px-3 py-2 bg-[#0052CC] text-white rounded-xl text-sm font-medium hover:bg-[#003D99] disabled:opacity-50 transition flex items-center gap-1.5"
+                  className="px-3 py-2 bg-brand text-white rounded-xl text-sm font-medium hover:bg-brand-deep disabled:opacity-50 transition flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>

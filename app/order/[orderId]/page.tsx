@@ -36,7 +36,7 @@ const orderStatusMap: Record<string, { label: string; color: string }> = {
   payment_pending: { label: '결제대기', color: 'text-amber-700' },
   payment_completed: { label: '결제완료', color: 'text-blue-700' },
   in_production: { label: '제작중', color: 'text-yellow-700' },
-  shipping: { label: '배송중', color: 'text-[#0052CC]' },
+  shipping: { label: '배송중', color: 'text-brand' },
   delivered: { label: '배송완료', color: 'text-green-700' },
   cancelled: { label: '취소', color: 'text-red-600' },
   partially_cancelled: { label: '부분취소', color: 'text-red-600' },
@@ -279,7 +279,7 @@ export default function OrderDetailPage() {
               <span>{order.delivery_fee > 0 ? `${formatPrice(order.delivery_fee)} 원` : '0 원'}</span>
             </div>
             {workCost !== 0 && (
-              <div className={`flex justify-between ${workCost > 0 ? 'text-[#0052CC]' : 'text-green-600'}`}>
+              <div className={`flex justify-between ${workCost > 0 ? 'text-brand' : 'text-green-600'}`}>
                 <span>작업비용</span>
                 <span>{workCost > 0 ? '+' : ''}{formatPrice(workCost)} 원</span>
               </div>
@@ -393,7 +393,7 @@ export default function OrderDetailPage() {
               {/* Design Chat Button */}
               <button
                 onClick={() => setChatItem(item)}
-                className="mt-3 flex items-center gap-1.5 text-xs text-[#0052CC] font-medium hover:text-blue-700 transition-colors"
+                className="mt-3 flex items-center gap-1.5 text-xs text-brand font-medium hover:text-blue-700 transition-colors"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 디자인 소통

@@ -434,12 +434,12 @@ export default function AddProductModal({
                           )
                         }
                         className={`flex flex-col items-center gap-1 shrink-0 p-1.5 rounded-lg transition-colors ${
-                          isSelected ? 'bg-blue-50 ring-2 ring-[#0052CC]' : 'hover:bg-gray-50'
+                          isSelected ? 'bg-blue-50 ring-2 ring-brand' : 'hover:bg-gray-50'
                         }`}
                       >
                         <span
                           className={`w-8 h-8 rounded-full border-2 ${
-                            isSelected ? 'border-[#0052CC]' : 'border-gray-200'
+                            isSelected ? 'border-brand' : 'border-gray-200'
                           }`}
                           style={{ backgroundColor: mc.hex }}
                         />

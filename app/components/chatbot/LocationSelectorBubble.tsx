@@ -47,8 +47,8 @@ export default function LocationSelectorBubble({ onSubmit, disabled }: LocationS
               disabled={disabled}
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 isSelected
-                  ? 'bg-[#0052CC] text-white ring-2 ring-[#0052CC] ring-offset-1'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:border-[#0052CC] hover:text-[#0052CC]'
+                  ? 'bg-brand text-white ring-2 ring-brand ring-offset-1'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:border-brand hover:text-brand'
               }`}
             >
               {isSelected && <Check className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />}
@@ -68,7 +68,7 @@ export default function LocationSelectorBubble({ onSubmit, disabled }: LocationS
         className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
           selected.length === 0
             ? 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-            : 'bg-[#0052CC] text-white hover:bg-[#003D99]'
+            : 'bg-brand text-white hover:bg-brand-deep'
         }`}
       >
         <Check className="w-4 h-4" />

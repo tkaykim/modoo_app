@@ -58,7 +58,7 @@ export default function ChatMessage({
       <div
         className={`max-w-[85%] ${
           isUser
-            ? 'bg-[#0052CC] text-white rounded-2xl rounded-br-md px-4 py-2'
+            ? 'bg-brand text-white rounded-2xl rounded-br-md px-4 py-2'
             : 'bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-4 py-2'
         }`}
       >

@@ -252,7 +252,7 @@ export default function SearchPage() {
               placeholder="상품 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-20 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0052CC] focus:border-transparent"
+              className="w-full pl-10 pr-20 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
             />
             <div className="absolute inset-y-0 right-3 flex items-center gap-2">
               {searchQuery && (
@@ -266,12 +266,12 @@ export default function SearchPage() {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`relative p-1.5 rounded-lg transition-colors ${
-                  showFilters || hasActiveFilter ? "bg-blue-50 text-[#0052CC]" : "text-gray-400 hover:text-gray-600"
+                  showFilters || hasActiveFilter ? "bg-blue-50 text-brand" : "text-gray-400 hover:text-gray-600"
                 }`}
               >
                 <SlidersHorizontal size={20} />
                 {hasActiveFilter && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#0052CC] rounded-full" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-brand rounded-full" />
                 )}
               </button>
             </div>
@@ -283,7 +283,7 @@ export default function SearchPage() {
               onClick={() => setSelectedCategory("all")}
               className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedCategory === "all"
-                  ? "bg-[#0052CC] text-white"
+                  ? "bg-brand text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -295,7 +295,7 @@ export default function SearchPage() {
                 onClick={() => setSelectedCategory(category.key)}
                 className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
                   selectedCategory === category.key
-                    ? "bg-[#0052CC] text-white"
+                    ? "bg-brand text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -328,7 +328,7 @@ export default function SearchPage() {
                       onClick={() => setSelectedManufacturer("all")}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                         selectedManufacturer === "all"
-                          ? "bg-[#0052CC] text-white"
+                          ? "bg-brand text-white"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                       }`}
                     >
@@ -340,7 +340,7 @@ export default function SearchPage() {
                         onClick={() => setSelectedManufacturer(name)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                           selectedManufacturer === name
-                            ? "bg-[#0052CC] text-white"
+                            ? "bg-brand text-white"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >
@@ -364,7 +364,7 @@ export default function SearchPage() {
                     <div className="absolute w-full h-1 bg-gray-200 rounded" />
                     {/* Active range */}
                     <div
-                      className="absolute h-1 bg-[#0052CC] rounded"
+                      className="absolute h-1 bg-brand rounded"
                       style={{
                         left: `${((priceMin - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%`,
                         right: `${100 - ((priceMax - priceRange[0]) / (priceRange[1] - priceRange[0])) * 100}%`,
@@ -378,7 +378,7 @@ export default function SearchPage() {
                       step={1000}
                       value={priceMin}
                       onChange={(e) => setPriceMin(Math.min(Number(e.target.value), priceMax))}
-                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#0052CC] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#0052CC] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
+                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-brand [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
                     />
                     {/* Max slider */}
                     <input
@@ -388,7 +388,7 @@ export default function SearchPage() {
                       step={1000}
                       value={priceMax}
                       onChange={(e) => setPriceMax(Math.max(Number(e.target.value), priceMin))}
-                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#0052CC] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#0052CC] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
+                      className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-brand [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-brand [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow [&::-moz-range-thumb]:cursor-pointer"
                     />
                   </div>
                 </div>
@@ -428,7 +428,7 @@ export default function SearchPage() {
                     key={option}
                     onClick={() => { setSortBy(option); setShowSortMenu(false); }}
                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${
-                      sortBy === option ? "text-[#0052CC] font-semibold" : "text-gray-700"
+                      sortBy === option ? "text-brand font-semibold" : "text-gray-700"
                     }`}
                   >
                     {SORT_LABELS[option]}
@@ -462,7 +462,7 @@ export default function SearchPage() {
               </div>
               {hasMore && (
                 <div ref={loadMoreRef} className="flex justify-center py-6">
-                  <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0052CC] rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-gray-300 border-t-brand rounded-full animate-spin" />
                 </div>
               )}
             </>

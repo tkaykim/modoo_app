@@ -36,7 +36,7 @@ export default function QuickReplies({ replies, onReplyClick }: QuickRepliesProp
           <button
             key={index}
             onClick={() => onReplyClick(reply)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white border-2 border-[#0052CC] text-[#0052CC] rounded-lg shadow-sm hover:bg-blue-50 hover:shadow-md active:scale-95 transition-all whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-white border-2 border-brand text-brand rounded-lg shadow-sm hover:bg-blue-50 hover:shadow-md active:scale-95 transition-all whitespace-nowrap"
           >
             {Icon && <Icon className="w-4 h-4" />}
             {reply.label}

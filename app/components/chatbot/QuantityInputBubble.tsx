@@ -34,13 +34,13 @@ export default function QuantityInputBubble({ onSubmit, disabled }: QuantityInpu
           onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
           placeholder="예: 30"
           disabled={disabled}
-          className="w-24 px-3 py-2 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:border-[#0052CC] disabled:opacity-50"
+          className="w-24 px-3 py-2 text-sm text-center border border-gray-300 rounded-lg focus:outline-none focus:border-brand disabled:opacity-50"
         />
         <span className="text-sm text-gray-700">벌 정도</span>
         <button
           onClick={submit}
           disabled={disabled}
-          className="ml-auto px-4 py-2 bg-[#0052CC] text-white text-sm font-medium rounded-lg hover:bg-[#003D99] transition-colors disabled:opacity-50 flex items-center gap-1"
+          className="ml-auto px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50 flex items-center gap-1"
         >
           <Check className="w-4 h-4" /> 확인
         </button>

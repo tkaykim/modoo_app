@@ -179,7 +179,7 @@ export default function InquiryBoardSection() {
                       inquiry.status === 'completed'
                         ? 'text-green-600'
                         : inquiry.status === 'ongoing'
-                        ? 'text-[#0052CC]'
+                        ? 'text-brand'
                         : 'text-gray-400'
                     }`}>
                       {inquiry.status === 'completed' ? '답변완료' : inquiry.status === 'ongoing' ? '진행중' : '대기중'}
@@ -283,7 +283,7 @@ export default function InquiryBoardSection() {
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="비밀번호 입력"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#0052CC] transition mb-3"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand transition mb-3"
                 autoFocus
                 disabled={isVerifying}
               />
@@ -293,7 +293,7 @@ export default function InquiryBoardSection() {
               <button
                 type="submit"
                 disabled={isVerifying || !passwordInput.trim()}
-                className="w-full py-3 bg-[#0052CC] text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                className="w-full py-3 bg-brand text-white rounded-lg hover:bg-[#2f4584] transition disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
               >
                 {isVerifying ? '확인 중...' : '확인'}
               </button>

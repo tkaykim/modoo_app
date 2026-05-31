@@ -203,7 +203,7 @@ const ObjectPreviewPanel: React.FC<ObjectPreviewPanelProps> = ({ sides }) => {
                   {pickerEnabled && (
                     <button
                       onClick={() => setPickerForObjectId(objInfo.objectId)}
-                      className="ml-auto text-[11px] font-semibold text-[#0052CC] hover:text-blue-800 underline underline-offset-2"
+                      className="ml-auto text-[11px] font-semibold text-brand hover:text-blue-800 underline underline-offset-2"
                     >
                       변경
                     </button>

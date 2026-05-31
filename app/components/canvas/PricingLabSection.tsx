@@ -108,7 +108,7 @@ export default function PricingLabSection({
   if (loading) {
     return (
       <div className={`flex items-center justify-center py-10 ${className}`}>
-        <div className="w-5 h-5 border-2 border-[#0052CC] border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -164,7 +164,7 @@ export default function PricingLabSection({
       {/* Recommendation banner */}
       {ranking.cheapest && (
         <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3">
-          <Sparkles className="w-4 h-4 text-[#0052CC] shrink-0 mt-0.5" />
+          <Sparkles className="w-4 h-4 text-brand shrink-0 mt-0.5" />
           <p className="text-xs text-blue-900 leading-relaxed">
             <b>{quantity}벌</b> 기준{' '}
             <b>{PRINT_METHOD_META[ranking.cheapest.methodKey as PrintMethod]?.label}</b>이 가장 저렴해요

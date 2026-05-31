@@ -11,7 +11,7 @@ const DesignEditorViewer = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#0052CC] mb-3" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand mb-3" />
         <p className="text-sm text-gray-500">디자인을 불러오는 중...</p>
       </div>
     ),
