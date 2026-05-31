@@ -634,6 +634,8 @@ export default function ProductEditorUnified({
     colorHex: string | null;
     colorName: string | null;
     colorCode: string | null;
+    /** 영업사원이 정한 진열 판매가(바닥값). null이면 base+인쇄가로 계산. */
+    price: number | null;
     canvasState: Record<string, string>;
   } | null>(null);
 
@@ -1174,9 +1176,15 @@ export default function ProductEditorUnified({
   const frozenCartPrice = cartItemId
     ? (cartStoreItems.find(it => it.id === cartItemId)?.pricePerItem ?? null)
     : null;
+  // 단체몰 진열 구매: 영업사원이 정한 판매가를 단가의 바닥값으로 반영(마진 보존).
+  // 고객이 더 비싼 디자인을 추가하면 그쪽(base+인쇄가)이 높아져 자동 상향 — 언더차지 방지.
+  const mallBuyFloorPrice =
+    partnerMallBuy && partnerMallBuyData?.price && partnerMallBuyData.price > 0
+      ? partnerMallBuyData.price
+      : null;
   const pricePerItem = (frozenCartPrice !== null && frozenCartPrice > 0)
     ? frozenCartPrice
-    : livePricePerItem;
+    : (mallBuyFloorPrice !== null ? Math.max(mallBuyFloorPrice, livePricePerItem) : livePricePerItem);
   const formattedPrice = product.base_price.toLocaleString('ko-KR');
 
   // ─── Render ──────────────────────────────────────────────────────

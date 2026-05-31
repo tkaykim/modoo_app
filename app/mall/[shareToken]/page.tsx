@@ -122,6 +122,8 @@ export default function PartnerMallPage() {
           colorHex: mp.color_hex || null,
           colorName: mp.color_name || null,
           colorCode: mp.color_code || null,
+          // 영업사원이 정한 진열 판매가 — 에디터/결제 단가의 바닥값으로 사용(마진 보존).
+          price: (mp.price !== null && mp.price !== undefined) ? mp.price : null,
           canvasState: mp.canvas_state || {},
         }),
       );
