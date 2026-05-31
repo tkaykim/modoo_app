@@ -88,7 +88,7 @@ export async function POST(
     const customerName = order?.customer_name || '고객';
     const itemLabel = orderItem.design_title || orderItem.product_title;
     const adminEmail = process.env.ADMIN_EMAIL;
-    const adminUrl = `https://admin.modoogoods.com/orders/${orderId}`;
+    const adminUrl = `https://modoo-admin-gilt.vercel.app/orders/${orderId}`;
 
     if (adminEmail) {
       sendGmailEmail({

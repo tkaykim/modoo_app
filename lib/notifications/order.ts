@@ -142,7 +142,7 @@ function buildCustomerHtml(params: OrderNotificationParams): string {
 }
 
 function buildAdminHtml(params: OrderNotificationParams): string {
-  const adminUrl = 'https://admin.modoogoods.com';
+  const adminUrl = 'https://modoo-admin-gilt.vercel.app';
   const orderDetailUrl = `${adminUrl}/orders/${params.orderId}`;
 
   return `
@@ -220,7 +220,7 @@ function buildCustomerText(params: OrderNotificationParams): string {
 }
 
 function buildAdminText(params: OrderNotificationParams): string {
-  const adminUrl = 'https://admin.modoogoods.com';
+  const adminUrl = 'https://modoo-admin-gilt.vercel.app';
   const itemLines = params.items
     .map((item) => `- ${item.product_title} x${item.quantity} (${formatCurrency(item.price_per_item)})`)
     .join('\n');

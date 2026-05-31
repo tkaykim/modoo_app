@@ -116,7 +116,7 @@ async function sendAdminNotificationFromReply(
 
     const customerName = order.customer_name || '고객';
     const designInfo = orderItem?.design_title ? ` (디자인: ${orderItem.design_title})` : '';
-    const adminUrl = 'https://admin.modoogoods.com';
+    const adminUrl = 'https://modoo-admin-gilt.vercel.app';
     const adminEmail = process.env.ADMIN_EMAIL;
 
     if (adminEmail) {
