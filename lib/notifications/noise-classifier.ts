@@ -28,6 +28,10 @@ const IAB_UA_PATTERNS = [
   /\bKAKAOTALK\b/i,
   /\bNAVER\(inapp/i,
   /\bDaumApps\b/i,
+  // 네이트 앱 인앱브라우저. UA 끝에 `;ref:nate_app;appver:5.8.9;...` 꼴로 붙는다.
+  // 이 웹뷰는 스크립트/모듈 응답을 중간에 끊어 받아 "Unexpected end of input" 류
+  // SyntaxError 를 무더기로 발생시키는데, 우리 번들 문제가 아니라 웹뷰 환경 문제다.
+  /\bref:nate_app\b/i,
 ];
 
 // Hosts that are NOT real production traffic: local dev servers and Vercel
@@ -113,6 +117,37 @@ const RULES: Rule[] = [
   {
     reason: 'script_error_opaque',
     test: (r) => r.message.trim() === 'Script error.',
+  },
+  {
+    // 배포 직후 구버전 번들을 띄워둔 클라이언트가 해시 바뀐 청크를 못 받는 일시적 오류.
+    // 새 배포로 청크 해시가 바뀌면 옛 페이지의 청크 요청이 404 가 되는데, 새로고침하면
+    // 곧바로 사라진다. 우리가 고칠 버그가 아니라 배포 타이밍 이슈이므로 메일은 보내지 않는다.
+    reason: 'chunk_load_failed',
+    test: (r) => {
+      const hay = `${r.message} ${r.stack ?? ''}`;
+      return (
+        /Failed to load chunk/i.test(hay) ||
+        /Loading chunk\s+[\w-]+\s+failed/i.test(hay) ||
+        /ChunkLoadError/i.test(hay) ||
+        /error loading dynamically imported module/i.test(hay) ||
+        /Importing a module script failed/i.test(hay)
+      );
+    },
+  },
+  {
+    // Supabase auth 토큰의 Navigator LockManager 락 타임아웃.
+    // 근본 원인(탭 간 락 경합)은 lib/supabase-client.ts 에서 processLock 으로 전환해
+    // 이미 해소했고, 남는 발생은 구버전 캐시 번들을 물고 있는 클라이언트의 잔여분이다.
+    // 10초 후 재시도로 복구되는 무해·일시적 오류라 저장만 하고 메일은 보내지 않는다.
+    reason: 'auth_lock_timeout',
+    test: (r) => {
+      const hay = `${r.message} ${r.stack ?? ''}`;
+      return (
+        /Navigator LockManager lock/i.test(hay) ||
+        /Acquiring an exclusive Navigator LockManager/i.test(hay) ||
+        /navigator\.locks/i.test(hay)
+      );
+    },
   },
 ];
 
