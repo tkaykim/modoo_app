@@ -9,6 +9,7 @@ import {
 } from '@/lib/canvas-svg-export';
 import { createClient } from '@/lib/supabase-client';
 import { calculateTotalBoundingBoxMm } from '@/lib/canvasUtils';
+import { collectFontFamilies, ensureFontsLoaded } from '@/lib/ensureFonts';
 
 
 interface CanvasState {
@@ -364,7 +365,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const canvas = canvasMap[id];
       if (!canvas) return Promise.resolve();
 
-      return new Promise<void>((resolve) => {
+      // eslint-disable-next-line no-async-promise-executor -- ensureFontsLoaded never rejects; resolve() is always reached
+      return new Promise<void>(async (resolve) => {
         // First, remove only user-added objects (keep background product image and guides)
         const objectsToRemove = canvas.getObjects().filter(obj => {
           // Keep guide boxes and snap lines
@@ -381,6 +383,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
         // Then load the saved user objects and layer colors
         const canvasData = typeof json === 'string' ? JSON.parse(json) : json;
+
+        // Guarantee every font used by these objects is loaded BEFORE fabric
+        // measures/renders them — otherwise canvas bakes in a fallback font.
+        await ensureFontsLoaded(collectFontFamilies(canvasData.objects));
 
         // Restore calibration mmPerPx (additive — absent in legacy designs).
         // SingleSideCanvas may also fetch fresh from product_calibrations on mount;
@@ -520,7 +526,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
     if (!canvas) return;
 
-    return new Promise<void>((resolve) => {
+    // eslint-disable-next-line no-async-promise-executor -- ensureFontsLoaded never rejects; resolve() is always reached
+    return new Promise<void>(async (resolve) => {
       // First, remove only user-added objects (keep background product image and guides)
       const objectsToRemove = canvas.getObjects().filter(obj => {
         // Keep guide boxes and snap lines
@@ -537,6 +544,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       // Then load the saved user objects and layer colors
       const canvasData = JSON.parse(json);
+
+      // Guarantee every font used by these objects is loaded BEFORE fabric
+      // measures/renders them — otherwise canvas bakes in a fallback font.
+      await ensureFontsLoaded(collectFontFamilies(canvasData.objects));
 
       // Restore calibration mmPerPx if embedded (additive, absent in legacy designs).
       if (canvasData.__mmPerPxCalibrationNative && canvasData.__mmPerPxCalibrationNative > 0) {

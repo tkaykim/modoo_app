@@ -10,6 +10,7 @@ import SupabaseStorageHeal from "./components/SupabaseStorageHeal";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
 import ErrorReporter from "./components/ErrorReporter";
+import FontPreloader from "./components/FontPreloader";
 import { getSiteUrl } from "@/lib/site-url";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
@@ -56,6 +57,8 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
+        {/* Preload the only true webfont so the canvas never renders a fallback for it. */}
+        <link rel="preload" href="/fonts/Freshman.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         {GTM_ID && (
           <script
             id="gtm-head"
@@ -103,6 +106,7 @@ export default function RootLayout({
           </noscript>
         )}
         <ErrorReporter />
+        <FontPreloader />
         <SupabaseStorageHeal />
         <AuthInitializer />
         <NavigationListener />
