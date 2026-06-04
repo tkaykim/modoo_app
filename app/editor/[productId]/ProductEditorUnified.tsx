@@ -51,6 +51,35 @@ import QuickReplacePanel from "@/app/components/canvas/QuickReplacePanel";
 import { getTemplate, getGroup } from "@/lib/templateService";
 import { applyTemplateToStore, applyGroupTemplateToStore } from "@/lib/applyTemplate";
 import type { DesignTemplate, TemplateGroup } from "@/types/types";
+import { uploadDataUrlToStorage } from "@/lib/supabase-storage";
+import { STORAGE_BUCKETS, STORAGE_FOLDERS } from "@/lib/storage-config";
+import type { Canvas as FabricCanvas } from "fabric";
+
+/**
+ * Build the customer-facing design proof image (시안 확인용).
+ *
+ * Renders the front at high resolution and uploads it to storage, returning a
+ * URL — so the proof stays crisp for small designs without bloating the DB with
+ * inline base64. Falls back to a small inline data URL if the upload fails
+ * (e.g. a guest without storage access), so it never blocks save/checkout.
+ */
+async function buildProofImage(canvasMap: Record<string, FabricCanvas>): Promise<string> {
+  const highRes = generateProductThumbnail(canvasMap, 'front', 1600, 1600);
+  try {
+    const supabase = createClient();
+    const res = await uploadDataUrlToStorage(
+      supabase,
+      highRes,
+      STORAGE_BUCKETS.USER_DESIGNS,
+      STORAGE_FOLDERS.IMAGES,
+    );
+    if (res.success && res.url) return res.url;
+  } catch (e) {
+    console.warn('[proof] preview upload failed, using inline fallback', e);
+  }
+  // Fallback: small inline image — avoid storing a 1600px base64 blob in the DB.
+  return generateProductThumbnail(canvasMap, 'front', 400, 400);
+}
 
 type EditorStep = 'landing' | 'editor' | 'quantity';
 
@@ -419,7 +448,7 @@ export default function ProductEditorUnified({
       // Guest flow: save to cart store (localStorage) and navigate
       const canvasState = saveAllCanvasState();
       const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
-      const previewImage = generateProductThumbnail(canvasMap, 'front', 800, 800);
+      const previewImage = await buildProofImage(canvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
@@ -501,7 +530,7 @@ export default function ProductEditorUnified({
     try {
       const canvasState = saveAllCanvasState();
       const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
-      const previewImage = generateProductThumbnail(canvasMap, 'front', 800, 800);
+      const previewImage = await buildProofImage(canvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
@@ -757,7 +786,7 @@ export default function ProductEditorUnified({
     setIsSavingToMall(true);
     try {
       const canvasState = saveAllCanvasState();
-      const previewUrl = generateProductThumbnail(canvasMap, 'front', 400, 400);
+      const previewUrl = await buildProofImage(canvasMap);
       const customFonts = useFontStore.getState().customFonts;
 
       // Also persist as a saved_designs row so the design appears in admin's
