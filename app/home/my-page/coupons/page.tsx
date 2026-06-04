@@ -64,8 +64,17 @@ export default function CouponsPage() {
     setRegistering(false);
   };
 
+  const isExhausted = (usage: CouponUsage): boolean => {
+    const coupon = usage.coupon;
+    const perUser = coupon?.max_uses_per_user ?? null;
+    const exhaustedPerUser = perUser !== null && usage.uses_count >= perUser;
+    const exhaustedGlobal =
+      coupon?.max_uses != null && coupon.current_uses >= coupon.max_uses;
+    return exhaustedPerUser || exhaustedGlobal;
+  };
+
   const getCouponStatus = (usage: CouponUsage): { label: string; color: string; icon: React.ReactNode } => {
-    if (usage.used_at) {
+    if (isExhausted(usage)) {
       return {
         label: '사용완료',
         color: 'bg-gray-100 text-gray-500',
@@ -225,7 +234,7 @@ export default function CouponsPage() {
 
                 const status = getCouponStatus(usage);
                 const displayInfo = getCouponDisplayInfo(coupon);
-                const isInactive = usage.used_at || (usage.expires_at && new Date(usage.expires_at) < new Date());
+                const isInactive = isExhausted(usage) || (usage.expires_at && new Date(usage.expires_at) < new Date());
 
                 return (
                   <div
@@ -273,10 +282,14 @@ export default function CouponsPage() {
                         </span>
                       </div>
 
-                      {/* Used info */}
-                      {usage.used_at && (
+                      {/* Used info — 다회 사용 쿠폰은 사용 횟수, 단회는 사용완료일 */}
+                      {usage.uses_count > 0 && (
                         <p className="mt-1.5 text-[10px] text-gray-400">
-                          {formatDate(usage.used_at)} 사용완료
+                          {coupon.max_uses_per_user === null
+                            ? `${usage.uses_count}회 사용`
+                            : coupon.max_uses_per_user > 1
+                              ? `${usage.uses_count}/${coupon.max_uses_per_user}회 사용`
+                              : `${formatDate(usage.used_at)} 사용완료`}
                         </p>
                       )}
                     </div>

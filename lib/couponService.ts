@@ -32,21 +32,31 @@ export async function registerCoupon(code: string): Promise<CouponValidationResu
       return { valid: false, error: '만료된 쿠폰입니다.' };
     }
 
-    // Check max uses
+    // Check global max uses (전체 한도 — 전 사용자 합산)
     if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
       return { valid: false, error: '쿠폰 사용 한도가 초과되었습니다.' };
     }
 
-    // Check if already registered
+    // 이미 보유 중인지 확인. 1인당 사용 횟수가 남아 있으면 재등록이 아니라
+    // "이미 보유 중(사용 가능)"으로 성공 처리한다. 무제한/다회 쿠폰을 다시 입력해도
+    // "이미 등록된 쿠폰" 막다른 에러가 나지 않도록 한다.
     const { data: existingUsage } = await supabase
       .from('coupon_usages')
-      .select('id')
+      .select('*')
       .eq('coupon_id', coupon.id)
       .eq('user_id', user.id)
       .single();
 
     if (existingUsage) {
-      return { valid: false, error: '이미 등록된 쿠폰입니다.' };
+      const perUserLimit = coupon.max_uses_per_user;
+      if (perUserLimit !== null && existingUsage.uses_count >= perUserLimit) {
+        return { valid: false, error: '이 쿠폰의 사용 가능 횟수를 모두 사용했습니다.' };
+      }
+      return {
+        valid: true,
+        coupon: coupon as Coupon,
+        couponUsage: { ...existingUsage, coupon } as CouponUsage,
+      };
     }
 
     // Calculate expiry date for this user
@@ -143,7 +153,6 @@ export async function getAvailableCoupons(): Promise<CouponUsage[]> {
         coupon:coupons(*)
       `)
       .eq('user_id', user.id)
-      .is('used_at', null)
       .order('registered_at', { ascending: false });
 
     if (error) {
@@ -151,12 +160,17 @@ export async function getAvailableCoupons(): Promise<CouponUsage[]> {
       return [];
     }
 
-    // Filter out expired coupons
+    // 사용 가능 = 활성 + 미만료 + 1인당 한도 미소진 + 전체 한도 미소진
     const now = new Date();
     const availableCoupons = (usages || []).filter((usage: CouponUsage) => {
-      if (usage.expires_at && new Date(usage.expires_at) < now) {
-        return false;
-      }
+      const coupon = usage.coupon;
+      if (!coupon || !coupon.is_active) return false;
+      // 사용자별 만료
+      if (usage.expires_at && new Date(usage.expires_at) < now) return false;
+      // 1인당 사용 횟수 한도 (null = 무제한)
+      if (coupon.max_uses_per_user !== null && usage.uses_count >= coupon.max_uses_per_user) return false;
+      // 전체 사용 한도 (null = 무제한)
+      if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) return false;
       return true;
     });
 
@@ -206,9 +220,14 @@ export function validateCouponForOrder(
     return { valid: false, error: '쿠폰 정보를 찾을 수 없습니다.' };
   }
 
-  // Check if already used
-  if (couponUsage.used_at) {
-    return { valid: false, error: '이미 사용된 쿠폰입니다.' };
+  // 1인당 사용 횟수 한도 (null = 무제한)
+  if (coupon.max_uses_per_user !== null && couponUsage.uses_count >= coupon.max_uses_per_user) {
+    return { valid: false, error: '이 쿠폰의 사용 가능 횟수를 모두 사용했습니다.' };
+  }
+
+  // 전체 사용 한도 (null = 무제한)
+  if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) {
+    return { valid: false, error: '쿠폰 사용 한도가 초과되었습니다.' };
   }
 
   // Check user-specific expiry

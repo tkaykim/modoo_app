@@ -255,72 +255,53 @@ export async function POST(request: NextRequest) {
     // 일반 쿠폰 + 영업사원 쿠폰 사용 처리 (각각 독립적, 둘 다 적용 가능)
     const adminClient = createAdminClient();
 
-    // 1) 일반 쿠폰
+    // 1) 일반 쿠폰 — 원자적 RPC로 1인당/전체 한도 재검증 + 카운터 증가
     if (orderData.coupon_usage_id) {
       try {
-        const { data: usage } = await adminClient
-          .from('coupon_usages')
-          .update({
-            used_at: new Date().toISOString(),
-            order_id: order.id,
-            discount_applied: orderData.coupon_discount,
-          })
-          .eq('id', orderData.coupon_usage_id)
-          .select('coupon_id')
-          .single();
-        if (usage?.coupon_id) {
-          const { data: coupon } = await adminClient
-            .from('coupons').select('current_uses').eq('id', usage.coupon_id).single();
-          if (coupon) {
-            await adminClient
-              .from('coupons')
-              .update({ current_uses: (coupon.current_uses || 0) + 1 })
-              .eq('id', usage.coupon_id);
-          }
+        const { data: redeem, error: redeemErr } = await adminClient.rpc('redeem_coupon', {
+          p_usage_id: orderData.coupon_usage_id,
+          p_user_id: user?.id ?? null,
+          p_order_id: order.id,
+          p_discount: orderData.coupon_discount || 0,
+        });
+        if (redeemErr) throw redeemErr;
+        const r = redeem as { ok?: boolean; coupon_id?: string; error?: string } | null;
+        if (r?.ok && r.coupon_id) {
           await adminClient
             .from('orders')
-            .update({ applied_coupon_id: usage.coupon_id })
+            .update({ applied_coupon_id: r.coupon_id })
             .eq('id', order.id);
+        } else {
+          console.error('[toss/confirm] general coupon redeem rejected:', r?.error);
         }
       } catch (e) {
         console.error('[toss/confirm] general coupon processing failed:', e);
       }
     }
 
-    // 2) 영업사원 쿠폰 — 사용처리 + attribution 자동 세팅
+    // 2) 영업사원 쿠폰 — 원자적 RPC로 사용처리 + attribution 자동 세팅
     if (orderData.salesman_coupon_usage_id) {
       try {
-        const { data: usage } = await adminClient
-          .from('coupon_usages')
-          .update({
-            used_at: new Date().toISOString(),
-            order_id: order.id,
-            discount_applied: orderData.salesman_discount_amount || 0,
-          })
-          .eq('id', orderData.salesman_coupon_usage_id)
-          .select('coupon_id')
-          .single();
-        if (usage?.coupon_id) {
-          const { data: coupon } = await adminClient
-            .from('coupons')
-            .select('current_uses, salesman_profile_id')
-            .eq('id', usage.coupon_id)
-            .single();
-          if (coupon) {
-            await adminClient
-              .from('coupons')
-              .update({ current_uses: (coupon.current_uses || 0) + 1 })
-              .eq('id', usage.coupon_id);
-            if (coupon.salesman_profile_id) {
-              await adminClient
-                .from('orders')
-                .update({
-                  salesman_id: coupon.salesman_profile_id,
-                  salesman_coupon_id: usage.coupon_id,
-                })
-                .eq('id', order.id);
-            }
-          }
+        const { data: redeem, error: redeemErr } = await adminClient.rpc('redeem_coupon', {
+          p_usage_id: orderData.salesman_coupon_usage_id,
+          p_user_id: user?.id ?? null,
+          p_order_id: order.id,
+          p_discount: orderData.salesman_discount_amount || 0,
+        });
+        if (redeemErr) throw redeemErr;
+        const r = redeem as {
+          ok?: boolean; coupon_id?: string; salesman_profile_id?: string | null; error?: string;
+        } | null;
+        if (r?.ok && r.coupon_id && r.salesman_profile_id) {
+          await adminClient
+            .from('orders')
+            .update({
+              salesman_id: r.salesman_profile_id,
+              salesman_coupon_id: r.coupon_id,
+            })
+            .eq('id', order.id);
+        } else if (!r?.ok) {
+          console.error('[toss/confirm] salesman coupon redeem rejected:', r?.error);
         }
       } catch (e) {
         console.error('[toss/confirm] salesman coupon processing failed:', e);
