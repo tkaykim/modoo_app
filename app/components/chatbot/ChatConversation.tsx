@@ -30,12 +30,13 @@ import {
 import {
   STEP_MESSAGES,
   CATEGORY_MAPPING,
-  CLOTHING_TYPES,
+  OTHER_INQUIRY_REPLY,
   DESIGN_TYPES,
   COLOR_COUNTS,
   FULL_COLOR_DESIGN_TYPES,
 } from '@/lib/chatbot/config';
 import { FAQ_ITEMS, fetchChatbotFaqs, type FaqItem } from '@/lib/chatbot/faq';
+import { fetchClothingCategories, type ChatClothingCategory } from '@/lib/chatbot/clothingCategories';
 import { recommendProducts } from '@/lib/chatbot/productSearch';
 import {
   computeMethodQuotes,
@@ -82,6 +83,42 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   useEffect(() => {
     fetchChatbotFaqs().then(setChatbotFaqs).catch(() => {});
   }, []);
+
+  // 의류 카테고리는 상점과 동일하게 product_categories(is_active=true)에서 로드 → 상점에서 숨긴
+  // 카테고리는 챗봇에서도 자동 제외. 로딩 전/실패 시 정적 폴백(STEP_MESSAGES 기본값) 사용.
+  const [clothingCategories, setClothingCategories] = useState<ChatClothingCategory[]>(
+    () => STEP_MESSAGES.clothing_type.quickReplies?.map((r) => ({ name: r.label, key: r.action })) ?? []
+  );
+  useEffect(() => {
+    let cancelled = false;
+    fetchClothingCategories()
+      .then((cats) => {
+        if (cancelled || cats.length === 0) return;
+        setClothingCategories(cats);
+        // 아직 첫 화면(사용자 클릭 전)이면 환영 메시지 버튼도 최신 카테고리로 교체.
+        // race-safe: fetch 완료 시점의 최신 store 상태를 직접 확인 (mount 시 stale closure 회피).
+        const st = useChatStore.getState();
+        const hasUserMsg = st.messages.some((m) => m.sender === 'user');
+        const lastBot = [...st.messages].reverse().find((m) => m.sender === 'bot');
+        if (!hasUserMsg && lastBot?.metadata?.inquiryStep === 'clothing_type') {
+          st.addQuickRepliesToLastMessage([
+            ...cats.map((c) => ({ label: c.name, action: c.name, type: 'message' as const })),
+            OTHER_INQUIRY_REPLY,
+          ]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 카테고리 버튼(동적). 상담 중 clothing_type 재질문(이전 단계/제작상담)에서 사용.
+  const categoryReplies: QuickReply[] = clothingCategories.map((c) => ({
+    label: c.name,
+    action: c.name,
+    type: 'message' as const,
+  }));
 
   // 챗봇 진입(상담창 열림) — 퍼널 1단계. 마운트 1회.
   useEffect(() => {
@@ -136,7 +173,8 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       contentType,
       metadata: {
         inquiryStep: step,
-        quickReplies: stepConfig.quickReplies,
+        // clothing_type 버튼은 동적(product_categories) 목록 사용 — 상점 숨김 반영
+        quickReplies: step === 'clothing_type' ? categoryReplies : stepConfig.quickReplies,
         products: products as never,
       },
     });
@@ -175,7 +213,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   };
 
   const startConsult = () => {
-    trackChatbotStep('start');
+    // 'start' 퍼널 이벤트는 첫 의류 선택 시점(clothing_type 케이스)에서 한 번만 찍는다.
     setInquiryStep('clothing_type');
     addBotMessage('clothing_type', '제작 상담을 시작할게요.');
   };
@@ -236,7 +274,11 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
   // (priorities는 setState 직후 closure가 stale일 수 있어 인자로 받음)
   const fetchRecommendations = async (preference?: Priority) => {
     const { inquiryData } = inquiryFlow;
-    const category = inquiryData.clothingType ? CATEGORY_MAPPING[inquiryData.clothingType] : undefined;
+    // 카테고리 키: 동적 목록(product_categories)에서 라벨→키 우선, 없으면 정적 매핑 폴백
+    const category = inquiryData.clothingType
+      ? (clothingCategories.find((c) => c.name === inquiryData.clothingType)?.key
+        ?? CATEGORY_MAPPING[inquiryData.clothingType])
+      : undefined;
     try {
       return await recommendProducts({ category, preference, limit: 3 });
     } catch (error) {
@@ -280,7 +322,7 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
       }
 
       case 'clothing_type':
-        if (CLOTHING_TYPES.includes(text as ClothingType)) {
+        if (clothingCategories.some((c) => c.name === text)) {
           trackChatbotStep('clothing', { clothing: text });
           updateInquiryData({ clothingType: text as ClothingType });
           setInquiryStep('quantity');
@@ -343,6 +385,9 @@ export default function ChatConversation({ variant }: ChatConversationProps) {
 
   const handleSendFromQuickReply = async (text: string) => {
     if (isTyping) return;
+
+    // 'start' 퍼널 = 사용자의 첫 클릭(무엇이든). 과거 menu의 '제작 상담받기' 클릭을 대체.
+    if (!messages.some((m) => m.sender === 'user')) trackChatbotStep('start');
 
     addMessage({ sender: 'user', content: text, contentType: 'text' });
     setInputValue('');

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ChatMessage, QuickReply, InquiryFlowState, InquiryStep, InquiryData } from '@/lib/chatbot/types';
+import { WELCOME_MESSAGE_CONTENT, WELCOME_QUICK_REPLIES } from '@/lib/chatbot/config';
 
 const INITIAL_INQUIRY_STATE: InquiryFlowState = {
   currentStep: 'welcome',
@@ -49,18 +50,17 @@ interface ChatState {
   initializeChat: () => void;
 }
 
+// 첫 화면 = 의류 종류 선택(clothing_type) + 기타 문의 버튼.
+// 과거의 'menu'("무엇을 도와드릴까요?") 단계를 흡수해 한 번 더 누르는 단계를 없앴다.
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   sender: 'bot',
-  content: '안녕하세요! 모두의 유니폼입니다.\n무엇을 도와드릴까요?',
+  content: WELCOME_MESSAGE_CONTENT,
   contentType: 'inquiry_step',
   timestamp: Date.now(),
   metadata: {
-    inquiryStep: 'menu',
-    quickReplies: [
-      { label: '제작 상담받기', action: '제작상담', type: 'message', icon: 'palette' },
-      { label: '기타 문의', action: '기타문의', type: 'message', icon: 'message-circle' },
-    ]
+    inquiryStep: 'clothing_type',
+    quickReplies: WELCOME_QUICK_REPLIES,
   }
 };
 
@@ -89,7 +89,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }],
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
-          currentStep: 'menu'
+          currentStep: 'clothing_type'
         }
       });
     } else {
@@ -200,7 +200,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }],
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
-          currentStep: 'menu'
+          currentStep: 'clothing_type'
         }
       });
     }

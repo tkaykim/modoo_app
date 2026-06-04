@@ -10,11 +10,34 @@ import {
 } from './types';
 import { CATEGORIES } from '@/lib/categories';
 
-// 의류 라벨(한글) → 상품 category 키 매핑. lib/categories.ts(스토어프론트 정식 출처)에서
-// 생성해 드리프트 방지. (예: 맨투맨→sweater, 후드집업→zipup)
+// 의류 카테고리 = 스토어프론트 정식 출처(lib/categories.ts)에서 그대로 가져온다.
+// "전체"(all)는 의류 종류가 아니므로 제외. 챗봇에 별도 하드코딩하지 않아 드리프트가 없다.
+export const CLOTHING_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'all');
+
+// 의류 라벨(한글) → 상품 category 키 매핑. (예: 맨투맨→sweater, 후드집업→zipup)
 export const CATEGORY_MAPPING: Record<string, string> = Object.fromEntries(
-  CATEGORIES.map((c) => [c.name, c.key])
+  CLOTHING_CATEGORIES.map((c) => [c.name, c.key])
 );
+
+// clothing_type 단계 카테고리 버튼 — 스토어프론트 카테고리에서 생성 (단일 출처)
+const CLOTHING_TYPE_REPLIES: QuickReply[] = CLOTHING_CATEGORIES.map((c) => ({
+  label: c.name,
+  action: c.name,
+  type: 'message' as const,
+}));
+
+// "기타 문의하기" 버튼 — 누르면 FAQ 선택지("궁금하신 점을 골라주세요!")로 이동
+export const OTHER_INQUIRY_REPLY: QuickReply = {
+  label: '기타 문의하기',
+  action: '기타문의',
+  type: 'message',
+  icon: 'message-circle',
+};
+
+// 챗봇 첫 화면 = clothing_type 질문 + 카테고리 버튼 + 기타 문의 (기존 menu 단계를 흡수).
+// store(useChatStore)의 WELCOME_MESSAGE가 이 값을 그대로 쓴다.
+export const WELCOME_MESSAGE_CONTENT = '안녕하세요, 모두의 유니폼입니다!\n어떤 종류의 의류를 만드시나요?';
+export const WELCOME_QUICK_REPLIES: QuickReply[] = [...CLOTHING_TYPE_REPLIES, OTHER_INQUIRY_REPLY];
 
 // Step messages configuration
 export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?: QuickReply[] }> = {
@@ -33,13 +56,7 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
   },
   clothing_type: {
     content: '어떤 종류의 의류를 만드시나요?',
-    quickReplies: [
-      { label: '티셔츠', action: '티셔츠', type: 'message' },
-      { label: '후드티', action: '후드티', type: 'message' },
-      { label: '맨투맨', action: '맨투맨', type: 'message' },
-      { label: '후드집업', action: '후드집업', type: 'message' },
-      { label: '자켓', action: '자켓', type: 'message' },
-    ]
+    quickReplies: CLOTHING_TYPE_REPLIES,
   },
   quantity: {
     content: '몇 벌 정도 생각하세요?\n대략적인 수량을 입력해 주세요.\n\n수량에 따라 추천 인쇄방식과 단가가 달라져요.',
@@ -90,8 +107,8 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
   }
 };
 
-// Valid options for each step
-export const CLOTHING_TYPES: ClothingType[] = ['티셔츠', '후드티', '맨투맨', '후드집업', '자켓'];
+// Valid options for each step. 의류 종류는 스토어프론트 카테고리에서 파생 (단일 출처).
+export const CLOTHING_TYPES: ClothingType[] = CLOTHING_CATEGORIES.map((c) => c.name as ClothingType);
 export const QUANTITY_OPTIONS: QuantityOption[] = ['1~20벌', '21~50벌', '50~100벌', '100벌 이상'];
 export const DESIGN_TYPES: DesignType[] = ['사진·그래픽', '로고·텍스트'];
 export const COLOR_COUNTS: ColorCount[] = ['1색', '2색', '3색', '4색 이상', '그라데이션'];
