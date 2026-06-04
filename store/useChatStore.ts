@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ChatMessage, QuickReply, InquiryFlowState, InquiryStep, InquiryData } from '@/lib/chatbot/types';
-import { WELCOME_MESSAGE_CONTENT, WELCOME_QUICK_REPLIES } from '@/lib/chatbot/config';
+import { WELCOME_GREETING, WELCOME_CLOTHING_PROMPT, WELCOME_QUICK_REPLIES } from '@/lib/chatbot/config';
 
 const INITIAL_INQUIRY_STATE: InquiryFlowState = {
   currentStep: 'welcome',
@@ -50,18 +50,32 @@ interface ChatState {
   initializeChat: () => void;
 }
 
-// 첫 화면 = 의류 종류 선택(clothing_type) + 기타 문의 버튼.
+// 첫 화면 = 두 개의 버블(인삿말 + 의류 종류 질문). 단계 구분이 아니라 UI만 분리한다.
 // 과거의 'menu'("무엇을 도와드릴까요?") 단계를 흡수해 한 번 더 누르는 단계를 없앴다.
-const WELCOME_MESSAGE: ChatMessage = {
-  id: 'welcome',
-  sender: 'bot',
-  content: WELCOME_MESSAGE_CONTENT,
-  contentType: 'inquiry_step',
-  timestamp: Date.now(),
-  metadata: {
-    inquiryStep: 'clothing_type',
-    quickReplies: WELCOME_QUICK_REPLIES,
-  }
+//  - 1버블: 인삿말 (버튼 없음)
+//  - 2버블: 의류 종류 질문 + 카테고리 버튼 + 기타 문의 (clothing_type 단계)
+const buildWelcomeMessages = (): ChatMessage[] => {
+  const now = Date.now();
+  return [
+    {
+      id: 'welcome-greeting',
+      sender: 'bot',
+      content: WELCOME_GREETING,
+      contentType: 'text',
+      timestamp: now,
+    },
+    {
+      id: 'welcome-clothing',
+      sender: 'bot',
+      content: WELCOME_CLOTHING_PROMPT,
+      contentType: 'inquiry_step',
+      timestamp: now + 1,
+      metadata: {
+        inquiryStep: 'clothing_type',
+        quickReplies: WELCOME_QUICK_REPLIES,
+      },
+    },
+  ];
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -83,10 +97,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (state.messages.length === 0) {
       set({
         isOpen: true,
-        messages: [{
-          ...WELCOME_MESSAGE,
-          timestamp: Date.now()
-        }],
+        messages: buildWelcomeMessages(),
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
           currentStep: 'clothing_type'
@@ -194,10 +205,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const state = get();
     if (state.messages.length === 0) {
       set({
-        messages: [{
-          ...WELCOME_MESSAGE,
-          timestamp: Date.now()
-        }],
+        messages: buildWelcomeMessages(),
         inquiryFlow: {
           ...INITIAL_INQUIRY_STATE,
           currentStep: 'clothing_type'

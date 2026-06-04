@@ -34,9 +34,12 @@ export const OTHER_INQUIRY_REPLY: QuickReply = {
   icon: 'message-circle',
 };
 
-// 챗봇 첫 화면 = clothing_type 질문 + 카테고리 버튼 + 기타 문의 (기존 menu 단계를 흡수).
-// store(useChatStore)의 WELCOME_MESSAGE가 이 값을 그대로 쓴다.
-export const WELCOME_MESSAGE_CONTENT = '안녕하세요, 모두의 유니폼입니다!\n어떤 종류의 의류를 만드시나요?';
+// 챗봇 첫 화면은 인삿말과 의류 질문을 '두 개의 버블'로 분리해 띄운다(단계 구분 아님, UI만 분리).
+// store(useChatStore)가 이 상수들로 두 버블을 시드한다.
+//  - 1버블: 인삿말 (버튼 없음)
+//  - 2버블: 의류 종류 질문 + 카테고리 버튼 + 기타 문의 (clothing_type 단계)
+export const WELCOME_GREETING = '안녕하세요! 단체복, 커스텀 의류 맛집 모두의 유니폼입니다!';
+export const WELCOME_CLOTHING_PROMPT = '어떤 종류의 의류를 만드시나요?';
 export const WELCOME_QUICK_REPLIES: QuickReply[] = [...CLOTHING_TYPE_REPLIES, OTHER_INQUIRY_REPLY];
 
 // Step messages configuration
@@ -55,7 +58,7 @@ export const STEP_MESSAGES: Record<InquiryStep, { content: string; quickReplies?
     content: '궁금하신 점을 골라주세요! (제작 견적은 "제작 상담받기"에서 바로 안내드려요)',
   },
   clothing_type: {
-    content: '어떤 종류의 의류를 만드시나요?',
+    content: WELCOME_CLOTHING_PROMPT,
     quickReplies: CLOTHING_TYPE_REPLIES,
   },
   quantity: {
