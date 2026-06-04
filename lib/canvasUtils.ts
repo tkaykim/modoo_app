@@ -98,6 +98,12 @@ export function calculatePixelToMmRatio(
   if (mmPerPxOverride && Number.isFinite(mmPerPxOverride) && mmPerPxOverride > 0) {
     return mmPerPxOverride;
   }
+  // Guard: invalid/zero scaledImageWidth → 0 (avoids divide-by-zero Infinity).
+  // Kept byte-identical to modoo_admin/lib/canvasUtils.calculatePixelToMmRatio
+  // so customer & admin produce the same px→mm ratio.
+  if (!scaledImageWidth || !Number.isFinite(scaledImageWidth) || scaledImageWidth <= 0) {
+    return 0;
+  }
   return realWorldProductWidth / scaledImageWidth;
 }
 
