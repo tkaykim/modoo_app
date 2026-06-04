@@ -58,6 +58,14 @@ export function formatMm(mm: number, precision: number = 1): string {
 }
 
 /**
+ * Formats a millimeter value as centimeters (default 1 decimal place).
+ * Used for the customer-facing size readout (cm, 1자리).
+ */
+export function formatCm(mm: number, precision: number = 1): string {
+  return `${(mm / 10).toFixed(precision)}cm`;
+}
+
+/**
  * Formats millimeter value as a number (rounded to 1 decimal place)
  *
  * @param value - The value in millimeters

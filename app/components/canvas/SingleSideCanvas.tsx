@@ -5,7 +5,7 @@ import * as fabric from "fabric";
 import { ProductSide, ProductLayer } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import ScaleBox from './ScaleBox';
-import { formatMm, calculateObjectDimensionsMm, updateObjectDimensionsData } from '@/lib/canvasUtils';
+import { formatCm, calculateObjectDimensionsMm, updateObjectDimensionsData } from '@/lib/canvasUtils';
 import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
 // Import CurvedText to register the class with fabric.js for deserialization
 import '@/lib/curvedText';
@@ -71,11 +71,13 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
 
   // Scale box state
   const [scaleBoxVisible, setScaleBoxVisible] = useState(false);
+  // 고객 수치표기는 '인쇄영역 실측'이 있는 면에서만 켠다(정확한 환산일 때만 노출).
+  const [sizeDisplayEnabled, setSizeDisplayEnabled] = useState(false);
   const [scaleBoxDimensions, setScaleBoxDimensions] = useState({
-    x: '0mm',
-    y: '0mm',
-    width: '0mm',
-    height: '0mm',
+    x: '0cm',
+    y: '0cm',
+    width: '0cm',
+    height: '0cm',
   });
   const [scaleBoxPosition, setScaleBoxPosition] = useState({ x: 0, y: 0 });
 
@@ -101,6 +103,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     const applyRatio = (printAreaNative: number, fallbackNative: number) => {
       const v = printAreaNative > 0 ? printAreaNative : fallbackNative;
       calibrationNativeMmPerPxRef.current = v;
+      // 인쇄영역 실측이 있을 때만 고객에게 크기(cm)를 노출한다.
+      setSizeDisplayEnabled(printAreaNative > 0);
       const canvas = canvasRef.current;
       if (canvas) {
         // @ts-expect-error - Custom property
@@ -1111,10 +1115,10 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         const boundingRect = obj.getBoundingRect();
 
         setScaleBoxDimensions({
-          x: formatMm(dimensions.x),
-          y: formatMm(dimensions.y),
-          width: formatMm(dimensions.width),
-          height: formatMm(dimensions.height),
+          x: formatCm(dimensions.x),
+          y: formatCm(dimensions.y),
+          width: formatCm(dimensions.width),
+          height: formatCm(dimensions.height),
         });
 
         // Position at the bottom of the object's bounding box at the horizontal center
@@ -1499,6 +1503,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           height={scaleBoxDimensions.height}
           position={scaleBoxPosition}
           visible={scaleBoxVisible}
+          forceShow={sizeDisplayEnabled}
         />
       )}
     </div>
