@@ -47,7 +47,7 @@ export default function HeroBanner() {
   if (loading) {
     return (
       <section className="w-full">
-        <div className="h-35 sm:h-36 lg:h-42 bg-gray-100 rounded-2xl animate-pulse" />
+        <div className="w-full aspect-[2/1] bg-gray-100 rounded-2xl animate-pulse" />
       </section>
     );
   }
@@ -74,6 +74,7 @@ export default function HeroBanner() {
         slidesPerView={1.3}
         centeredSlides={true}
         initialSlide={1}
+        autoHeight={true}
         breakpoints={{
           640: {
             slidesPerView: 1.5,
@@ -86,10 +87,16 @@ export default function HeroBanner() {
         }}
         onSwiper={(s) => setActiveIndex(s.realIndex)}
         onSlideChange={(s) => setActiveIndex(s.realIndex)}
-        className="h-35 sm:h-36 lg:h-42 hero-swiper"
+        className="hero-swiper"
       >
         {banners.map((banner, index) => {
           const isActive = index === activeIndex;
+
+          // admin 에디터에서 저장한 위치/줌 값 (없으면 가운데/기본배율)
+          // numeric 컬럼이 문자열로 올 수 있어 숫자로 변환
+          const focalX = Number(banner.image_focal_x ?? 50);
+          const focalY = Number(banner.image_focal_y ?? 50);
+          const zoom = Number(banner.image_zoom ?? 1) || 1;
 
           const BannerContent = (
             <>
@@ -100,7 +107,12 @@ export default function HeroBanner() {
                   alt={banner.title}
                   fill
                   unoptimized
-                  className="absolute inset-0 w-full h-full object-cover object-top"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    objectPosition: `${focalX}% ${focalY}%`,
+                    transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+                    transformOrigin: `${focalX}% ${focalY}%`,
+                  }}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-white/50 text-sm">
@@ -122,13 +134,13 @@ export default function HeroBanner() {
               {banner.redirect_link ? (
                 <Link
                   href={banner.redirect_link}
-                  className={`block h-full w-full rounded-2xl lg:rounded-[20px] relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto cursor-pointer hover:opacity-95 transition-opacity`}
+                  className={`block w-full aspect-[2/1] rounded-2xl lg:rounded-[20px] relative overflow-hidden cursor-pointer hover:opacity-95 transition-opacity`}
                 >
                   {BannerContent}
                 </Link>
               ) : (
                 <div
-                  className={`block h-full w-full rounded-2xl lg:rounded-[20px] relative overflow-hidden lg:aspect-square lg:max-w-105 lg:mx-auto`}
+                  className={`block w-full aspect-[2/1] rounded-2xl lg:rounded-[20px] relative overflow-hidden`}
                 >
                   {BannerContent}
                 </div>

@@ -128,6 +128,10 @@ export interface HeroBanner {
   redirect_link: string | null;
   sort_order: number;
   is_active: boolean;
+  // 이미지 위치/줌 조정값 (admin 에디터에서 설정). object-position % + 추가 확대 배율
+  image_focal_x: number | null;
+  image_focal_y: number | null;
+  image_zoom: number | null;
   created_at: string;
   updated_at: string;
 }
