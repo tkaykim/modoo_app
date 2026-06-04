@@ -172,6 +172,14 @@ export function updateObjectDimensionsData(
   obj.data.widthMm = widthMm;
   // @ts-expect-error - Adding custom properties to data
   obj.data.heightMm = heightMm;
+  // Mark these dimensions as measured against the alpha-tight bounding box
+  // (uploads are alpha-trimmed before they reach the canvas, so getBoundingRect
+  // already equals the visible "투명 영역 제외" box). Admin views trust the
+  // stored W/H only when this marker is present; legacy objects without it fall
+  // back to a live recompute. Keep the literal in sync with
+  // `modoo_admin/lib/canvasUtils.ALPHA_SIZE_BASIS`.
+  // @ts-expect-error - Adding custom properties to data
+  obj.data.sizeBasis = 'alpha';
 }
 
 /**
