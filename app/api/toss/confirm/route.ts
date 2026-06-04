@@ -57,6 +57,7 @@ interface CartItem {
   partner_mall_id?: string | null;
   canvasState?: Record<string, unknown>;
   // Guest checkout: inline design data (no saved_designs DB row)
+  designName?: string; // 게스트는 saved_designs row가 없으므로 입력한 디자인명이 여기로 전달됨
   colorSelections?: Record<string, unknown>;
   textSvgExports?: TextSvgExports;
   customFonts?: FontMetadata[];
@@ -401,7 +402,8 @@ export async function POST(request: NextRequest) {
           product_id: item.product_id,
           product_title: item.product_title,
           design_id: (item.saved_design_id && !isGuestDesignId) ? item.saved_design_id : null,
-          design_title: savedDesign?.title || null,
+          // 게스트는 saved_designs row가 없어 savedDesign이 null → 고객이 입력한 designName으로 fallback
+          design_title: savedDesign?.title || item.designName || null,
           canvas_state: savedDesign?.canvas_state || item.canvasState || {},
           color_selections: savedDesign?.color_selections || item.colorSelections || { productColor: item.product_color },
           thumbnail_url: savedDesign?.preview_url || item.thumbnail_url || null,
