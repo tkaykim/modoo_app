@@ -92,17 +92,38 @@ export async function fetchProductCalibrations(
         console.warn('[CALIB] fetch failed, falling back to legacy', error);
         return new Map<string, SideCalibration>();
       }
+      // 인쇄영역 실측(환산 1순위) 산출에 필요한 printArea 픽셀폭을 제품 config에서 로드.
+      const printAreaPxBySide = new Map<string, number>();
+      try {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('configuration')
+          .eq('id', productId)
+          .single();
+        const cfg = (prod?.configuration ?? []) as Array<{ id?: string; printArea?: { width?: number } }>;
+        for (const s of cfg) {
+          const w = Number(s?.printArea?.width) || 0;
+          if (s?.id && w > 0) printAreaPxBySide.set(s.id, w);
+        }
+      } catch (e) {
+        console.warn('[CALIB] product config fetch failed; print-area-real disabled', e);
+      }
+
       const map = new Map<string, SideCalibration>();
       for (const row of data ?? []) {
         const payload = (row.payload ?? {}) as SideCalibrationPayload;
         const activeLine = pickActiveLine(payload);
-        const nativeMmPerPx = activeLine ? lineNativeMmPerPx(activeLine) : 0;
-        const hasLine = Number.isFinite(nativeMmPerPx) && nativeMmPerPx > 0;
+        const lineMmPerPx = activeLine ? lineNativeMmPerPx(activeLine) : 0;
+        const hasLine = Number.isFinite(lineMmPerPx) && lineMmPerPx > 0;
         const paW = Number(payload.printAreaRealMm?.widthMm) || 0;
         const paH = Number(payload.printAreaRealMm?.heightMm) || 0;
         const hasPrintAreaReal = paW > 0;
         // 선분도 없고 인쇄영역 실측도 없으면 이 행은 쓸모 없음 → skip.
         if (!hasLine && !hasPrintAreaReal) continue;
+        // 환산 1순위: 인쇄영역 실측(printAreaRealMm.widthMm / printArea.width px). 폴백: 캘리브 선분.
+        const paPxW = printAreaPxBySide.get(row.side_id) ?? 0;
+        const printAreaMmPerPx = hasPrintAreaReal && paPxW > 0 ? paW / paPxW : 0;
+        const nativeMmPerPx = printAreaMmPerPx > 0 ? printAreaMmPerPx : lineMmPerPx;
         const anchors: AnchorPreset[] = (payload.registeredAnchors ?? [])
           .filter((a) => a && typeof a === 'object' && a.id)
           .map((a) => ({
