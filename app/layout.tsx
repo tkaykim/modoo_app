@@ -54,6 +54,33 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // GEO/AEO: schema.org JSON-LD (Organization + WebSite) — AI가 사이트 성격을 직접 파악·인용하도록.
+  const origin = getSiteUrl().origin;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${origin}/#organization`,
+        name: "모두의 유니폼",
+        alternateName: "Modoo Uniform",
+        url: origin,
+        logo: `${origin}/og-image.png`,
+        email: "modoo.contact@gmail.com",
+        description:
+          "단체복·커스텀 의류 주문 제작 플랫폼. 단체 티셔츠·후드티·과잠·팀 유니폼·굿즈를 디자인부터 제작까지 온라인으로 주문.",
+        areaServed: "KR",
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${origin}/#website`,
+        url: origin,
+        name: "모두의 유니폼",
+        inLanguage: "ko-KR",
+        publisher: { "@id": `${origin}/#organization` },
+      },
+    ],
+  };
   return (
     <html lang="ko">
       <head>
@@ -81,6 +108,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window, document, "clarity", "script", "wv6e81e2t2");`,
           }}
+        />
+        {/* GEO/AEO: schema.org 구조화 데이터 (Organization + WebSite) */}
+        <script
+          id="jsonld-org"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
       <body className="antialiased">
