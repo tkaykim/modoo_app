@@ -28,6 +28,7 @@ import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Uploa
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import LoginPromptModal from '@/app/components/LoginPromptModal';
+import InAppBrowserBanner from '@/app/components/InAppBrowserBanner';
 import { trackPurchase, trackBeginCheckout } from '@/lib/gtm-events';
 
 type ShippingMethod = 'domestic' | 'international' | 'pickup';
@@ -1821,6 +1822,11 @@ export default function CheckoutPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* 인앱 브라우저(인스타/페북 등) 결제 이탈 방지 안내 — 결제 직전 */}
+      <div className="px-4 mt-2">
+        <InAppBrowserBanner variant="card" />
       </div>
 
       {/* Payment action */}
