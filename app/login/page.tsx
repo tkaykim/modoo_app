@@ -39,6 +39,20 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
+  // 정식 호스트(www) 정규화: apex(modoouniform.com)에서 로그인 페이지가 열리면,
+  // OAuth를 시작하기 전에 www로 먼저 이동시킨다. 이렇게 해야 code_verifier 쿠키와
+  // /auth/callback 이 동일 호스트에서 생성·소비되어, 콜백 중간의 307 점프로
+  // 교환이 'context canceled' 되는 카카오/구글 로그인 간헐 실패를 막는다.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const { hostname, protocol } = window.location
+    if (protocol === 'https:' && hostname === 'modoouniform.com') {
+      const url = new URL(window.location.href)
+      url.hostname = 'www.modoouniform.com'
+      window.location.replace(url.toString())
+    }
+  }, [])
+
   const handleGoogleLogin = async () => {
     setError(null)
     setErrorKind(null)

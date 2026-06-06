@@ -43,12 +43,35 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    // 교환을 시도하되, 일시적 취소/5xx(예: 콜백이 다른 호스트로 307 점프하며 연결이 끊긴 경우
+    // GoTrue가 'context canceled' 500을 던진다)에는 짧게 한 번 더 시도한다.
+    let lastError: { message?: string } | null = null
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (!error && data?.user) {
+      if (!error && data?.user) {
+        response.cookies.set('login_return_to', '', { path: '/', maxAge: 0 })
+        return response
+      }
+
+      lastError = error
+      const transient = error && /cancel|timeout|fetch|network|502|503|504|500/i.test(error.message)
+      if (attempt === 0 && transient) {
+        await new Promise((r) => setTimeout(r, 300))
+        continue
+      }
+      break
+    }
+
+    // 교환은 실패했지만 (중복 콜백 레이스 등으로) 이미 세션이 잡혀 있을 수 있다.
+    // 그럴 땐 에러 페이지로 보내지 말고 성공으로 처리한다.
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
       response.cookies.set('login_return_to', '', { path: '/', maxAge: 0 })
       return response
     }
+
+    console.error('[auth/callback] exchange failed:', lastError?.message)
   }
 
   const errResp = NextResponse.redirect(`${origin}/auth/auth-code-error`)
