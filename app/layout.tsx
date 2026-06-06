@@ -10,7 +10,6 @@ import SupabaseStorageHeal from "./components/SupabaseStorageHeal";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
 import ErrorReporter from "./components/ErrorReporter";
-import InAppBrowserBanner from "./components/InAppBrowserBanner";
 import FontPreloader from "./components/FontPreloader";
 import { getSiteUrl } from "@/lib/site-url";
 
@@ -113,7 +112,6 @@ export default function RootLayout({
         <NavigationListener />
         <GtmPageviewListener />
         <AnalyticsPageviewListener />
-        <InAppBrowserBanner variant="bar" />
         <div className="w-full lg:max-w-7xl lg:mx-auto">
           <main>{children}</main>
         </div>
