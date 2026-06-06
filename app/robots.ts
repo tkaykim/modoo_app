@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site-url";
 
-// 비공개/기능 경로 — 모든 봇 공통 차단
+// 비공개/기능 경로 — 차단
 const DISALLOW = [
   "/api/",
   "/login",
@@ -16,23 +16,14 @@ const DISALLOW = [
   "/editor/",
 ];
 
-// AI 검색/학습 크롤러 — 명시적 허용 (GEO/AEO: AI 응답에 인용되도록).
-// 검색봇(OAI-SearchBot·Claude-SearchBot·PerplexityBot)과 학습봇(GPTBot·ClaudeBot·Google-Extended) 모두 허용.
-const AI_BOTS = [
-  "GPTBot", "OAI-SearchBot", "ChatGPT-User",
-  "ClaudeBot", "Claude-SearchBot", "anthropic-ai", "Claude-User",
-  "PerplexityBot", "Perplexity-User",
-  "Google-Extended", "Applebot-Extended",
-  "cohere-ai", "Amazonbot", "DuckAssistBot", "Meta-ExternalAgent",
-];
-
 export default function robots(): MetadataRoute.Robots {
   const origin = getSiteUrl().origin;
   return {
     rules: [
+      // 전체 허용(비공개 경로만 제외). AI 검색/학습 크롤러도 이 규칙으로 모두 허용됨
+      // (전용 규칙 없는 봇은 '*'를 따르므로 일일이 나열할 필요 없음).
       { userAgent: "*", allow: "/", disallow: DISALLOW },
-      ...AI_BOTS.map((ua) => ({ userAgent: ua, allow: "/", disallow: DISALLOW })),
-      // 데이터 무단 수집형 봇 차단 (바이트댄스)
+      // 무단 데이터 수집봇만 차단 (바이트댄스)
       { userAgent: "Bytespider", disallow: "/" },
     ],
     sitemap: `${origin}/sitemap.xml`,
