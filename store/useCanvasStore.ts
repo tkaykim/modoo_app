@@ -337,7 +337,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           // For image objects, ensure we preserve the src
           if (obj.type === 'image') {
             const imgObj = obj as fabric.FabricImage;
-            json.src = imgObj.getSrc();
+            // 편집 화면이 로컬 blob 으로 렌더돼도(getSrc=blob:) 저장은 영구 저장소 URL 로.
+          json.src = (imgObj as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || imgObj.getSrc();
           }
           return json;
         }),
@@ -505,7 +506,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         // For image objects, ensure we preserve the src
         if (obj.type === 'image') {
           const imgObj = obj as fabric.FabricImage;
-          json.src = imgObj.getSrc();
+          // 편집 화면이 로컬 blob 으로 렌더돼도(getSrc=blob:) 저장은 영구 저장소 URL 로.
+          json.src = (imgObj as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || imgObj.getSrc();
         }
         return json;
       }),
@@ -650,7 +652,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         const json = obj.toObject(['data']);
         if (obj.type === 'image') {
           const imgObj = obj as fabric.FabricImage;
-          json.src = imgObj.getSrc();
+          // 편집 화면이 로컬 blob 으로 렌더돼도(getSrc=blob:) 저장은 영구 저장소 URL 로.
+          json.src = (imgObj as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || imgObj.getSrc();
         }
         return json;
       });
@@ -709,7 +712,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const json = obj.toObject(['data']);
       if (obj.type === 'image') {
         const imgObj = obj as fabric.FabricImage;
-        json.src = imgObj.getSrc();
+        json.src = (imgObj as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || imgObj.getSrc();
       }
       return json;
     });

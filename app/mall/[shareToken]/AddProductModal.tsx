@@ -242,7 +242,7 @@ export default function AddProductModal({
       const canvasState: Record<string, string> = {};
       if (logoObject) {
         const logoJson = logoObject.toObject(['data'] as any);
-        logoJson.src = logoObject.getSrc();
+        logoJson.src = (logoObject as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || logoObject.getSrc();
         canvasState[side.id] = JSON.stringify({
           version: fabricCanvas.toJSON().version,
           objects: [logoJson],

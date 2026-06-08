@@ -160,8 +160,8 @@ export default function LayersPrintPanel({ isOpen, onClose, sides, mockLayers }:
         const objType = obj.type || 'unknown';
         if (objType === 'image') {
           displayName = '이미지';
-          // @ts-expect-error - Fabric Image src
-          const src = obj.getSrc?.() || obj.src || '';
+          const imgData = (obj as unknown as { data?: { originalFileName?: string; supabaseUrl?: string } }).data;
+          const src = imgData?.originalFileName || imgData?.supabaseUrl || (obj as unknown as { getSrc?: () => string }).getSrc?.() || '';
           if (src) {
             const filename = String(src).split('/').pop()?.split('?')[0]?.slice(0, 24);
             if (filename) displayName = filename;

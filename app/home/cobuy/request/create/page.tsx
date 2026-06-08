@@ -604,7 +604,7 @@ export default function CreateCoBuyRequestPage() {
         objects: userObjects.map((obj: any) => {
           const json = obj.toObject(['data']);
           if (obj.type === 'image') {
-            json.src = obj.getSrc();
+            json.src = (obj.data?.supabaseUrl as string | undefined) || obj.getSrc();
           }
           return json;
         }),

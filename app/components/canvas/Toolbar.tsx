@@ -533,9 +533,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       setLoadingMessage('이미지 불러오는 중...');
       setLoadingSubmessage('캔버스에 이미지를 추가하고 있습니다.');
 
-      const img = await fabric.FabricImage.fromURL(displayUrl, {
+      // 재다운로드 제거: 방금 올린 바이트(trimResult.file)가 이미 로컬에 있으므로 storage URL을
+      // 다시 내려받지 않고 로컬 blob 으로 즉시 렌더한다(디코드 ~수십ms). 저장될 src 는
+      // data.supabaseUrl(=displayUrl)을 쓰므로(useCanvasStore 직렬화) blob URL 이 디자인에 저장되지 않는다.
+      // crossOrigin:'anonymous' 유지 → 복원 시 storage URL 로 로드돼도 캔버스가 오염되지 않음(toDataURL 안전).
+      const localUrl = URL.createObjectURL(trimResult.file);
+      const img = await fabric.FabricImage.fromURL(localUrl, {
         crossOrigin: 'anonymous',
       });
+      URL.revokeObjectURL(localUrl);
 
       const maxWidth = canvas.width * 0.5;
       const maxHeight = canvas.height * 0.5;
