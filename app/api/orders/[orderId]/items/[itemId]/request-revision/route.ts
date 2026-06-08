@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 import { sendGmailEmail } from '@/lib/gmail';
 
@@ -54,7 +55,10 @@ export async function POST(
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
     }
 
-    const { data: orderItem, error: itemError } = await supabase
+    // 인증 통과 후 service-role 로 읽고/쓴다 (order_items RLS 가 비로그인+회원주문을 막는 문제 회피).
+    const db = createAdminClient();
+
+    const { data: orderItem, error: itemError } = await db
       .from('order_items')
       .select('id, design_status, product_title, design_title, order_id')
       .eq('id', itemId)
@@ -69,7 +73,7 @@ export async function POST(
       return NextResponse.json({ error: '현재 상태에서는 수정 요청을 할 수 없습니다.' }, { status: 400 });
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('order_items')
       .update({
         design_status: 'revision_requested',
@@ -83,7 +87,7 @@ export async function POST(
     }
 
     // Notify admin
-    const { data: order } = await supabase
+    const { data: order } = await db
       .from('orders')
       .select('customer_name, customer_email')
       .eq('id', orderId)

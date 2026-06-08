@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 import { sendGmailEmail } from '@/lib/gmail';
 
@@ -50,7 +51,12 @@ export async function POST(
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
     }
 
-    const { data: orderItem, error: itemError } = await supabase
+    // 인증(토큰 HMAC 또는 세션 소유) 통과 후에는 service-role 로 읽고/쓴다.
+    // order_items RLS 는 비로그인(anon) + 회원주문(user_id 있음)을 막아 조용한 0행 실패를 내므로,
+    // 토큰이 곧 권한 증명인 이 흐름에선 admin 클라이언트가 정당하고 필수다.
+    const db = createAdminClient();
+
+    const { data: orderItem, error: itemError } = await db
       .from('order_items')
       .select('id, design_status, product_title, design_title, order_id')
       .eq('id', itemId)
@@ -65,7 +71,7 @@ export async function POST(
       return NextResponse.json({ error: '현재 상태에서는 확정할 수 없습니다.' }, { status: 400 });
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('order_items')
       .update({
         design_status: 'confirmed',
@@ -79,7 +85,7 @@ export async function POST(
     }
 
     // Get order info for admin notification
-    const { data: order } = await supabase
+    const { data: order } = await db
       .from('orders')
       .select('customer_name, customer_email')
       .eq('id', orderId)

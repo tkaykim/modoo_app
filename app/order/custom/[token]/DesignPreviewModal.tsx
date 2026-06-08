@@ -30,6 +30,7 @@ interface DesignPreviewModalProps {
   sides: AnySide[];
   canvasState: Record<string, string> | null;
   productColor?: string;
+  customFonts?: AnySide[];
   fallbackImageUrl?: string;
 }
 
@@ -42,6 +43,7 @@ export default function DesignPreviewModal({
   sides,
   canvasState,
   productColor,
+  customFonts,
   fallbackImageUrl,
 }: DesignPreviewModalProps) {
   const [showViewer, setShowViewer] = useState(false);
@@ -105,6 +107,7 @@ export default function DesignPreviewModal({
                 config={{ productId, sides: sides as ProductSide[] }}
                 canvasState={canvasState}
                 productColor={productColor || '#FFFFFF'}
+                customFonts={customFonts as never}
               />
             </div>
           ) : fallbackImageUrl ? (

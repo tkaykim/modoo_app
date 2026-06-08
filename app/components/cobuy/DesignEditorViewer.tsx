@@ -4,6 +4,9 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { ProductConfig } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
+import { useFontStore } from '@/store/useFontStore';
+import { preloadSystemFonts } from '@/lib/ensureFonts';
+import { FontMetadata } from '@/lib/fontUtils';
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
   ssr: false,
@@ -21,6 +24,8 @@ interface DesignEditorViewerProps {
   config: ProductConfig;
   canvasState: Record<string, string>;
   productColor: string;
+  /** 디자인이 사용하는 커스텀 업로드 폰트. 복원 전에 등록·로드해 폰트깨짐을 방지한다. */
+  customFonts?: FontMetadata[];
   /** When true, fills the parent container (absolute inset-0). Otherwise uses fixed height. */
   fullscreen?: boolean;
 }
@@ -37,6 +42,7 @@ export default function DesignEditorViewer({
   config,
   canvasState,
   productColor,
+  customFonts,
   fullscreen = false,
 }: DesignEditorViewerProps) {
   const {
@@ -115,6 +121,14 @@ export default function DesignEditorViewer({
         });
 
         await new Promise(r => setTimeout(r, 150));
+        // 폰트깨짐 방지: 디자인이 쓰는 커스텀 업로드 폰트를 먼저 등록·로드한 뒤 복원.
+        // (restoreAllCanvasState 내부 ensureFontsLoaded 는 이미 등록된 FontFace 만 보장하므로,
+        //  업로드 폰트는 여기서 setCustomFonts+loadAllFonts 로 먼저 등록해야 함.)
+        if (customFonts && customFonts.length > 0) {
+          useFontStore.getState().setCustomFonts(customFonts);
+          await useFontStore.getState().loadAllFonts();
+        }
+        await preloadSystemFonts();
         await restoreAllCanvasState(parsedCanvasState);
         Object.values(canvasMap).forEach(c => c.requestRenderAll());
         incrementCanvasVersion();
@@ -125,7 +139,7 @@ export default function DesignEditorViewer({
       }
     };
     restore();
-  }, [canvasMap, imageLoadedMap, sides, hasRestored, parsedCanvasState, restoreAllCanvasState, incrementCanvasVersion]);
+  }, [canvasMap, imageLoadedMap, sides, hasRestored, parsedCanvasState, restoreAllCanvasState, incrementCanvasVersion, customFonts]);
 
   // ── Fit grid centered in container ──
   useEffect(() => {

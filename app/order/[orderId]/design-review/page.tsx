@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { CheckCircle, AlertCircle, Loader2, ArrowLeft, Send, RotateCcw } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, ArrowLeft, Send, RotateCcw, Maximize2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatKstDateOnly } from '@/lib/kst';
+import DesignPreviewModal from '@/app/order/custom/[token]/DesignPreviewModal';
 
 interface DesignItem {
   id: string;
+  product_id: string | null;
   product_title: string;
   design_title: string | null;
   thumbnail_url: string | null;
@@ -15,6 +17,13 @@ interface DesignItem {
   design_shared_at: string | null;
   design_confirmed_at: string | null;
   design_revision_note: string | null;
+  // 라이브 정밀 렌더용 (에디터·공장과 100% 동일 화면)
+  canvas_state: Record<string, string> | string | null;
+  product_color: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  custom_fonts: any[] | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  product_sides: any[] | null;
 }
 
 type ViewState = 'loading' | 'review' | 'confirmed' | 'revision_sent' | 'error';
@@ -31,6 +40,8 @@ export default function DesignReviewPage() {
   const [revisionNote, setRevisionNote] = useState('');
   const [showRevisionForm, setShowRevisionForm] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 라이브 정밀 시안 모달 (전역 캔버스 스토어 충돌 방지 위해 한 번에 1개만)
+  const [previewItem, setPreviewItem] = useState<DesignItem | null>(null);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -110,6 +121,32 @@ export default function DesignReviewPage() {
         const data = await res.json();
         alert(data.error || '수정 요청에 실패했습니다.');
       }
+    } catch {
+      alert('오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirmAll = async () => {
+    const targets = items.filter((i) => i.design_status === 'design_shared');
+    if (targets.length === 0) return;
+    if (!confirm(`${targets.length}개 시안을 모두 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.`)) return;
+    setSubmitting(true);
+    try {
+      for (const it of targets) {
+        const res = await fetch(`/api/orders/${orderId}/items/${it.id}/confirm-design`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || '일부 시안 확정에 실패했습니다. 개별로 다시 시도해주세요.');
+          break;
+        }
+      }
+      await fetchItems();
     } catch {
       alert('오류가 발생했습니다.');
     } finally {
@@ -197,6 +234,21 @@ export default function DesignReviewPage() {
           </div>
         )}
 
+        {/* 모두 확정 — 확인 대기 시안이 2개 이상일 때 일괄 승인 */}
+        {items.filter((i) => i.design_status === 'design_shared').length >= 2 && (
+          <div className="mb-4">
+            <button
+              onClick={handleConfirmAll}
+              disabled={submitting}
+              className="w-full py-3 px-4 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              모든 시안 한 번에 확정 ({items.filter((i) => i.design_status === 'design_shared').length}건)
+            </button>
+            <p className="text-center text-[11px] text-gray-400 mt-1.5">개별로 확정하시려면 아래 각 시안에서 확정해주세요.</p>
+          </div>
+        )}
+
         {/* Design Items */}
         <div className="space-y-4">
           {items.map((item) => {
@@ -216,14 +268,25 @@ export default function DesignReviewPage() {
                   )}
                 </div>
 
-                {/* Preview Image */}
-                {item.thumbnail_url && (
-                  <div className="p-5 bg-gray-50 flex justify-center">
-                    <img
-                      src={item.thumbnail_url}
-                      alt={item.design_title || item.product_title}
-                      className="max-w-full max-h-96 object-contain rounded-lg"
-                    />
+                {/* Preview — 썸네일(빠른 미리보기) + 실제 출력 화면(라이브 정밀, 전 면) 버튼 */}
+                {(item.thumbnail_url || (item.product_sides && item.canvas_state)) && (
+                  <div className="p-5 bg-gray-50 flex flex-col items-center gap-3">
+                    {item.thumbnail_url && (
+                      <img
+                        src={item.thumbnail_url}
+                        alt={item.design_title || item.product_title}
+                        className="max-w-full max-h-96 object-contain rounded-lg"
+                      />
+                    )}
+                    {item.product_sides && item.product_sides.length > 0 && item.canvas_state && (
+                      <button
+                        onClick={() => setPreviewItem(item)}
+                        className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-black flex items-center justify-center gap-2"
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                        실제 출력 화면 그대로 보기 (모든 면)
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -317,6 +380,26 @@ export default function DesignReviewPage() {
           <p className="mt-1">T. 010-8140-0621</p>
         </div>
       </div>
+
+      {/* 실제 출력 화면 — 에디터·공장과 100% 동일한 라이브 캔버스(전 면 전환·확대) */}
+      {previewItem && (
+        <DesignPreviewModal
+          isOpen={!!previewItem}
+          onClose={() => setPreviewItem(null)}
+          productTitle={previewItem.product_title}
+          designTitle={previewItem.design_title}
+          productId={previewItem.product_id || ''}
+          sides={(previewItem.product_sides || []) as never}
+          canvasState={
+            (typeof previewItem.canvas_state === 'string'
+              ? (() => { try { return JSON.parse(previewItem.canvas_state as string); } catch { return null; } })()
+              : previewItem.canvas_state) as Record<string, string> | null
+          }
+          productColor={previewItem.product_color || '#FFFFFF'}
+          customFonts={(previewItem.custom_fonts || []) as never}
+          fallbackImageUrl={previewItem.thumbnail_url || undefined}
+        />
+      )}
     </div>
   );
 }
