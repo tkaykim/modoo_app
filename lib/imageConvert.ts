@@ -48,7 +48,9 @@ async function convertAi(
 ): Promise<HTMLCanvasElement> {
   onProgress?.('PDF 엔진 로딩 중…');
   const pdfjs = await import('pdfjs-dist');
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  // 워커를 외부 CDN(jsdelivr) 대신 자체 호스팅(/public)에서 로드 → AI 업로드마다 ~1초+ 외부 fetch 제거.
+  // public/pdf.worker.min.mjs 는 node_modules 의 동일 버전(pdfjs.version)을 복사한 것이라 버전 일치 보장.
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
   onProgress?.('AI 파일 렌더링 중…');
   const buf = await file.arrayBuffer();
