@@ -32,6 +32,7 @@ interface DesignPreviewModalProps {
   productColor?: string;
   customFonts?: AnySide[];
   fallbackImageUrl?: string;
+  layout?: 'grid' | 'carousel';
 }
 
 export default function DesignPreviewModal({
@@ -45,6 +46,7 @@ export default function DesignPreviewModal({
   productColor,
   customFonts,
   fallbackImageUrl,
+  layout = 'grid',
 }: DesignPreviewModalProps) {
   const [showViewer, setShowViewer] = useState(false);
 
@@ -108,6 +110,7 @@ export default function DesignPreviewModal({
                 canvasState={canvasState}
                 productColor={productColor || '#FFFFFF'}
                 customFonts={customFonts as never}
+                layout={layout}
               />
             </div>
           ) : fallbackImageUrl ? (

@@ -28,6 +28,8 @@ interface DesignEditorViewerProps {
   customFonts?: FontMetadata[];
   /** When true, fills the parent container (absolute inset-0). Otherwise uses fixed height. */
   fullscreen?: boolean;
+  /** 'grid'(기본, 줌/팬 그리드) | 'carousel'(면별 탭+스와이프, 모바일 친화) */
+  layout?: 'grid' | 'carousel';
 }
 
 /**
@@ -44,6 +46,7 @@ export default function DesignEditorViewer({
   productColor,
   customFonts,
   fullscreen = false,
+  layout = 'grid',
 }: DesignEditorViewerProps) {
   const {
     activeSideId,
@@ -308,6 +311,103 @@ export default function DesignEditorViewer({
       el.removeEventListener('touchend', handleTouchEnd);
     };
   }, []);
+
+  // ──────────────────────────────────────────────────────────────
+  // Carousel 모드 (모바일 친화): 면별 탭 + 좌우 스와이프 + dot. 캔버스는 400x500 원좌표 유지 후 CSS 스케일.
+  // ──────────────────────────────────────────────────────────────
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [carIdx, setCarIdx] = useState(0);
+  const [cscale, setCscale] = useState(0.7);
+  const swipeStartX = useRef<number | null>(null);
+
+  const goTo = useCallback((i: number) => {
+    const n = sides.length;
+    if (n === 0) return;
+    const clamped = Math.max(0, Math.min(n - 1, i));
+    setCarIdx(clamped);
+    if (sides[clamped]) setActiveSide(sides[clamped].id);
+  }, [sides, setActiveSide]);
+
+  useEffect(() => {
+    if (layout !== 'carousel') return;
+    const measure = () => {
+      const el = carouselRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const availW = r.width - 24;        // 좌우 여백
+      const availH = r.height - 118;      // 탭+dot+안내 영역
+      const s = Math.min(availW / CANVAS_W, availH / CANVAS_H);
+      setCscale(Math.max(0.35, Math.min(1.4, s)));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const t = setTimeout(measure, 200); // 모달 애니메이션 후 재측정
+    return () => { window.removeEventListener('resize', measure); clearTimeout(t); };
+  }, [layout, sides.length, fullscreen]);
+
+  if (layout === 'carousel') {
+    return (
+      <div
+        ref={carouselRef}
+        className={`${fullscreen ? 'absolute inset-0' : 'relative w-full'} flex flex-col bg-neutral-100`}
+        style={fullscreen ? {} : { height: Math.min(620, Math.round(CANVAS_H * cscale) + 130) }}
+      >
+        {/* 면 탭 */}
+        <div className="flex gap-2 px-3 pt-3 pb-1 overflow-x-auto shrink-0 justify-center flex-wrap">
+          {sides.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => goTo(i)}
+              className={`px-3.5 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                i === carIdx ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-600 border border-neutral-300'
+              }`}
+            >{s.name}</button>
+          ))}
+        </div>
+        {/* 스와이프 트랙 */}
+        <div
+          className="flex-1 overflow-hidden relative"
+          onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (swipeStartX.current == null) return;
+            const dx = e.changedTouches[0].clientX - swipeStartX.current;
+            if (dx > 45) goTo(carIdx - 1);
+            else if (dx < -45) goTo(carIdx + 1);
+            swipeStartX.current = null;
+          }}
+        >
+          <div className="flex h-full transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carIdx * 100}%)` }}>
+            {sides.map(side => (
+              <div key={side.id} className="w-full shrink-0 h-full flex items-center justify-center">
+                <div style={{ width: CANVAS_W * cscale, height: CANVAS_H * cscale }}>
+                  <div style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${cscale})`, transformOrigin: 'top left' }}>
+                    <SingleSideCanvas side={side} width={CANVAS_W} height={CANVAS_H} isEdit={false} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* 좌우 화살표 (1면 초과일 때) */}
+          {sides.length > 1 && (
+            <>
+              <button onClick={() => goTo(carIdx - 1)} disabled={carIdx === 0}
+                className="absolute left-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 shadow text-neutral-700 text-lg disabled:opacity-30 flex items-center justify-center">‹</button>
+              <button onClick={() => goTo(carIdx + 1)} disabled={carIdx === sides.length - 1}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 shadow text-neutral-700 text-lg disabled:opacity-30 flex items-center justify-center">›</button>
+            </>
+          )}
+        </div>
+        {/* dot 인디케이터 */}
+        <div className="flex justify-center items-center gap-1.5 pt-2 shrink-0">
+          {sides.map((s, i) => (
+            <button key={s.id} onClick={() => goTo(i)} aria-label={s.name}
+              className={`h-2 rounded-full transition-all ${i === carIdx ? 'w-5 bg-neutral-900' : 'w-2 bg-neutral-300'}`} />
+          ))}
+        </div>
+        <div className="text-center text-[11px] text-neutral-400 py-2 shrink-0">탭 또는 좌우로 넘겨 각 면을 확인하세요</div>
+      </div>
+    );
+  }
 
   return (
     <div

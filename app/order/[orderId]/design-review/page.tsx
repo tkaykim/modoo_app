@@ -398,6 +398,7 @@ export default function DesignReviewPage() {
           productColor={previewItem.product_color || '#FFFFFF'}
           customFonts={(previewItem.custom_fonts || []) as never}
           fallbackImageUrl={previewItem.thumbnail_url || undefined}
+          layout="carousel"
         />
       )}
     </div>
