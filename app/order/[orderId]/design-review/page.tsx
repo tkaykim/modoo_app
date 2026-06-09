@@ -2,10 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { CheckCircle, AlertCircle, Loader2, ArrowLeft, Send, RotateCcw, Maximize2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, ArrowLeft, Send, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { formatKstDateOnly } from '@/lib/kst';
-import DesignPreviewModal from '@/app/order/custom/[token]/DesignPreviewModal';
+
+const DesignEditorViewer = dynamic(() => import('@/app/components/cobuy/DesignEditorViewer'), {
+  ssr: false,
+  loading: () => (<div className="flex items-center justify-center h-full"><Loader2 className="w-7 h-7 animate-spin text-purple-600" /></div>),
+});
 
 interface DesignItem {
   id: string;
@@ -40,8 +45,8 @@ export default function DesignReviewPage() {
   const [revisionNote, setRevisionNote] = useState('');
   const [showRevisionForm, setShowRevisionForm] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // 라이브 정밀 시안 모달 (전역 캔버스 스토어 충돌 방지 위해 한 번에 1개만)
-  const [previewItem, setPreviewItem] = useState<DesignItem | null>(null);
+  // 인라인 뷰어는 1개만(전역 캔버스 스토어 충돌 방지) → 선택 품목을 탭으로 전환.
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -52,7 +57,13 @@ export default function DesignReviewPage() {
         return;
       }
       const data = await res.json();
-      setItems(data.items || []);
+      const list: DesignItem[] = data.items || [];
+      setItems(list);
+      setSelectedItemId((prev) => {
+        if (prev && list.some((i) => i.id === prev)) return prev;
+        const reviewable = list.find((i) => i.design_status === 'design_shared');
+        return (reviewable || list[0])?.id ?? null;
+      });
 
       const hasReviewable = (data.items || []).some(
         (i: DesignItem) => i.design_status === 'design_shared'
@@ -187,6 +198,8 @@ export default function DesignReviewPage() {
     );
   }
 
+  const selectedItem = items.find((i) => i.id === selectedItemId) || items[0] || null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -234,144 +247,118 @@ export default function DesignReviewPage() {
           </div>
         )}
 
-        {/* 모두 확정 — 확인 대기 시안이 2개 이상일 때 일괄 승인 */}
-        {items.filter((i) => i.design_status === 'design_shared').length >= 2 && (
-          <div className="mb-4">
-            <button
-              onClick={handleConfirmAll}
-              disabled={submitting}
-              className="w-full py-3 px-4 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              모든 시안 한 번에 확정 ({items.filter((i) => i.design_status === 'design_shared').length}건)
-            </button>
-            <p className="text-center text-[11px] text-gray-400 mt-1.5">개별로 확정하시려면 아래 각 시안에서 확정해주세요.</p>
-          </div>
-        )}
-
-        {/* Design Items */}
-        <div className="space-y-4">
-          {items.map((item) => {
-            const status = designStatusLabel(item.design_status);
-            return (
-              <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                {/* Item Header */}
-                <div className="p-5 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">{item.design_title || item.product_title}</h3>
-                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${status.color}`}>
-                      {status.text}
-                    </span>
-                  </div>
-                  {item.design_title && item.design_title !== item.product_title && (
-                    <p className="text-sm text-gray-500 mt-1">{item.product_title}</p>
-                  )}
-                </div>
-
-                {/* Preview — 썸네일(빠른 미리보기) + 실제 출력 화면(라이브 정밀, 전 면) 버튼 */}
-                {(item.thumbnail_url || (item.product_sides && item.canvas_state)) && (
-                  <div className="p-5 bg-gray-50 flex flex-col items-center gap-3">
-                    {item.thumbnail_url && (
-                      <img
-                        src={item.thumbnail_url}
-                        alt={item.design_title || item.product_title}
-                        className="max-w-full max-h-96 object-contain rounded-lg"
-                      />
-                    )}
-                    {item.product_sides && item.product_sides.length > 0 && item.canvas_state && (
-                      <button
-                        onClick={() => setPreviewItem(item)}
-                        className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-black flex items-center justify-center gap-2"
-                      >
-                        <Maximize2 className="w-4 h-4" />
-                        실제 출력 화면 그대로 보기 (모든 면)
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Revision note display */}
-                {item.design_status === 'revision_requested' && item.design_revision_note && (
-                  <div className="px-5 py-3 bg-amber-50 border-t border-amber-100">
-                    <p className="text-xs font-medium text-amber-800 mb-1">내 수정 요청 내용</p>
-                    <p className="text-sm text-amber-700 whitespace-pre-wrap">{item.design_revision_note}</p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {item.design_status === 'design_shared' && (
-                  <div className="p-5 border-t border-gray-100">
-                    {showRevisionForm === item.id ? (
-                      <div className="space-y-3">
-                        <textarea
-                          value={revisionNote}
-                          onChange={(e) => setRevisionNote(e.target.value)}
-                          placeholder="수정이 필요한 부분을 상세히 적어주세요..."
-                          className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleRevision(item.id)}
-                            disabled={submitting || !revisionNote.trim()}
-                            className="flex-1 py-2.5 px-4 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                          >
-                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                            수정 요청
-                          </button>
-                          <button
-                            onClick={() => { setShowRevisionForm(null); setRevisionNote(''); }}
-                            className="py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
-                          >
-                            취소
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleConfirm(item.id)}
-                          disabled={submitting}
-                          className="flex-1 py-3 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                          시안 확정
-                        </button>
-                        <button
-                          onClick={() => setShowRevisionForm(item.id)}
-                          disabled={submitting}
-                          className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                          수정 요청
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Confirmed status */}
-                {item.design_status === 'confirmed' && (
-                  <div className="p-5 border-t border-gray-100 bg-green-50/50">
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">시안이 확정되었습니다</span>
-                      {item.design_confirmed_at && (
-                        <span className="text-xs text-green-600 ml-auto">
-                          {formatKstDateOnly(item.design_confirmed_at)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {items.length === 0 && (
+        {/* 시안 뷰어 — 링크 진입 즉시 인라인으로 면 전환. 전역 스토어 충돌 방지 위해 뷰어는 선택 품목 1개만 마운트. */}
+        {items.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center">
             <p className="text-gray-500">확인할 시안이 없습니다.</p>
           </div>
+        ) : selectedItem ? (() => {
+          const status = designStatusLabel(selectedItem.design_status);
+          const cs = typeof selectedItem.canvas_state === 'string'
+            ? (() => { try { return JSON.parse(selectedItem.canvas_state as string); } catch { return null; } })()
+            : selectedItem.canvas_state;
+          const hasLive = !!(selectedItem.product_sides && selectedItem.product_sides.length > 0 && cs);
+          return (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {/* 품목 탭 (여러 개일 때만) */}
+              {items.length > 1 && (
+                <div className="flex gap-2 p-3 border-b border-gray-100 overflow-x-auto">
+                  {items.map((it) => (
+                    <button key={it.id} onClick={() => setSelectedItemId(it.id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${it.id === selectedItem.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      {it.design_title || it.product_title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 품목명 + 상태 */}
+              <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{selectedItem.design_title || selectedItem.product_title}</h3>
+                  {selectedItem.design_title && selectedItem.design_title !== selectedItem.product_title && (
+                    <p className="text-sm text-gray-500 mt-0.5">{selectedItem.product_title}</p>
+                  )}
+                </div>
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${status.color}`}>{status.text}</span>
+              </div>
+
+              {/* 라이브 캐러셀 (진입 즉시 면 전환) — 없으면 썸네일 폴백 */}
+              {hasLive ? (
+                <div className="relative bg-neutral-100 border-y border-gray-100" style={{ height: 'min(68vh, 540px)' }}>
+                  <DesignEditorViewer
+                    key={selectedItem.id}
+                    config={{ productId: selectedItem.product_id || '', sides: selectedItem.product_sides as never }}
+                    canvasState={cs as Record<string, string>}
+                    productColor={selectedItem.product_color || '#FFFFFF'}
+                    customFonts={(selectedItem.custom_fonts || []) as never}
+                    layout="carousel"
+                    fullscreen
+                  />
+                </div>
+              ) : selectedItem.thumbnail_url ? (
+                <div className="p-5 bg-gray-50 flex justify-center border-y border-gray-100">
+                  <img src={selectedItem.thumbnail_url} alt={selectedItem.design_title || selectedItem.product_title} className="max-w-full max-h-96 object-contain rounded-lg" />
+                </div>
+              ) : null}
+
+              {/* 수정요청 내용 */}
+              {selectedItem.design_status === 'revision_requested' && selectedItem.design_revision_note && (
+                <div className="px-5 py-3 bg-amber-50 border-b border-amber-100">
+                  <p className="text-xs font-medium text-amber-800 mb-1">내 수정 요청 내용</p>
+                  <p className="text-sm text-amber-700 whitespace-pre-wrap">{selectedItem.design_revision_note}</p>
+                </div>
+              )}
+
+              {/* 액션 */}
+              {selectedItem.design_status === 'design_shared' && (
+                <div className="p-5">
+                  {showRevisionForm === selectedItem.id ? (
+                    <div className="space-y-3">
+                      <textarea value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} placeholder="수정이 필요한 부분을 상세히 적어주세요..."
+                        className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleRevision(selectedItem.id)} disabled={submitting || !revisionNote.trim()}
+                          className="flex-1 py-2.5 px-4 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}수정 요청
+                        </button>
+                        <button onClick={() => { setShowRevisionForm(null); setRevisionNote(''); }} className="py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">취소</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleConfirm(selectedItem.id)} disabled={submitting}
+                        className="flex-1 py-3 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}시안 확정
+                      </button>
+                      <button onClick={() => setShowRevisionForm(selectedItem.id)} disabled={submitting}
+                        className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                        <RotateCcw className="w-4 h-4" />수정 요청
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedItem.design_status === 'confirmed' && (
+                <div className="p-5 bg-green-50/50">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle className="w-5 h-5" /><span className="text-sm font-medium">시안이 확정되었습니다</span>
+                    {selectedItem.design_confirmed_at && (<span className="text-xs text-green-600 ml-auto">{formatKstDateOnly(selectedItem.design_confirmed_at)}</span>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })() : null}
+
+        {/* 모두 확정 — 확인 대기 2개 이상일 때 일괄 승인 */}
+        {items.filter((i) => i.design_status === 'design_shared').length >= 2 && (
+          <button onClick={handleConfirmAll} disabled={submitting}
+            className="w-full mt-4 py-3 px-4 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm">
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+            모든 시안 한 번에 확정 ({items.filter((i) => i.design_status === 'design_shared').length}건)
+          </button>
         )}
 
         {/* Footer */}
@@ -380,27 +367,6 @@ export default function DesignReviewPage() {
           <p className="mt-1">T. 010-8140-0621</p>
         </div>
       </div>
-
-      {/* 실제 출력 화면 — 에디터·공장과 100% 동일한 라이브 캔버스(전 면 전환·확대) */}
-      {previewItem && (
-        <DesignPreviewModal
-          isOpen={!!previewItem}
-          onClose={() => setPreviewItem(null)}
-          productTitle={previewItem.product_title}
-          designTitle={previewItem.design_title}
-          productId={previewItem.product_id || ''}
-          sides={(previewItem.product_sides || []) as never}
-          canvasState={
-            (typeof previewItem.canvas_state === 'string'
-              ? (() => { try { return JSON.parse(previewItem.canvas_state as string); } catch { return null; } })()
-              : previewItem.canvas_state) as Record<string, string> | null
-          }
-          productColor={previewItem.product_color || '#FFFFFF'}
-          customFonts={(previewItem.custom_fonts || []) as never}
-          fallbackImageUrl={previewItem.thumbnail_url || undefined}
-          layout="carousel"
-        />
-      )}
     </div>
   );
 }
