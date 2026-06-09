@@ -6,17 +6,15 @@ import { X } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { trackChatbotOpen } from '@/lib/gtm-events';
 
-// 말풍선 티저 문구 — 랜덤 로테이션으로 노출.
+// 말풍선 티저 문구 — 랜덤 로테이션으로 노출. (짧게 유지 → 2줄 이내로 감김)
 const TEASER_MESSAGES = [
-  '단체복·커스텀, 처음이신가요? 👋',
+  '단체복·커스텀 티, 처음이신가요? 👋',
   '예상 견적이 궁금하신가요? 💰',
   '1장도 제작할 수 있어요!',
   '디자인 막막하면 같이 잡아드려요 🎨',
-  '최소수량·납기, 편하게 물어보세요',
-  '지금 물어보면 바로 답변드려요 ⚡',
+  '최소수량·납기 물어보세요',
+  '지금 물으면 바로 답변드려요 ⚡',
 ];
-
-const TEASER_DISMISS_KEY = 'chat_teaser_dismissed';
 
 // Cute chatbot face icon
 function ChatBotIcon() {
@@ -45,12 +43,13 @@ export default function ChatBubble() {
 
   // ⚠️ Hooks must run before any early return (React #310 in minified prod otherwise).
   const [teaserVisible, setTeaserVisible] = useState(false);
+  // X 로 닫으면 새로고침 전까지 완전히 숨김 — 메모리 상태라 reload 하면 다시 노출.
+  const [dismissed, setDismissed] = useState(false);
   const [msgIndex, setMsgIndex] = useState(0);
 
-  // 등장(1.8s 지연) + 문구 랜덤 로테이션(5s). /home 이고, 이 세션에 닫지 않았을 때만.
+  // 등장(1.8s 지연) + 문구 랜덤 로테이션(8s). /home 이고 닫지 않았을 때만.
   useEffect(() => {
-    if (pathname !== '/home') return;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(TEASER_DISMISS_KEY) === '1') return;
+    if (pathname !== '/home' || dismissed) return;
     setMsgIndex(Math.floor(Math.random() * TEASER_MESSAGES.length));
     const showTimer = setTimeout(() => setTeaserVisible(true), 1800);
     const rotateTimer = setInterval(() => {
@@ -60,12 +59,12 @@ export default function ChatBubble() {
         if (next === prev) next = (next + 1) % TEASER_MESSAGES.length;
         return next;
       });
-    }, 5000);
+    }, 8000);
     return () => {
       clearTimeout(showTimer);
       clearInterval(rotateTimer);
     };
-  }, [pathname]);
+  }, [pathname, dismissed]);
 
   // 챗봇이 열리면 티저 숨김.
   useEffect(() => {
@@ -93,36 +92,24 @@ export default function ChatBubble() {
   const dismissTeaser = (e: React.MouseEvent) => {
     e.stopPropagation();
     setTeaserVisible(false);
-    try {
-      sessionStorage.setItem(TEASER_DISMISS_KEY, '1');
-    } catch {
-      /* ignore */
-    }
+    setDismissed(true); // 새로고침 전까지 다시 안 뜸 (persist 안 함)
   };
 
-  const showTeaser = teaserVisible && !isOpen;
+  const showTeaser = teaserVisible && !isOpen && !dismissed;
 
   return (
-    <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-9998 flex flex-row-reverse items-center gap-2">
-      <button
-        onClick={handleIconClick}
-        className="w-15 h-15 bg-linear-to-br from-brand to-brand-deep text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center animate-[float_3s_ease-in-out_infinite] shrink-0"
-        aria-label={isOpen ? '채팅 닫기' : '채팅 열기'}
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <ChatBotIcon />}
-      </button>
-
+    <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-9998 flex flex-col items-end gap-2">
       {showTeaser && (
-        <div className="relative animate-[float_3s_ease-in-out_infinite]">
+        <div className="relative mr-1 animate-[float_3s_ease-in-out_infinite]">
           <button
             onClick={() => openFromBubble('home_teaser')}
-            className="block max-w-[60vw] sm:max-w-[230px] text-left bg-white text-gray-800 text-sm font-medium leading-snug pl-4 pr-5 py-2.5 rounded-2xl rounded-br-sm shadow-lg ring-1 ring-black/5 hover:shadow-xl transition-shadow"
+            className="block max-w-[170px] text-left break-keep bg-white text-gray-800 text-[13px] font-medium leading-snug px-3.5 py-2.5 rounded-2xl rounded-br-md shadow-lg ring-1 ring-black/5 hover:shadow-xl transition-shadow"
           >
             {TEASER_MESSAGES[msgIndex]}
           </button>
-          {/* 말풍선 꼬리 (아이콘 방향) */}
-          <span className="absolute -right-1 bottom-3 w-3 h-3 bg-white ring-1 ring-black/5 rotate-45 -z-10" />
-          {/* 닫기 */}
+          {/* 말풍선 꼬리 (아래 아이콘 방향) */}
+          <span className="absolute right-6 -bottom-1 w-3 h-3 bg-white ring-1 ring-black/5 rotate-45 -z-10" />
+          {/* 닫기 — 누르면 새로고침 전까지 숨김 */}
           <button
             onClick={dismissTeaser}
             aria-label="안내 닫기"
@@ -132,6 +119,14 @@ export default function ChatBubble() {
           </button>
         </div>
       )}
+
+      <button
+        onClick={handleIconClick}
+        className="w-15 h-15 bg-linear-to-br from-brand to-brand-deep text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center animate-[float_3s_ease-in-out_infinite] shrink-0"
+        aria-label={isOpen ? '채팅 닫기' : '채팅 열기'}
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <ChatBotIcon />}
+      </button>
     </div>
   );
 }
