@@ -9,6 +9,8 @@ import AuthInitializer from "./components/AuthInitializer";
 import SupabaseStorageHeal from "./components/SupabaseStorageHeal";
 import ChatBubble from "./components/chatbot/ChatBubble";
 import ChatWindow from "./components/chatbot/ChatWindow";
+import WelcomeCouponModal from "./components/welcome/WelcomeCouponModal";
+import WelcomeCouponClaimer from "./components/welcome/WelcomeCouponClaimer";
 import ErrorReporter from "./components/ErrorReporter";
 import FontPreloader from "./components/FontPreloader";
 import { getSiteUrl } from "@/lib/site-url";
@@ -152,6 +154,10 @@ export default function RootLayout({
         {/* Chatbot */}
         <ChatBubble />
         <ChatWindow />
+
+        {/* 신규회원 웰컴쿠폰: 비로그인 진입 팝업 + 가입 직후 지급 알림 */}
+        <WelcomeCouponModal />
+        <WelcomeCouponClaimer />
         <Analytics />
       </body>
     </html>

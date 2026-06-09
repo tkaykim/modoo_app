@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createClient } from '@/lib/supabase-client';
 import { translateAuthError, AuthErrorKind } from '@/lib/auth-errors';
+import { markWelcomePending } from '@/lib/welcomeCoupon';
 
 function toAuthFailure(rawMessage: string | undefined | null) {
   const t = translateAuthError(rawMessage);
@@ -230,6 +231,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (data.user) {
+            // 신규 가입 → 웰컴쿠폰 발급 의도 플래그. 이메일 인증 대기 케이스도
+            // localStorage 에 남아 인증 완료 후 복귀 시 발급된다.
+            markWelcomePending();
+
             // Check if email confirmation is needed
             const needsEmailConfirmation = !data.session;
 
@@ -283,6 +288,12 @@ export const useAuthStore = create<AuthState>()(
           try {
             document.cookie = `login_return_to=${encodeURIComponent(returnTo)}; path=/; max-age=3600; SameSite=Lax`;
           } catch {}
+
+          // OAuth 회원가입이면 콜백 복귀 후 웰컴쿠폰을 발급하도록 플래그 설정.
+          // (기존 계정으로 로그인된 경우는 Claimer 가 계정 생성일로 걸러낸다.)
+          if (mode === 'signup') {
+            markWelcomePending();
+          }
 
           const { error } = await supabase.auth.signInWithOAuth({
             provider,

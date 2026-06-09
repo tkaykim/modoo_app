@@ -88,6 +88,29 @@ body {
   80% { transform: translateX(4px); }
 }
 
+/* 신규회원 웰컴쿠폰 비주얼 */
+@keyframes welcome-coupon-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(-2deg); }
+}
+.welcome-coupon-float {
+  animation: welcome-coupon-float 3.2s ease-in-out infinite;
+}
+
+@keyframes welcome-confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(26px) rotate(220deg); opacity: 0; }
+}
+.welcome-confetti {
+  animation: welcome-confetti 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-coupon-float,
+  .welcome-confetti { animation: none; }
+}
+
 /* Safe area utilities for iOS */
 .safe-area-top {
   padding-top: env(safe-area-inset-top);

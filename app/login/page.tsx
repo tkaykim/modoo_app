@@ -36,6 +36,9 @@ export default function LoginPage() {
     if (errorParam === 'no_account') {
       setError('계정이 존재하지 않습니다. 먼저 회원가입을 진행해주세요.')
       setIsSignUp(true)
+    } else if (searchParams.get('mode') === 'signup') {
+      // 웰컴쿠폰 팝업/이벤트 페이지에서 진입 시 회원가입 탭으로 시작.
+      setIsSignUp(true)
     }
   }, [searchParams])
 
