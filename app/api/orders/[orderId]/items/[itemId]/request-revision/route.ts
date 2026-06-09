@@ -4,10 +4,11 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 import { sendGmailEmail } from '@/lib/gmail';
 
-function verifyDesignToken(token: string, orderId: string, orderItemId: string): boolean {
+function verifyDesignToken(token: string, orderId: string, _orderItemId: string): boolean {
   try {
     const decoded = JSON.parse(Buffer.from(token, 'base64url').toString());
-    if (decoded.o !== orderId || decoded.oi !== orderItemId) return false;
+    // 주문 단위 검증만(품목 일치 요구 X): 같은 주문의 다른 시안도 같은 토큰으로 수정요청 가능.
+    if (decoded.o !== orderId) return false;
     if (decoded.exp < Date.now()) return false;
 
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fallback-secret';

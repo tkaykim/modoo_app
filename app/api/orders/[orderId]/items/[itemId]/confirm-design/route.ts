@@ -4,10 +4,12 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 import { sendGmailEmail } from '@/lib/gmail';
 
-function verifyDesignToken(token: string, orderId: string, orderItemId: string): boolean {
+function verifyDesignToken(token: string, orderId: string, _orderItemId: string): boolean {
   try {
     const decoded = JSON.parse(Buffer.from(token, 'base64url').toString());
-    if (decoded.o !== orderId || decoded.oi !== orderItemId) return false;
+    // 주문 단위 검증만(품목 일치 요구 X): 링크는 해당 고객/주문에게만 발송되므로,
+    // 같은 주문의 다른 시안도 같은 토큰으로 확정 가능해야 함. 토큰 진위(HMAC)+주문+만료는 유지.
+    if (decoded.o !== orderId) return false;
     if (decoded.exp < Date.now()) return false;
 
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fallback-secret';
