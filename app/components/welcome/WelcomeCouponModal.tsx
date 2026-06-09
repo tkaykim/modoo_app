@@ -40,6 +40,15 @@ export default function WelcomeCouponModal() {
     return () => clearTimeout(t);
   }, [isAuthenticated, isLoading, pathname]);
 
+  // 모달은 layout 에 상주하므로, 진입 경로를 벗어나거나 로그인되면 즉시 닫는다.
+  // (CTA로 /login·/event 로 이동했는데 모달이 떠 있는 채로 남는 문제 방지)
+  useEffect(() => {
+    if (isAuthenticated || !ENTRY_PATHS.includes(pathname ?? '')) {
+      setOpen(false);
+      setClosing(false);
+    }
+  }, [pathname, isAuthenticated]);
+
   const close = (mode: 'session' | 'today') => {
     if (mode === 'today') hidePopupForToday();
     else dismissPopupForSession();
@@ -52,10 +61,17 @@ export default function WelcomeCouponModal() {
 
   const goSignup = () => {
     dismissPopupForSession();
+    setOpen(false); // 이동 전 즉시 닫기
     try {
       sessionStorage.setItem('login:returnTo', '/home');
     } catch {}
     router.push('/login?mode=signup');
+  };
+
+  const goDetail = () => {
+    dismissPopupForSession();
+    setOpen(false); // 이동 전 즉시 닫기
+    router.push('/event/welcome');
   };
 
   if (!open) return null;
@@ -131,10 +147,7 @@ export default function WelcomeCouponModal() {
 
           <button
             type="button"
-            onClick={() => {
-              dismissPopupForSession();
-              router.push('/event/welcome');
-            }}
+            onClick={goDetail}
             className="mt-2.5 w-full text-[13px] font-medium text-slate-300 underline-offset-2 hover:underline"
           >
             혜택 자세히 보기
