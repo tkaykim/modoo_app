@@ -318,7 +318,7 @@ export default function DesignEditorViewer({
   const carouselRef = useRef<HTMLDivElement>(null);
   const [carIdx, setCarIdx] = useState(0);
   const [cscale, setCscale] = useState(0.7);
-  const swipeStartX = useRef<number | null>(null);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   const goTo = useCallback((i: number) => {
     const n = sides.length;
@@ -367,13 +367,17 @@ export default function DesignEditorViewer({
         {/* 스와이프 트랙 */}
         <div
           className="flex-1 overflow-hidden relative"
-          onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+          onTouchStart={(e) => { swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
           onTouchEnd={(e) => {
-            if (swipeStartX.current == null) return;
-            const dx = e.changedTouches[0].clientX - swipeStartX.current;
-            if (dx > 45) goTo(carIdx - 1);
-            else if (dx < -45) goTo(carIdx + 1);
-            swipeStartX.current = null;
+            const s = swipeStart.current;
+            swipeStart.current = null;
+            if (!s) return;
+            const dx = e.changedTouches[0].clientX - s.x;
+            const dy = e.changedTouches[0].clientY - s.y;
+            // 가로 스와이프만 면 전환. 세로 우세하면 무시(페이지 스크롤로 통과).
+            if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+              if (dx > 0) goTo(carIdx - 1); else goTo(carIdx + 1);
+            }
           }}
         >
           <div className="flex h-full transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carIdx * 100}%)` }}>
@@ -381,7 +385,7 @@ export default function DesignEditorViewer({
               <div key={side.id} className="w-full shrink-0 h-full flex items-center justify-center">
                 <div style={{ width: CANVAS_W * cscale, height: CANVAS_H * cscale }}>
                   <div style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${cscale})`, transformOrigin: 'top left' }}>
-                    <SingleSideCanvas side={side} width={CANVAS_W} height={CANVAS_H} isEdit={false} />
+                    <SingleSideCanvas side={side} width={CANVAS_W} height={CANVAS_H} isEdit={false} productColor={productColor} />
                   </div>
                 </div>
               </div>

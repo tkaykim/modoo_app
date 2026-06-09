@@ -216,6 +216,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       backgroundColor: '#EBEBEB',
       preserveObjectStacking: true, // keeps selected objects from jumping to front automatically
       selection: false, // Will be controlled by separate effect based on isEdit
+      allowTouchScrolling: !isEdit, // 뷰모드(시안확인 등)면 세로 페이지 스크롤 허용. 에디터(isEdit)는 false 유지.
     })
 
     canvasRef.current = canvas;
@@ -1339,6 +1340,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     resetZoom(side.id);
 
     canvas.selection = isEdit;
+    canvas.allowTouchScrolling = !isEdit; // 뷰모드 전환 시 세로 스크롤 허용 동기화
     canvas.forEachObject((obj) => {
       // Skip guide boxes and snap lines
       if (obj.excludeFromExport) return;
@@ -1493,7 +1495,7 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
       </div>
       <canvas
         ref={canvasEl}
-        style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.3s', touchAction: 'none' }}
+        style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.3s', touchAction: isEdit ? 'none' : 'pan-y' }}
       />
       {showScaleBox && (
         <ScaleBox

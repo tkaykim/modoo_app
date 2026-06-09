@@ -45,8 +45,6 @@ export default function DesignReviewPage() {
   const [revisionNote, setRevisionNote] = useState('');
   const [showRevisionForm, setShowRevisionForm] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // 인라인 뷰어는 1개만(전역 캔버스 스토어 충돌 방지) → 선택 품목을 탭으로 전환.
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -59,11 +57,6 @@ export default function DesignReviewPage() {
       const data = await res.json();
       const list: DesignItem[] = data.items || [];
       setItems(list);
-      setSelectedItemId((prev) => {
-        if (prev && list.some((i) => i.id === prev)) return prev;
-        const reviewable = list.find((i) => i.design_status === 'design_shared');
-        return (reviewable || list[0])?.id ?? null;
-      });
 
       const hasReviewable = (data.items || []).some(
         (i: DesignItem) => i.design_status === 'design_shared'
@@ -198,7 +191,7 @@ export default function DesignReviewPage() {
     );
   }
 
-  const selectedItem = items.find((i) => i.id === selectedItemId) || items[0] || null;
+  const confirmedCount = items.filter((i) => i.design_status === 'confirmed').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,110 +240,110 @@ export default function DesignReviewPage() {
           </div>
         )}
 
-        {/* 시안 뷰어 — 링크 진입 즉시 인라인으로 면 전환. 전역 스토어 충돌 방지 위해 뷰어는 선택 품목 1개만 마운트. */}
+        {/* 다중 디자인 안내 배너 — "여러 개 확정해야 함" 인지 */}
+        {items.length > 1 && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+            <p className="font-semibold text-purple-800 text-sm">이 주문에는 디자인 {items.length}개가 있어요</p>
+            <p className="text-xs text-purple-600 mt-1">아래로 내리며 디자인을 하나씩 확인하고 각각 확정해주세요. (확정 {confirmedCount}/{items.length})</p>
+          </div>
+        )}
+
+        {/* 디자인 세로 나열 — 각 디자인을 라이브 캐러셀로 (restoreAllCanvasState는 side별 복원이라 동시 마운트 안전) */}
         {items.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center">
             <p className="text-gray-500">확인할 시안이 없습니다.</p>
           </div>
-        ) : selectedItem ? (() => {
-          const status = designStatusLabel(selectedItem.design_status);
-          const cs = typeof selectedItem.canvas_state === 'string'
-            ? (() => { try { return JSON.parse(selectedItem.canvas_state as string); } catch { return null; } })()
-            : selectedItem.canvas_state;
-          const hasLive = !!(selectedItem.product_sides && selectedItem.product_sides.length > 0 && cs);
-          return (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              {/* 품목 탭 (여러 개일 때만) */}
-              {items.length > 1 && (
-                <div className="flex gap-2 p-3 border-b border-gray-100 overflow-x-auto">
-                  {items.map((it) => (
-                    <button key={it.id} onClick={() => setSelectedItemId(it.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${it.id === selectedItem.id ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      {it.design_title || it.product_title}
-                    </button>
-                  ))}
-                </div>
-              )}
+        ) : (
+          <div className="space-y-5">
+            {items.map((item, idx) => {
+              const status = designStatusLabel(item.design_status);
+              const cs = typeof item.canvas_state === 'string'
+                ? (() => { try { return JSON.parse(item.canvas_state as string); } catch { return null; } })()
+                : item.canvas_state;
+              const hasLive = !!(item.product_sides && item.product_sides.length > 0 && cs);
+              return (
+                <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  {/* 디자인 헤더 */}
+                  <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
+                    <div>
+                      {items.length > 1 && <span className="text-xs font-bold text-purple-600">디자인 {idx + 1} / {items.length}</span>}
+                      <h3 className="font-semibold text-gray-900">{item.design_title || item.product_title}</h3>
+                      {item.design_title && item.design_title !== item.product_title && (
+                        <p className="text-sm text-gray-500 mt-0.5">{item.product_title}</p>
+                      )}
+                    </div>
+                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${status.color}`}>{status.text}</span>
+                  </div>
 
-              {/* 품목명 + 상태 */}
-              <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{selectedItem.design_title || selectedItem.product_title}</h3>
-                  {selectedItem.design_title && selectedItem.design_title !== selectedItem.product_title && (
-                    <p className="text-sm text-gray-500 mt-0.5">{selectedItem.product_title}</p>
+                  {/* 라이브 캐러셀 (면 탭/좌우 스와이프) — 없으면 썸네일 폴백 */}
+                  {hasLive ? (
+                    <div className="bg-neutral-100 border-y border-gray-100">
+                      <DesignEditorViewer
+                        key={item.id}
+                        config={{ productId: item.product_id || '', sides: item.product_sides as never }}
+                        canvasState={cs as Record<string, string>}
+                        productColor={item.product_color || '#FFFFFF'}
+                        customFonts={(item.custom_fonts || []) as never}
+                        layout="carousel"
+                      />
+                    </div>
+                  ) : item.thumbnail_url ? (
+                    <div className="p-5 bg-gray-50 flex justify-center border-y border-gray-100">
+                      <img src={item.thumbnail_url} alt={item.design_title || item.product_title} className="max-w-full max-h-96 object-contain rounded-lg" />
+                    </div>
+                  ) : null}
+
+                  {/* 수정요청 내용 */}
+                  {item.design_status === 'revision_requested' && item.design_revision_note && (
+                    <div className="px-5 py-3 bg-amber-50 border-b border-amber-100">
+                      <p className="text-xs font-medium text-amber-800 mb-1">내 수정 요청 내용</p>
+                      <p className="text-sm text-amber-700 whitespace-pre-wrap">{item.design_revision_note}</p>
+                    </div>
                   )}
-                </div>
-                <span className={`px-2.5 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${status.color}`}>{status.text}</span>
-              </div>
 
-              {/* 라이브 캐러셀 (진입 즉시 면 전환) — 없으면 썸네일 폴백 */}
-              {hasLive ? (
-                <div className="relative bg-neutral-100 border-y border-gray-100" style={{ height: 'min(68vh, 540px)' }}>
-                  <DesignEditorViewer
-                    key={selectedItem.id}
-                    config={{ productId: selectedItem.product_id || '', sides: selectedItem.product_sides as never }}
-                    canvasState={cs as Record<string, string>}
-                    productColor={selectedItem.product_color || '#FFFFFF'}
-                    customFonts={(selectedItem.custom_fonts || []) as never}
-                    layout="carousel"
-                    fullscreen
-                  />
-                </div>
-              ) : selectedItem.thumbnail_url ? (
-                <div className="p-5 bg-gray-50 flex justify-center border-y border-gray-100">
-                  <img src={selectedItem.thumbnail_url} alt={selectedItem.design_title || selectedItem.product_title} className="max-w-full max-h-96 object-contain rounded-lg" />
-                </div>
-              ) : null}
+                  {/* 액션 */}
+                  {item.design_status === 'design_shared' && (
+                    <div className="p-5">
+                      {showRevisionForm === item.id ? (
+                        <div className="space-y-3">
+                          <textarea value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} placeholder="수정이 필요한 부분을 상세히 적어주세요..."
+                            className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleRevision(item.id)} disabled={submitting || !revisionNote.trim()}
+                              className="flex-1 py-2.5 px-4 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}수정 요청
+                            </button>
+                            <button onClick={() => { setShowRevisionForm(null); setRevisionNote(''); }} className="py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">취소</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleConfirm(item.id)} disabled={submitting}
+                            className="flex-1 py-3 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}시안 확정
+                          </button>
+                          <button onClick={() => setShowRevisionForm(item.id)} disabled={submitting}
+                            className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2">
+                            <RotateCcw className="w-4 h-4" />수정 요청
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* 수정요청 내용 */}
-              {selectedItem.design_status === 'revision_requested' && selectedItem.design_revision_note && (
-                <div className="px-5 py-3 bg-amber-50 border-b border-amber-100">
-                  <p className="text-xs font-medium text-amber-800 mb-1">내 수정 요청 내용</p>
-                  <p className="text-sm text-amber-700 whitespace-pre-wrap">{selectedItem.design_revision_note}</p>
-                </div>
-              )}
-
-              {/* 액션 */}
-              {selectedItem.design_status === 'design_shared' && (
-                <div className="p-5">
-                  {showRevisionForm === selectedItem.id ? (
-                    <div className="space-y-3">
-                      <textarea value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} placeholder="수정이 필요한 부분을 상세히 적어주세요..."
-                        className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                      <div className="flex gap-2">
-                        <button onClick={() => handleRevision(selectedItem.id)} disabled={submitting || !revisionNote.trim()}
-                          className="flex-1 py-2.5 px-4 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2">
-                          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}수정 요청
-                        </button>
-                        <button onClick={() => { setShowRevisionForm(null); setRevisionNote(''); }} className="py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">취소</button>
+                  {item.design_status === 'confirmed' && (
+                    <div className="p-5 bg-green-50/50">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="w-5 h-5" /><span className="text-sm font-medium">시안이 확정되었습니다</span>
+                        {item.design_confirmed_at && (<span className="text-xs text-green-600 ml-auto">{formatKstDateOnly(item.design_confirmed_at)}</span>)}
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => handleConfirm(selectedItem.id)} disabled={submitting}
-                        className="flex-1 py-3 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}시안 확정
-                      </button>
-                      <button onClick={() => setShowRevisionForm(selectedItem.id)} disabled={submitting}
-                        className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2">
-                        <RotateCcw className="w-4 h-4" />수정 요청
-                      </button>
-                    </div>
                   )}
                 </div>
-              )}
-
-              {selectedItem.design_status === 'confirmed' && (
-                <div className="p-5 bg-green-50/50">
-                  <div className="flex items-center gap-2 text-green-700">
-                    <CheckCircle className="w-5 h-5" /><span className="text-sm font-medium">시안이 확정되었습니다</span>
-                    {selectedItem.design_confirmed_at && (<span className="text-xs text-green-600 ml-auto">{formatKstDateOnly(selectedItem.design_confirmed_at)}</span>)}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })() : null}
+              );
+            })}
+          </div>
+        )}
 
         {/* 모두 확정 — 확인 대기 2개 이상일 때 일괄 승인 */}
         {items.filter((i) => i.design_status === 'design_shared').length >= 2 && (
