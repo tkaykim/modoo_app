@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useWelcomeOverlayStore } from '@/store/useWelcomeOverlayStore';
 import {
   isWelcomePending,
   clearWelcomePending,
@@ -21,9 +22,16 @@ import WelcomeCouponArt from './WelcomeCouponArt';
 
 export default function WelcomeCouponClaimer() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
+  const setOverlayOpen = useWelcomeOverlayStore((s) => s.setOpen);
   const router = useRouter();
   const [showSuccess, setShowSuccess] = useState(false);
   const inFlight = useRef(false);
+
+  // 지급완료 모달이 떠 있는 동안 챗봇 버블을 숨기도록 신호 공유.
+  useEffect(() => {
+    setOverlayOpen(showSuccess);
+    return () => setOverlayOpen(false);
+  }, [showSuccess, setOverlayOpen]);
 
   useEffect(() => {
     if (isLoading) return;

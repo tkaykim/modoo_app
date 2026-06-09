@@ -13,6 +13,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useWelcomeOverlayStore } from '@/store/useWelcomeOverlayStore';
 import {
   shouldShowPopup,
   hidePopupForToday,
@@ -36,9 +37,16 @@ function isForced(): boolean {
 
 export default function WelcomeCouponModal() {
   const { isAuthenticated, isLoading } = useAuthStore();
+  const setOverlayOpen = useWelcomeOverlayStore((s) => s.setOpen);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+
+  // 팝업이 떠 있는 동안 챗봇 버블을 숨기도록 신호 공유.
+  useEffect(() => {
+    setOverlayOpen(open);
+    return () => setOverlayOpen(false);
+  }, [open, setOverlayOpen]);
 
   useEffect(() => {
     const forced = isForced();

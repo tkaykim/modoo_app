@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
+import { useWelcomeOverlayStore } from '@/store/useWelcomeOverlayStore';
 import { trackChatbotOpen } from '@/lib/gtm-events';
 
 // 말풍선 티저 문구 — 랜덤 로테이션으로 노출. (짧게 유지 → 2줄 이내로 감김)
@@ -40,6 +41,8 @@ function ChatBotIcon() {
 export default function ChatBubble() {
   const pathname = usePathname();
   const { isOpen, openChat, closeChat } = useChatStore();
+  // 웰컴쿠폰 팝업이 떠 있는 동안엔 버블을 숨긴다(반투명 backdrop 너머 겹쳐 보임 방지).
+  const welcomeOverlayOpen = useWelcomeOverlayStore((s) => s.open);
 
   // ⚠️ Hooks must run before any early return (React #310 in minified prod otherwise).
   const [teaserVisible, setTeaserVisible] = useState(false);
@@ -71,8 +74,8 @@ export default function ChatBubble() {
     if (isOpen) setTeaserVisible(false);
   }, [isOpen]);
 
-  // Only show chat bubble on the home screen
-  if (pathname !== '/home') {
+  // Only show chat bubble on the home screen, and not while the welcome popup is open.
+  if (pathname !== '/home' || welcomeOverlayOpen) {
     return null;
   }
 
