@@ -9,6 +9,11 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 const LOGIN_RETURN_TO_KEY = 'login:returnTo'
 
+const PROVIDER_LABELS: Record<string, string> = {
+  kakao: '카카오',
+  google: '구글',
+}
+
 function getSafeRedirectPath(value: string | null) {
   if (!value) return null
   if (!value.startsWith('/')) return null
@@ -24,6 +29,7 @@ export default function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [errorKind, setErrorKind] = useState<AuthErrorKind | null>(null)
+  const [providerHint, setProviderHint] = useState<string[] | null>(null)
   const [isSignUp, setIsSignUp] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
@@ -92,6 +98,60 @@ export default function LoginPage() {
     }
   }
 
+  // 인증 실패 시, 해당 이메일이 소셜(카카오/구글) 전용 계정인지 조회해 안내한다.
+  // 이메일+비밀번호로는 절대 들어갈 수 없는 계정이라, 어떤 버튼을 눌러야 하는지 알려준다.
+  const fetchProviderHint = async (targetEmail: string) => {
+    try {
+      const res = await fetch('/api/auth/provider-hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (Array.isArray(data?.providers) && data.providers.length > 0) {
+        setProviderHint(data.providers)
+      }
+    } catch {
+      // 보조 안내이므로 실패해도 일반 에러 메시지로 폴백.
+    }
+  }
+
+  const renderProviderHint = () => {
+    if (!providerHint || providerHint.length === 0) return null
+    const labels = providerHint.map((p) => PROVIDER_LABELS[p] ?? p).join('·')
+    const primary = providerHint[0]
+    const primaryLabel = PROVIDER_LABELS[primary] ?? primary
+    const isKakao = primary === 'kakao'
+    return (
+      <div className="text-xs p-3 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 flex flex-col gap-2.5">
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 mt-0.5">💡</span>
+          <p className="leading-relaxed">
+            이 이메일은 <span className="font-semibold">{labels}</span> 간편가입으로 등록된 계정이에요.
+            <br />
+            비밀번호 대신 아래 버튼으로 로그인해주세요.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (primary === 'kakao') handleKakaoLogin()
+            else if (primary === 'google') handleGoogleLogin()
+          }}
+          disabled={isLoading}
+          className={`w-full py-2.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 ${
+            isKakao
+              ? 'text-[#3C1E1E] bg-[#FEE500] hover:bg-[#FDD800]'
+              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          {primaryLabel}(으)로 로그인
+        </button>
+      </div>
+    )
+  }
+
   const loginFormRef = useRef<HTMLDivElement>(null)
   const signupFormRef = useRef<HTMLDivElement>(null)
   const [containerHeight, setContainerHeight] = useState<number | undefined>(undefined)
@@ -110,6 +170,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     setErrorKind(null)
+    setProviderHint(null)
 
     try {
       if (isSignUp) {
@@ -117,7 +178,12 @@ export default function LoginPage() {
 
         if (!result.success) {
           setError(result.error || '회원가입에 실패했습니다')
-          setErrorKind(result.errorKind ?? 'unknown')
+          const kind = result.errorKind ?? 'unknown'
+          setErrorKind(kind)
+          // 이미 가입된 이메일이면, 소셜 전용 계정인지 확인해 안내한다.
+          if (kind === 'already_registered') {
+            void fetchProviderHint(email)
+          }
           return
         }
 
@@ -150,7 +216,13 @@ export default function LoginPage() {
 
         if (!result.success) {
           setError(result.error || '로그인에 실패했습니다')
-          setErrorKind(result.errorKind ?? 'unknown')
+          const kind = result.errorKind ?? 'unknown'
+          setErrorKind(kind)
+          // 비번 불일치/계정없음으로 표시됐지만, 실제로는 소셜 전용 계정이라
+          // 비밀번호가 없는 경우일 수 있으므로 가입 경로를 확인해 안내한다.
+          if (kind === 'invalid_credentials') {
+            void fetchProviderHint(email)
+          }
           return
         }
 
@@ -184,6 +256,7 @@ export default function LoginPage() {
   const switchTab = (toSignUp: boolean) => {
     setError(null)
     setErrorKind(null)
+    setProviderHint(null)
     setIsSignUp(toSignUp)
   }
 
@@ -330,6 +403,8 @@ export default function LoginPage() {
                       )}
                     </div>
                   )}
+
+                  {!isSignUp && renderProviderHint()}
 
                   <button
                     type="submit"
@@ -502,6 +577,8 @@ export default function LoginPage() {
                       )}
                     </div>
                   )}
+
+                  {isSignUp && renderProviderHint()}
 
                   <button
                     type="submit"

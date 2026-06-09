@@ -61,9 +61,12 @@ export default function UpdatePasswordPage() {
 
     setSuccess(true)
 
+    // 재설정 링크로 들어온 시점에 이미 인증된 세션이므로, 다시 로그인을 시키지 않고
+    // 홈으로 보낸다. (불필요한 재로그인 단계 제거)
     setTimeout(() => {
-      router.push('/login')
-    }, 3000)
+      router.push('/home')
+      router.refresh()
+    }, 2500)
   }
 
   if (isValidSession === null) {
@@ -114,8 +117,8 @@ export default function UpdatePasswordPage() {
             </div>
             <h2 className="text-base font-bold text-gray-900 mb-1.5">비밀번호가 변경되었습니다</h2>
             <p className="text-xs text-gray-500">
-              새 비밀번호로 로그인하실 수 있습니다.<br />
-              잠시 후 로그인 페이지로 이동합니다...
+              비밀번호가 설정되었습니다.<br />
+              잠시 후 홈으로 이동합니다...
             </p>
           </div>
         </div>
