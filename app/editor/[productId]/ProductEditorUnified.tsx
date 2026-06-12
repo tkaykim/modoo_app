@@ -1411,7 +1411,7 @@ export default function ProductEditorUnified({
           </div>
           {product.sizing_data ? (
             <div className="px-4 mt-4">
-              <SizeChartTable sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
+              <SizeChartTable variant="inline" sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
             </div>
           ) : product.sizing_chart_image ? (
             <div className="px-4">
@@ -1763,7 +1763,7 @@ export default function ProductEditorUnified({
         <DescriptionImageSection title="주문상세" imageUrls={product.description_image ?? null} />
         {product.sizing_data ? (
           <div className="mt-4">
-            <SizeChartTable sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
+            <SizeChartTable variant="inline" sizingData={product.sizing_data} sizingChartImage={product.sizing_chart_image} />
           </div>
         ) : product.sizing_chart_image ? (
           <DescriptionImageSection

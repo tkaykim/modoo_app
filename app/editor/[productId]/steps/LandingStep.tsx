@@ -77,7 +77,7 @@ export default function LandingStep({
           <DescriptionImageSection title="주문상세" imageUrls={descriptionImageUrls} />
           {product.sizing_data ? (
             <section className="mt-4">
-              <SizeChartTable sizingData={product.sizing_data} sizingChartImage={sizingChartImageUrl} />
+              <SizeChartTable variant="inline" sizingData={product.sizing_data} sizingChartImage={sizingChartImageUrl} />
             </section>
           ) : sizingChartImageUrl ? (
             <DescriptionImageSection
