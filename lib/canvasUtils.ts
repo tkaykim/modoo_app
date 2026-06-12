@@ -168,6 +168,15 @@ export function updateObjectDimensionsData(
   realWorldProductWidth: number = 500,
   mmPerPxOverride?: number | null
 ): void {
+  // 다중 선택(ActiveSelection) 변형 시 자식 각각에 박제한다.
+  // 선택 묶음 자체는 직렬화되지 않으며, 자식 getBoundingRect()는 그룹 변환이
+  // 합성된 캔버스 좌표를 반환하므로 그대로 정확하다.
+  if (obj instanceof fabric.ActiveSelection) {
+    obj.getObjects().forEach((child) =>
+      updateObjectDimensionsData(child, scaledImageWidth, realWorldProductWidth, mmPerPxOverride)
+    );
+    return;
+  }
   const pixelToMmRatio = calculatePixelToMmRatio(scaledImageWidth, realWorldProductWidth, mmPerPxOverride);
   const boundingRect = obj.getBoundingRect();
 
