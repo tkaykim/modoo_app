@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Footer from "./components/Footer";
@@ -158,7 +159,9 @@ export default function RootLayout({
 
         {/* 신규회원 웰컴쿠폰: 비로그인 진입 팝업 + 가입 직후 지급 알림 */}
         <WelcomeCouponModal />
-        <WelcomeCouponClaimer />
+        <Suspense fallback={null}>
+          <WelcomeCouponClaimer />
+        </Suspense>
         <Analytics />
       </body>
     </html>
