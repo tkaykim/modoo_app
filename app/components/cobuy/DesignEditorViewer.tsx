@@ -55,11 +55,10 @@ export default function DesignEditorViewer({
     setProductColor,
     canvasMap,
     imageLoadedMap,
-    restoreAllCanvasState,
+    restoreCanvasState,
     incrementCanvasVersion,
   } = useCanvasStore();
 
-  const [hasRestored, setHasRestored] = useState(false);
   // 한 페이지에 디자인이 여러 개면(시안 2건+) 각 뷰어가 같은 side.id(front/back…)로
   // 전역 캔버스 스토어에 등록돼 키가 충돌한다 — 마지막 등록 디자인만 살아남고 나머지는
   // 디자인이 안 그려진 '빈 티셔츠'로 남는다. 인스턴스별 고유 접두사로 side.id를
@@ -127,63 +126,54 @@ export default function DesignEditorViewer({
     return () => clearTimeout(t);
   }, [nsCanvasState, config.productId]);
 
-  useEffect(() => { setHasRestored(false); }, [nsCanvasState, config.productId]);
-
-  useEffect(() => {
-    if (hasRestored || !nsCanvasState || !sides.length) return;
-    // Wait for all canvases to be registered AND their product images to be loaded
-    // so that clip paths and print area positions are correctly calculated.
-    // 단, 데드라인이 지나면 최소한 캔버스가 등록된 면만이라도 복원을 진행한다.
-    const allReady = sides.every(s => canvasMap[s.id] && imageLoadedMap[s.id]);
-    const anyCanvas = sides.some(s => canvasMap[s.id]);
-    if (!allReady && !(deadlinePassed && anyCanvas)) {
-      console.log('[DesignEditorViewer] Waiting for canvases/images...', {
-        sides: sides.map(s => s.id),
-        canvasReady: sides.map(s => !!canvasMap[s.id]),
-        imageReady: sides.map(s => !!imageLoadedMap[s.id]),
-        deadlinePassed,
-      });
-      return;
-    }
-    if (!allReady) {
-      console.warn('[DesignEditorViewer] Restoring after deadline without all sides ready', {
-        canvasReady: sides.map(s => !!canvasMap[s.id]),
-        imageReady: sides.map(s => !!imageLoadedMap[s.id]),
-      });
-    }
-
-    const restore = async () => {
-      try {
-        // Log canvas state info for debugging
-        const sideEntries = Object.entries(nsCanvasState);
-        console.log('[DesignEditorViewer] Restoring design:', {
-          sideCount: sideEntries.length,
-          sides: sideEntries.map(([id, val]) => {
-            const data = typeof val === 'string' ? JSON.parse(val) : val;
-            return { id, objectCount: data?.objects?.length ?? 0 };
-          }),
-        });
-
-        await new Promise(r => setTimeout(r, 150));
-        // 폰트깨짐 방지: 디자인이 쓰는 커스텀 업로드 폰트를 먼저 등록·로드한 뒤 복원.
-        // (restoreAllCanvasState 내부 ensureFontsLoaded 는 이미 등록된 FontFace 만 보장하므로,
-        //  업로드 폰트는 여기서 setCustomFonts+loadAllFonts 로 먼저 등록해야 함.)
+  // 업로드/시스템 폰트는 한 번만 준비(중복 로드 방지). 각 면 복원 전에 await.
+  const fontsReadyRef = useRef<Promise<void> | null>(null);
+  const prepareFonts = useCallback(() => {
+    if (!fontsReadyRef.current) {
+      fontsReadyRef.current = (async () => {
         if (customFonts && customFonts.length > 0) {
           useFontStore.getState().setCustomFonts(customFonts);
           await useFontStore.getState().loadAllFonts();
         }
         await preloadSystemFonts();
-        await restoreAllCanvasState(nsCanvasState);
-        Object.values(canvasMap).forEach(c => c.requestRenderAll());
-        incrementCanvasVersion();
-        setHasRestored(true);
-        console.log('[DesignEditorViewer] Restore complete');
-      } catch (e) {
-        console.error('Failed to restore design:', e);
-      }
-    };
-    restore();
-  }, [canvasMap, imageLoadedMap, sides, hasRestored, nsCanvasState, restoreAllCanvasState, incrementCanvasVersion, customFonts, deadlinePassed]);
+      })();
+    }
+    return fontsReadyRef.current;
+  }, [customFonts]);
+
+  // 면별 복원: 면(캔버스)이 준비되는 즉시 그 면만 복원한다. 전 면을 한꺼번에
+  // 기다리지 않으므로, 앞면이 먼저 뜨고 뒷면·옆면은 준비되는 대로 채워진다.
+  // (병목 체감 최소화 + 다중 디자인 키 충돌은 nsCanvasState 네임스페이스로 이미 해결)
+  const restoredRef = useRef<Set<string>>(new Set());
+  useEffect(() => { restoredRef.current = new Set(); fontsReadyRef.current = null; }, [nsCanvasState, config.productId]);
+
+  useEffect(() => {
+    if (!nsCanvasState) return;
+    const src = nsCanvasState as Record<string, unknown>;
+    sides.forEach((s) => {
+      const id = s.id;
+      if (restoredRef.current.has(id)) return;
+      const canvas = canvasMap[id];
+      if (!canvas) return; // 아직 마운트 안 된 면
+      const ready = !!imageLoadedMap[id];
+      // 목업 로드 완료가 정상 경로. 단, 데드라인이 지나면 캔버스만 있으면 강행.
+      if (!ready && !deadlinePassed) return;
+      restoredRef.current.add(id); // 면당 1회만
+      const raw = src[id];
+      if (raw === undefined || raw === null) return; // 이 면엔 복원할 시안 없음
+      const json = typeof raw === 'string' ? raw : JSON.stringify(raw);
+      (async () => {
+        try {
+          await prepareFonts();
+          await restoreCanvasState(id, json);
+          canvasMap[id]?.requestRenderAll();
+          incrementCanvasVersion();
+        } catch (e) {
+          console.error('[DesignEditorViewer] per-side restore failed:', id, e);
+        }
+      })();
+    });
+  }, [canvasMap, imageLoadedMap, nsCanvasState, sides, deadlinePassed, restoreCanvasState, incrementCanvasVersion, prepareFonts]);
 
   // ── Fit grid centered in container ──
   useEffect(() => {
@@ -361,6 +351,27 @@ export default function DesignEditorViewer({
   const [cscale, setCscale] = useState(0.7);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
+  // ── 순차 마운트(캐러셀): 8캔버스 동시로딩 병목 제거 ──
+  // 처음엔 앞면(첫 면)만 마운트해 즉시 보여주고, 그 면이 준비되면 다음 면을
+  // 하나씩 마운트한다(직렬). 사용자가 스와이프로 이동한 면은 즉시 마운트.
+  const [mountedCount, setMountedCount] = useState(1);
+  useEffect(() => { setMountedCount(1); }, [sides]);
+  useEffect(() => {
+    if (layout !== 'carousel') return;
+    if (mountedCount >= sides.length) return;
+    const lastId = sides[mountedCount - 1]?.id;
+    const lastReady = !!(lastId && canvasMap[lastId] && imageLoadedMap[lastId]);
+    if (lastReady) { setMountedCount((c) => Math.min(sides.length, c + 1)); return; }
+    // 직전 면이 느려도 다음 면이 영영 안 뜨지 않도록 폴백(2.5s).
+    const t = setTimeout(() => setMountedCount((c) => Math.min(sides.length, c + 1)), 2500);
+    return () => clearTimeout(t);
+  }, [layout, mountedCount, sides, canvasMap, imageLoadedMap]);
+  // 사용자가 아직 안 뜬 면으로 넘기면 그 면은 바로 마운트.
+  useEffect(() => {
+    if (carIdx >= mountedCount) setMountedCount(carIdx + 1);
+  }, [carIdx, mountedCount]);
+  const shouldMountSide = (idx: number) => idx < mountedCount || idx === carIdx;
+
   const goTo = useCallback((i: number) => {
     const n = sides.length;
     if (n === 0) return;
@@ -422,12 +433,19 @@ export default function DesignEditorViewer({
           }}
         >
           <div className="flex h-full transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carIdx * 100}%)` }}>
-            {sides.map(side => (
+            {sides.map((side, i) => (
               <div key={side.id} className="w-full shrink-0 h-full flex items-center justify-center">
                 <div style={{ width: CANVAS_W * cscale, height: CANVAS_H * cscale }}>
-                  <div style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${cscale})`, transformOrigin: 'top left' }}>
-                    <SingleSideCanvas side={side} width={CANVAS_W} height={CANVAS_H} isEdit={false} productColor={productColor} />
-                  </div>
+                  {shouldMountSide(i) ? (
+                    <div style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${cscale})`, transformOrigin: 'top left' }}>
+                      <SingleSideCanvas side={side} width={CANVAS_W} height={CANVAS_H} isEdit={false} productColor={productColor} />
+                    </div>
+                  ) : (
+                    // 아직 마운트 안 된 면: 동시로딩 병목을 피하려 자리만 잡아둔다(스와이프 시 마운트).
+                    <div style={{ width: CANVAS_W * cscale, height: CANVAS_H * cscale }} className="flex items-center justify-center bg-neutral-100 rounded-lg">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neutral-400" />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
