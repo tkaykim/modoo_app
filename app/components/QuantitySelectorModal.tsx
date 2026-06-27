@@ -22,6 +22,8 @@ interface QuantitySelectorModalProps {
   sizingChartImage?: string | null;
   sizingData?: SizingData | null;
   productId?: string;
+  /** 구매 방식 선택 없이 바로 체크아웃으로 보내야 하는 진입점에서 사용한다. */
+  directPurchaseOnly?: boolean;
   /**
    * 제품 미리보기 영역에 임의 노드를 렌더 (없으면 기본은 빈 영역).
    * 예: 다중 side 캐러셀, ProductDesigner view mode 등.
@@ -41,6 +43,7 @@ export default function QuantitySelectorModal({
   sizingChartImage,
   sizingData,
   productId,
+  directPurchaseOnly = false,
   previewSlot,
 }: QuantitySelectorModalProps) {
   const router = useRouter();
@@ -54,16 +57,22 @@ export default function QuantitySelectorModal({
   // 눌렀는데 왜 안 되는지 모르고 rage click → 이탈하는 케이스 차단.
   const [designNameError, setDesignNameError] = useState(false);
   const designNameInputRef = useRef<HTMLInputElement>(null);
+  const latestPricePerItemRef = useRef(pricePerItem);
 
   // 모달 오픈 시점의 단가를 freeze. 모달이 열려 있는 동안 캔버스가 reflow되거나
   // pricePerItem prop이 변경되어도 사용자에게 보이는 가격과 실제 카트 저장 가격이
   // 일치하도록 보장. 모달이 닫힐 때 자동 갱신 (다음 오픈 시점 값으로).
   const [frozenPricePerItem, setFrozenPricePerItem] = useState<number>(pricePerItem);
   useEffect(() => {
-    if (isOpen) {
-      setFrozenPricePerItem(pricePerItem);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    latestPricePerItemRef.current = pricePerItem;
+  }, [pricePerItem]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = window.setTimeout(() => {
+      setFrozenPricePerItem(latestPricePerItemRef.current);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [isOpen]);
 
   const getTotalQuantity = () => {
@@ -78,18 +87,12 @@ export default function QuantitySelectorModal({
   // 신규 디자인은 의도적으로 빈 칸으로 두어 사용자가 의미있는 이름을 짓도록 유도한다.
   // (timestamp fallback은 공장·관리자가 주문을 구분할 수 없게 만들어 제거됨)
   useEffect(() => {
-    if (isOpen && defaultDesignName) {
+    if (!isOpen || !defaultDesignName) return;
+    const timer = window.setTimeout(() => {
       setDesignName(defaultDesignName);
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [isOpen, defaultDesignName]);
-
-  // 디자인명을 다시 입력하기 시작하면 에러 강조 즉시 해제.
-  // ⚠️ Hook은 반드시 early return(`if (!isOpen) return null`) 이전에 호출되어야 한다.
-  useEffect(() => {
-    if (designName.trim() && designNameError) {
-      setDesignNameError(false);
-    }
-  }, [designName, designNameError]);
 
   if (!isOpen) return null;
 
@@ -99,8 +102,9 @@ export default function QuantitySelectorModal({
       const newValue = Math.max(0, current + change);
 
       if (newValue === 0) {
-        const { [sizeId]: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[sizeId];
+        return next;
       }
 
       return { ...prev, [sizeId]: newValue };
@@ -110,8 +114,9 @@ export default function QuantitySelectorModal({
   const handleManualQuantityChange = (sizeId: string, value: string) => {
     if (value === '') {
       setQuantities(prev => {
-        const { [sizeId]: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[sizeId];
+        return next;
       });
       return;
     }
@@ -123,15 +128,16 @@ export default function QuantitySelectorModal({
 
     if (numValue === 0) {
       setQuantities(prev => {
-        const { [sizeId]: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[sizeId];
+        return next;
       });
     } else {
       setQuantities(prev => ({ ...prev, [sizeId]: numValue }));
     }
   };
 
-  const handleShowPurchaseChoice = () => {
+  const handleShowPurchaseChoice = async () => {
     if (getTotalQuantity() === 0) {
       alert('수량을 선택해주세요.');
       return;
@@ -147,6 +153,10 @@ export default function QuantitySelectorModal({
       // focus는 살짝 늦춰서 스크롤 애니메이션과 자연스럽게 겹치게
       setTimeout(() => designNameInputRef.current?.focus(), 200);
       setTimeout(() => setDesignNameError(false), 1800);
+      return;
+    }
+    if (directPurchaseOnly) {
+      await handlePurchaseChoice('direct');
       return;
     }
     setShowPurchaseChoice(true);
@@ -168,9 +178,14 @@ export default function QuantitySelectorModal({
       if (directIds) {
         sessionStorage.removeItem('directCheckoutItemIds');
       }
+      const checkoutPath = directIds ? `/checkout?directItems=${encodeURIComponent(directIds)}` : '/checkout';
       resetState();
       onClose();
-      router.push(directIds ? `/checkout?directItems=${encodeURIComponent(directIds)}` : '/checkout');
+      if (directPurchaseOnly) {
+        window.location.assign(checkoutPath);
+      } else {
+        router.push(checkoutPath);
+      }
     } else {
       setShowSuccess(true);
     }
@@ -269,7 +284,12 @@ export default function QuantitySelectorModal({
                   ref={designNameInputRef}
                   type="text"
                   value={designName}
-                  onChange={(e) => setDesignName(e.target.value)}
+                  onChange={(e) => {
+                    setDesignName(e.target.value);
+                    if (designNameError && e.target.value.trim()) {
+                      setDesignNameError(false);
+                    }
+                  }}
                   placeholder="예: 청담고 응원티, OO교회 단체티"
                   maxLength={40}
                   aria-invalid={designNameError || undefined}
@@ -425,7 +445,7 @@ export default function QuantitySelectorModal({
               className="w-full py-4 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
               aria-describedby={designNameError ? 'design-name-error' : undefined}
             >
-              {isSaving ? '처리 중...' : '구매하기'}
+              {isSaving ? '처리 중...' : directPurchaseOnly ? '바로 구매하기' : '구매하기'}
             </button>
           </div>
         )}

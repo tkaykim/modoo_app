@@ -30,12 +30,22 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+
     const fetchReviews = async () => {
       try {
-        const response = await fetch(`/api/reviews/${productId}?limit=${limit}`);
+        const response = await fetch(`/api/reviews/${productId}?limit=${limit}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
         const data = await response.json();
 
-        if (data.reviews) {
+        if (mounted && data.reviews) {
           setReviews(data.reviews);
 
           // Calculate average rating
@@ -44,14 +54,21 @@ export default function ReviewsSection({ productId, limit = 10 }: ReviewsSection
             setAverageRating(avg);
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch reviews:', error);
+      } catch {
+        // Reviews are secondary content; keep the purchase/editor path quiet if they fail.
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchReviews();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [productId, limit]);
 
   const formatDate = (dateString: string) => formatKstDateOnly(dateString);

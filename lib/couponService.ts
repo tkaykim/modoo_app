@@ -21,7 +21,7 @@ export async function registerCoupon(code: string): Promise<CouponValidationResu
       .select('*')
       .eq('code', code.toUpperCase().trim())
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     if (couponError || !coupon) {
       return { valid: false, error: '유효하지 않은 쿠폰 코드입니다.' };
@@ -45,7 +45,7 @@ export async function registerCoupon(code: string): Promise<CouponValidationResu
       .select('*')
       .eq('coupon_id', coupon.id)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (existingUsage) {
       const perUserLimit = coupon.max_uses_per_user;

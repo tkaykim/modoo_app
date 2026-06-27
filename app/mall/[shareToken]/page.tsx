@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Loader2,
-  Plus,
   Package,
 } from 'lucide-react';
 import {
@@ -14,7 +13,7 @@ import {
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
 import { setMallAutoCoupon, clearMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
 import Header from '@/app/components/Header';
-import AddProductModal from './AddProductModal';
+import { useAuthStore } from '@/store/useAuthStore';
 
 // API에서 내려오는 자동 적용 할인코드 형태 (영업사원 mall 전용)
 interface SalesmanCouponPayload {
@@ -41,50 +40,55 @@ export default function PartnerMallPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [salesmanCoupon, setSalesmanCoupon] = useState<SalesmanCouponPayload | null>(null);
-
-  // Add product modal state
-  const [showAddProduct, setShowAddProduct] = useState(false);
-
-  const fetchMall = async () => {
-    if (!shareToken) return;
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/partner-mall/${shareToken}`);
-      if (!res.ok) {
-        throw new Error('찾을 수 없는 페이지입니다.');
-      }
-      const result = await res.json();
-      setMall(result.data);
-
-      // 영업사원 owner mall이면 그 영업사원의 활성 할인코드를 sessionStorage에 저장 → checkout에서 자동 적용
-      const auto = result.data?.salesman_coupon as SalesmanCouponPayload | null | undefined;
-      if (auto) {
-        setSalesmanCoupon(auto);
-        const payload: MallAutoCoupon = {
-          code: auto.code,
-          discount_type: auto.discount_type,
-          discount_value: auto.discount_value,
-          min_order_amount: auto.min_order_amount,
-          max_discount_amount: auto.max_discount_amount,
-          source_mall_id: result.data.id,
-          source_mall_name: result.data.name,
-          applied_at: new Date().toISOString(),
-        };
-        setMallAutoCoupon(payload);
-      } else {
-        setSalesmanCoupon(null);
-        clearMallAutoCoupon();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { isAuthenticated } = useAuthStore();
 
   // Fetch partner mall data
   useEffect(() => {
-    fetchMall();
+    if (!shareToken) return;
+    let alive = true;
+
+    const loadMall = async () => {
+      try {
+        const res = await fetch(`/api/partner-mall/${shareToken}`);
+        if (!res.ok) {
+          throw new Error('찾을 수 없는 페이지입니다.');
+        }
+        const result = await res.json();
+        if (!alive) return;
+
+        setMall(result.data);
+
+        // 영업사원 owner mall이면 그 영업사원의 활성 할인코드를 sessionStorage에 저장 → checkout에서 자동 적용
+        const auto = result.data?.salesman_coupon as SalesmanCouponPayload | null | undefined;
+        if (auto) {
+          setSalesmanCoupon(auto);
+          const payload: MallAutoCoupon = {
+            code: auto.code,
+            discount_type: auto.discount_type,
+            discount_value: auto.discount_value,
+            min_order_amount: auto.min_order_amount,
+            max_discount_amount: auto.max_discount_amount,
+            source_mall_id: result.data.id,
+            source_mall_name: result.data.name,
+            applied_at: new Date().toISOString(),
+          };
+          setMallAutoCoupon(payload);
+        } else {
+          setSalesmanCoupon(null);
+          clearMallAutoCoupon();
+        }
+      } catch (err) {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    };
+
+    loadMall();
+    return () => {
+      alive = false;
+    };
   }, [shareToken]);
 
   const products = useMemo(
@@ -185,7 +189,7 @@ export default function PartnerMallPage() {
                     : `${salesmanCoupon.discount_value.toLocaleString()}원 할인 자동 적용`}
                 </div>
                 <div className="text-[10px] sm:text-[11px] text-blue-700">
-                  결제 시 코드 <span className="font-mono font-bold">{salesmanCoupon.code}</span>가 자동 입력됩니다
+                  {isAuthenticated ? '결제 시' : '로그인 후 결제하면'} 코드 <span className="font-mono font-bold">{salesmanCoupon.code}</span>가 자동 적용됩니다
                 </div>
               </div>
             </div>
@@ -238,7 +242,9 @@ export default function PartnerMallPage() {
                     return (
                       <div className="mt-1">
                         <p className="text-[11px] text-gray-400 line-through">{formatPrice(original)}</p>
-                        <p className="text-sm font-bold text-blue-700">{formatPrice(discounted)}</p>
+                        <p className="text-sm font-bold text-blue-700">
+                          {isAuthenticated ? '적용가' : '로그인 시'} {formatPrice(discounted)}
+                        </p>
                       </div>
                     );
                   }
@@ -250,30 +256,8 @@ export default function PartnerMallPage() {
             </button>
           ))}
 
-          {/* Add product card */}
-          <button
-            onClick={() => setShowAddProduct(true)}
-            className="rounded-xl border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors flex flex-col items-center justify-center gap-2 aspect-3/4"
-          >
-            <Plus className="w-8 h-8 text-gray-400" />
-            <span className="text-xs text-gray-400">제품 추가</span>
-          </button>
         </div>
       </div>
-
-      {/* Add product modal */}
-      {showAddProduct && mall && (
-        <AddProductModal
-          shareToken={shareToken}
-          mallName={mall.name}
-          logoUrl={mall.logo_url}
-          onClose={() => setShowAddProduct(false)}
-          onProductAdded={() => {
-            setShowAddProduct(false);
-            fetchMall();
-          }}
-        />
-      )}
     </div>
   );
 }

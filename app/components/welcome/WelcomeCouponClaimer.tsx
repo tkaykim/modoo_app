@@ -5,8 +5,8 @@
 // 트리거: 로그인 상태 + welcome:pending 플래그(가입 경로에서 set) + 신규 계정.
 // registerCoupon 은 멱등이라 중복 실행되어도 안전하다.
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useWelcomeOverlayStore } from '@/store/useWelcomeOverlayStore';
@@ -24,8 +24,22 @@ export default function WelcomeCouponClaimer() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const setOverlayOpen = useWelcomeOverlayStore((s) => s.setOpen);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showSuccess, setShowSuccess] = useState(false);
   const inFlight = useRef(false);
+
+  const getFieldSalesReturnPath = useCallback(() => {
+    const candidates: Array<string | null> = [searchParams.get('redirect')];
+    try {
+      candidates.push(sessionStorage.getItem('login:returnTo'));
+      candidates.push(localStorage.getItem('login:returnTo'));
+    } catch {}
+
+    const path = candidates.find((value) =>
+      Boolean(value && value.startsWith('/mall/') && !value.startsWith('//'))
+    );
+    return path ?? null;
+  }, [searchParams]);
 
   // 지급완료 모달이 떠 있는 동안 챗봇 버블을 숨기도록 신호 공유.
   useEffect(() => {
@@ -50,6 +64,15 @@ export default function WelcomeCouponClaimer() {
       const result = await claimWelcomeCoupon();
       if (result.granted) {
         clearWelcomePending();
+        const returnPath = getFieldSalesReturnPath();
+        if (returnPath) {
+          try {
+            sessionStorage.removeItem('login:returnTo');
+            localStorage.removeItem('login:returnTo');
+          } catch {}
+          router.replace(returnPath);
+          return;
+        }
         setShowSuccess(true);
       } else if (result.ok) {
         // 발급은 못 했지만 정상 응답(예: 쿠폰 비활성) → 무한 재시도 방지 위해 정리.
@@ -58,7 +81,7 @@ export default function WelcomeCouponClaimer() {
       // result.ok === false (네트워크 오류 등) 면 플래그 유지 → 다음 진입 때 재시도.
       inFlight.current = false;
     })();
-  }, [isAuthenticated, isLoading, user]);
+  }, [getFieldSalesReturnPath, isAuthenticated, isLoading, router, user]);
 
   if (!showSuccess) return null;
 

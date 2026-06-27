@@ -1,6 +1,5 @@
 'use client'
 import ProductDesigner from "@/app/components/canvas/ProductDesigner";
-import PricingInfo from "@/app/components/canvas/PricingInfo";
 import LayerColorSelector from "@/app/components/canvas/LayerColorSelector";
 import DesktopToolbar from "@/app/components/canvas/DesktopToolbar";
 import { Product, ProductConfig, CartItem, ProductColor, PrintMethodRecord } from "@/types/types";
@@ -64,7 +63,13 @@ import type { Canvas as FabricCanvas } from "fabric";
  * (e.g. a guest without storage access), so it never blocks save/checkout.
  */
 async function buildProofImage(canvasMap: Record<string, FabricCanvas>): Promise<string> {
+  if (Object.keys(canvasMap).length === 0) {
+    return '';
+  }
   const highRes = generateProductThumbnail(canvasMap, 'front', 1600, 1600);
+  if (!highRes) {
+    return '';
+  }
   try {
     const supabase = createClient();
     const res = await uploadDataUrlToStorage(
@@ -80,6 +85,21 @@ async function buildProofImage(canvasMap: Record<string, FabricCanvas>): Promise
   // Fallback: small inline image — avoid storing a 1600px base64 blob in the DB.
   return generateProductThumbnail(canvasMap, 'front', 400, 400);
 }
+
+function getLiveCanvasMap(fallback: Record<string, FabricCanvas>): Record<string, FabricCanvas> {
+  const liveCanvasMap = useCanvasStore.getState().canvasMap;
+  return Object.keys(liveCanvasMap).length > 0 ? liveCanvasMap : fallback;
+}
+
+function createGuestDesignId(productId: string) {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return `guest-${productId}-${uuid}`;
+  return `guest-${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+type CanvasSelectionEvent = {
+  selected?: fabric.FabricObject[];
+};
 
 type EditorStep = 'landing' | 'editor' | 'quantity';
 
@@ -161,9 +181,12 @@ export default function ProductEditorUnified({
   useEffect(() => {
     let cancelled = false;
     if (!product.id || !activeSideId) {
-      setSideAnchorsForPanel([]);
-      setNativeMmPerPxForPanel(0);
-      return;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setSideAnchorsForPanel([]);
+        setNativeMmPerPxForPanel(0);
+      });
+      return () => { cancelled = true; };
     }
     fetchProductCalibrations(product.id).then((map) => {
       if (cancelled) return;
@@ -417,11 +440,15 @@ export default function ProductEditorUnified({
     if (!selectedObject) return;
     const canvas = canvasMap[activeSideId];
     if (!canvas) return;
-    // @ts-expect-error - Custom data property
-    if (!selectedObject.data) selectedObject.data = {};
+    const target = canvas.getActiveObject();
+    if (!target) return;
     const newValue = !isBgRemovalRequested;
-    // @ts-expect-error - Custom data property
-    selectedObject.data.backgroundRemovalRequested = newValue;
+    const currentData = (target.get('data') as Record<string, unknown> | undefined) ?? {};
+    target.set('data', {
+      ...currentData,
+      backgroundRemovalRequested: newValue,
+    });
+    setSelectedObject(target);
     if (newValue) setShowBgRemovalModal(true);
     incrementCanvasVersion();
     canvas.requestRenderAll();
@@ -443,12 +470,14 @@ export default function ProductEditorUnified({
     // (productColors 조회 결과보다 단체몰 메타가 우선)
     const mallProductTitle = partnerMallBuyData?.displayName || product.title;
     const partnerMallId = partnerMallBuyData?.partnerMallId ?? null;
+    const checkoutCanvasMap = getLiveCanvasMap(canvasMap);
+    const hasCheckoutCanvas = Object.keys(checkoutCanvasMap).length > 0;
 
     if (!isAuthenticated) {
       // Guest flow: save to cart store (localStorage) and navigate
       const canvasState = saveAllCanvasState();
-      const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
-      const previewImage = await buildProofImage(canvasMap);
+      const thumbnail = hasCheckoutCanvas ? generateProductThumbnail(checkoutCanvasMap, 'front', 200, 200) : '';
+      const previewImage = await buildProofImage(checkoutCanvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
@@ -458,7 +487,7 @@ export default function ProductEditorUnified({
       saveGuestDesign({ productId: product.id, productColor, canvasState, customFonts });
 
       // Generate a shared design ID so all sizes from this design are grouped together
-      const guestDesignId = `guest-${product.id}-${Date.now()}`;
+      const guestDesignId = createGuestDesignId(product.id);
 
       for (const item of selectedItems) {
         addToCart({
@@ -482,7 +511,7 @@ export default function ProductEditorUnified({
       }
 
       // Clear canvas
-      Object.values(canvasMap).forEach((canvas) => {
+      Object.values(checkoutCanvasMap).forEach((canvas) => {
         const objectsToRemove = canvas.getObjects().filter(obj => {
           if (obj.excludeFromExport) return false;
           // @ts-expect-error - Checking custom data property
@@ -520,7 +549,7 @@ export default function ProductEditorUnified({
         const newItemIds = currentItems
           .filter(i => i.savedDesignId === guestDesignId)
           .map(i => i.id);
-        router.push(`/checkout?directItems=${encodeURIComponent(JSON.stringify(newItemIds))}`);
+        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newItemIds));
       } else {
         router.push('/cart');
       }
@@ -529,8 +558,8 @@ export default function ProductEditorUnified({
     setIsSaving(true);
     try {
       const canvasState = saveAllCanvasState();
-      const thumbnail = generateProductThumbnail(canvasMap, 'front', 200, 200);
-      const previewImage = await buildProofImage(canvasMap);
+      const thumbnail = hasCheckoutCanvas ? generateProductThumbnail(checkoutCanvasMap, 'front', 200, 200) : '';
+      const previewImage = await buildProofImage(checkoutCanvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
@@ -555,7 +584,7 @@ export default function ProductEditorUnified({
           designName,
           previewImage,
           customFonts,
-          canvasMap,
+          canvasMap: checkoutCanvasMap,
           retouchRequested,
           partnerMallId,
         });
@@ -619,7 +648,7 @@ export default function ProductEditorUnified({
       removeGuestDesign(product.id);
 
       // Clear canvas state
-      Object.values(canvasMap).forEach((canvas) => {
+      Object.values(checkoutCanvasMap).forEach((canvas) => {
         const objectsToRemove = canvas.getObjects().filter(obj => {
           if (obj.excludeFromExport) return false;
           // @ts-expect-error - Checking custom data property
@@ -900,9 +929,11 @@ export default function ProductEditorUnified({
   // useState initializer doesn't re-run, so we explicitly switch the step).
   useEffect(() => {
     if (templateIdParam && currentStep === 'landing') {
-      setCurrentStep('editor');
-      setEditMode(false);
-      setTemplateApplyAttempted(false);
+      queueMicrotask(() => {
+        setCurrentStep('editor');
+        setEditMode(false);
+        setTemplateApplyAttempted(false);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateIdParam]);
@@ -971,7 +1002,7 @@ export default function ProductEditorUnified({
     return () => {
       cancelled = true;
     };
-  }, [templateIdParam, templateApplyAttempted, product.id, product.configuration, setEditMode]);
+  }, [templateIdParam, templateApplyAttempted, product, product.id, product.configuration, setEditMode]);
 
   // Load cart item design
   useEffect(() => {
@@ -1015,8 +1046,10 @@ export default function ProductEditorUnified({
     if (cartItemId || partnerMallAdd || partnerMallBuy) return;
     const saved = getGuestDesign(product.id);
     if (!saved) return;
-    setGuestDesign(saved);
-    setIsRecallGuestDesignOpen(true);
+    queueMicrotask(() => {
+      setGuestDesign(saved);
+      setIsRecallGuestDesignOpen(true);
+    });
   }, [cartItemId, partnerMallAdd, partnerMallBuy, product.id]);
 
   // Set active side on mount
@@ -1163,11 +1196,11 @@ export default function ProductEditorUnified({
     const activeCanvas = canvasMap[activeSideId];
     if (!activeCanvas) return;
 
-    const handleSelectionCreated = (e: any) => {
+    const handleSelectionCreated = (e: CanvasSelectionEvent) => {
       const selected = e.selected?.[0];
       if (selected) setSelectedObject(selected);
     };
-    const handleSelectionUpdated = (e: any) => {
+    const handleSelectionUpdated = (e: CanvasSelectionEvent) => {
       setSelectedObject(e.selected?.[0] || null);
     };
     const handleSelectionCleared = () => setSelectedObject(null);
@@ -1434,6 +1467,7 @@ export default function ProductEditorUnified({
           sizingChartImage={product.sizing_chart_image}
           sizingData={product.sizing_data}
           productId={product.id}
+          directPurchaseOnly={Boolean(partnerMallBuyData)}
         />
 
         {/* Layers × PrintMethod 패널 (?layers-lab=1, mobile). FAB는 Toolbar 하단 툴 독으로 이동. */}
@@ -1784,6 +1818,7 @@ export default function ProductEditorUnified({
         sizingChartImage={product.sizing_chart_image}
         sizingData={product.sizing_data}
         productId={product.id}
+        directPurchaseOnly={Boolean(partnerMallBuyData)}
       />
 
       {/* 실험 — Layers × PrintMethod 패널 (?layers-lab=1 쿼리 게이트). prod URL엔 안 붙음. */}
