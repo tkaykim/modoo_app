@@ -48,7 +48,7 @@ export default function DesignReviewPage() {
 
   const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch(`/api/orders/${orderId}/design-items${token ? `?token=${token}` : ''}`);
+      const res = await fetch(`/api/orders/${orderId}/design-items${token ? `?token=${token}` : ''}`, { cache: 'no-store' });
       if (!res.ok) {
         setErrorMsg('주문 정보를 불러올 수 없습니다.');
         setViewState('error');

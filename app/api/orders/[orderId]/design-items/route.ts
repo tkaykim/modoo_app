@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 
+// 시안은 디자이너가 수시로 갱신한다 — 항상 DB 최신본을 읽어 캐시 stale("최초저장본만 보임")을 방지.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function verifyDesignToken(token: string, orderId: string): boolean {
   try {
     const decoded = JSON.parse(Buffer.from(token, 'base64url').toString());

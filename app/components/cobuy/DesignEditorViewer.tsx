@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 import dynamic from 'next/dynamic';
 import { ProductConfig } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
@@ -60,7 +60,16 @@ export default function DesignEditorViewer({
   } = useCanvasStore();
 
   const [hasRestored, setHasRestored] = useState(false);
-  const sides = config.sides || [];
+  // 한 페이지에 디자인이 여러 개면(시안 2건+) 각 뷰어가 같은 side.id(front/back…)로
+  // 전역 캔버스 스토어에 등록돼 키가 충돌한다 — 마지막 등록 디자인만 살아남고 나머지는
+  // 디자인이 안 그려진 '빈 티셔츠'로 남는다. 인스턴스별 고유 접두사로 side.id를
+  // 네임스페이스해 충돌을 제거한다. (registerCanvas/imageLoadedMap/restore 모두 이 id를 사용)
+  const instanceNs = useId();
+  const originalSides = config.sides || [];
+  const sides = useMemo(
+    () => originalSides.map((s) => ({ ...s, id: `${instanceNs}__${s.id}` })),
+    [originalSides, instanceNs]
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -88,6 +97,19 @@ export default function DesignEditorViewer({
     return canvasState;
   }, [canvasState]);
 
+  // canvasState 는 원본 side.id(front/back…) 키 → 네임스페이스된 side.id 로 재매핑해
+  // 등록된 캔버스(네임스페이스 키)와 복원 대상이 일치하게 한다.
+  const nsCanvasState = useMemo(() => {
+    if (!parsedCanvasState) return null;
+    const src = parsedCanvasState as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const s of originalSides) {
+      const v = src[s.id];
+      if (v !== undefined) out[`${instanceNs}__${s.id}`] = v;
+    }
+    return out as Record<string, string>;
+  }, [parsedCanvasState, originalSides, instanceNs]);
+
   // ── Store initialization ──
   useEffect(() => {
     setEditMode(false);
@@ -95,26 +117,45 @@ export default function DesignEditorViewer({
     if (sides.length > 0) setActiveSide(sides[0].id);
   }, [config.productId, productColor, setEditMode, setProductColor, setActiveSide, sides]);
 
-  useEffect(() => { setHasRestored(false); }, [parsedCanvasState, config.productId]);
+  // 복원 데드라인: 모든 면 준비를 무한정 기다리지 않는다. 일정 시간 내에
+  // 게이트가 안 풀려도(목업 한 장이 느리거나 죽어도) 등록된 캔버스로 복원을 강행해
+  // '빈 티셔츠'(디자인이 영영 안 뜨는) 상태를 막는다.
+  const [deadlinePassed, setDeadlinePassed] = useState(false);
+  useEffect(() => {
+    setDeadlinePassed(false);
+    const t = setTimeout(() => setDeadlinePassed(true), 6000);
+    return () => clearTimeout(t);
+  }, [nsCanvasState, config.productId]);
+
+  useEffect(() => { setHasRestored(false); }, [nsCanvasState, config.productId]);
 
   useEffect(() => {
-    if (hasRestored || !parsedCanvasState || !sides.length) return;
+    if (hasRestored || !nsCanvasState || !sides.length) return;
     // Wait for all canvases to be registered AND their product images to be loaded
-    // so that clip paths and print area positions are correctly calculated
-    const ready = sides.every(s => canvasMap[s.id] && imageLoadedMap[s.id]);
-    if (!ready) {
+    // so that clip paths and print area positions are correctly calculated.
+    // 단, 데드라인이 지나면 최소한 캔버스가 등록된 면만이라도 복원을 진행한다.
+    const allReady = sides.every(s => canvasMap[s.id] && imageLoadedMap[s.id]);
+    const anyCanvas = sides.some(s => canvasMap[s.id]);
+    if (!allReady && !(deadlinePassed && anyCanvas)) {
       console.log('[DesignEditorViewer] Waiting for canvases/images...', {
         sides: sides.map(s => s.id),
         canvasReady: sides.map(s => !!canvasMap[s.id]),
         imageReady: sides.map(s => !!imageLoadedMap[s.id]),
+        deadlinePassed,
       });
       return;
+    }
+    if (!allReady) {
+      console.warn('[DesignEditorViewer] Restoring after deadline without all sides ready', {
+        canvasReady: sides.map(s => !!canvasMap[s.id]),
+        imageReady: sides.map(s => !!imageLoadedMap[s.id]),
+      });
     }
 
     const restore = async () => {
       try {
         // Log canvas state info for debugging
-        const sideEntries = Object.entries(parsedCanvasState);
+        const sideEntries = Object.entries(nsCanvasState);
         console.log('[DesignEditorViewer] Restoring design:', {
           sideCount: sideEntries.length,
           sides: sideEntries.map(([id, val]) => {
@@ -132,7 +173,7 @@ export default function DesignEditorViewer({
           await useFontStore.getState().loadAllFonts();
         }
         await preloadSystemFonts();
-        await restoreAllCanvasState(parsedCanvasState);
+        await restoreAllCanvasState(nsCanvasState);
         Object.values(canvasMap).forEach(c => c.requestRenderAll());
         incrementCanvasVersion();
         setHasRestored(true);
@@ -142,7 +183,7 @@ export default function DesignEditorViewer({
       }
     };
     restore();
-  }, [canvasMap, imageLoadedMap, sides, hasRestored, parsedCanvasState, restoreAllCanvasState, incrementCanvasVersion, customFonts]);
+  }, [canvasMap, imageLoadedMap, sides, hasRestored, nsCanvasState, restoreAllCanvasState, incrementCanvasVersion, customFonts, deadlinePassed]);
 
   // ── Fit grid centered in container ──
   useEffect(() => {
