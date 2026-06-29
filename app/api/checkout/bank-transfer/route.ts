@@ -10,6 +10,7 @@ import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 import { getOrderUtmAttribution } from '@/lib/server-analytics';
+import { orderItemGroupKey } from '@/lib/orderGrouping';
 
 interface OrderData {
   id: string;
@@ -299,8 +300,12 @@ export async function POST(request: NextRequest) {
       }>;
     }>();
 
+    // 아트워크(의류색 제외) + product_id 로 그룹핑 — 중복 디자인으로 인한 주문상품 분리 방지
     for (const item of cartItems) {
-      const groupKey = item.saved_design_id || `no-design-${item.product_id}`;
+      const isGuestDesignId = item.saved_design_id?.startsWith('guest-');
+      const savedDesign = (item.saved_design_id && !isGuestDesignId) ? savedDesignsMap.get(item.saved_design_id) : null;
+      const designCanvas = savedDesign?.canvas_state || item.canvasState || {};
+      const groupKey = orderItemGroupKey(item.product_id, designCanvas, item.saved_design_id || null);
 
       if (groupedItems.has(groupKey)) {
         const group = groupedItems.get(groupKey)!;
@@ -314,9 +319,6 @@ export async function POST(request: NextRequest) {
           quantity: item.quantity,
         });
       } else {
-        const isGuestDesignId = item.saved_design_id?.startsWith('guest-');
-        const savedDesign = (item.saved_design_id && !isGuestDesignId) ? savedDesignsMap.get(item.saved_design_id) : null;
-
         groupedItems.set(groupKey, {
           product_id: item.product_id,
           product_title: item.product_title,

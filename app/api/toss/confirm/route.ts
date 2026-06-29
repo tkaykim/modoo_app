@@ -9,6 +9,7 @@ import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { trackServerPurchase, extractAttributionFromRequest, getOrderUtmAttribution } from '@/lib/server-analytics';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
+import { orderItemGroupKey } from '@/lib/orderGrouping';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
@@ -376,9 +377,12 @@ export async function POST(request: NextRequest) {
       }>;
     }>();
 
-    // Group items by design_id (or product_id if no design)
+    // Group items by 아트워크(의류색 제외) + product_id — 중복 디자인으로 인한 주문상품 분리 방지
     for (const item of cartItems) {
-      const groupKey = item.saved_design_id || `no-design-${item.product_id}`;
+      const isGuestDesignId = item.saved_design_id?.startsWith('guest-');
+      const savedDesign = (item.saved_design_id && !isGuestDesignId) ? savedDesignsMap.get(item.saved_design_id) : null;
+      const designCanvas = savedDesign?.canvas_state || item.canvasState || {};
+      const groupKey = orderItemGroupKey(item.product_id, designCanvas, item.saved_design_id || null);
 
       if (groupedItems.has(groupKey)) {
         // Add variant to existing group
@@ -393,10 +397,6 @@ export async function POST(request: NextRequest) {
           quantity: item.quantity,
         });
       } else {
-        // Get saved design data if available (guest design IDs like 'guest-xxx' won't exist in DB)
-        const isGuestDesignId = item.saved_design_id?.startsWith('guest-');
-        const savedDesign = (item.saved_design_id && !isGuestDesignId) ? savedDesignsMap.get(item.saved_design_id) : null;
-
         // Create new group — guest design IDs are not valid UUIDs, so set design_id to null
         groupedItems.set(groupKey, {
           product_id: item.product_id,
