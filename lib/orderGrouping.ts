@@ -8,13 +8,29 @@ import { createHash } from 'crypto';
  * checkout 에서 saved_design_id 로만 묶던 탓에 주문상품이 분리되어 보였다.
  * (예: ORD-20260627-HBQ8NN — 동일 캔버스의 디자인이 2개로 복제되어 XL/L 이 분리)
  *
- * 해결: 그룹 키를 (product_id + 아트워크 시그니처) 로 바꾼다.
- * 아트워크 시그니처는 의류 바탕색(productColor)을 제외한 canvas_state 해시 →
- * 같은 디자인을 색상/사이즈만 바꿔 담으면 하나의 order_item(variants 배열)로 합쳐진다.
+ * 해결: 그룹 키를 (product_id + 아트워크 시그니처 + 의류색) 로 한다.
+ * 아트워크 시그니처는 의류 바탕색(productColor)을 제외한 canvas_state 해시라,
+ * 같은 디자인의 중복 saved_design(서로 다른 design_id)은 하나로 합쳐진다.
  *
- * 정상 다색상 주문(하나의 saved_design 을 여러 색/사이즈 cart 라인이 참조)은
- * 이미 같은 canvas_state 를 공유하므로 동작이 바뀌지 않는다 — 중복 디자인 케이스만 추가로 병합된다.
+ * ⚠️ 의류색(productColor)은 반드시 키에 포함한다(2026-06-30 수정).
+ * order_item 하나는 캔버스·목업·색상이 단일(variants 는 사이즈 차원)이라,
+ * 색을 키에서 빼면 서로 다른 색(블랙/화이트/버건디)이 한 상품으로 과병합되고
+ * 시안수정 저장 시 전 variant 색이 한 색으로 뭉개진다(ORD-20260630-S3H58R 사고).
+ * 따라서 "같은 제품+같은 아트워크+같은 색" 만 병합하고, 색이 다르면 분리한다.
  */
+
+/** canvas_state 의 각 side 에서 의류 바탕색(productColor)을 하나 추출(폴백용). */
+export function extractProductColor(canvasState: unknown): string {
+  if (!canvasState || typeof canvasState !== 'object') return '';
+  for (const side of Object.values(canvasState as Record<string, unknown>)) {
+    const s = typeof side === 'string'
+      ? (() => { try { return JSON.parse(side); } catch { return null; } })()
+      : side;
+    const pc = s && typeof s === 'object' ? (s as Record<string, unknown>).productColor : undefined;
+    if (typeof pc === 'string' && pc) return pc;
+  }
+  return '';
+}
 
 function stripProductColor(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripProductColor);
@@ -58,9 +74,14 @@ export function artworkSignature(canvasState: unknown): string {
 export function orderItemGroupKey(
   productId: string,
   canvasState: unknown,
-  fallbackDesignId?: string | null
+  fallbackDesignId?: string | null,
+  productColor?: string | null
 ): string {
   const sig = artworkSignature(canvasState);
-  if (sig) return `art::${productId}::${sig}`;
-  return fallbackDesignId ? `id::${fallbackDesignId}` : `no-design-${productId}`;
+  // 의류색은 항상 키에 포함(색 다르면 별도 order_item). 명시값 우선, 없으면 canvas_state 에서 추출.
+  const color = String(productColor || extractProductColor(canvasState) || '').toLowerCase();
+  const base = sig
+    ? `art::${productId}::${sig}`
+    : (fallbackDesignId ? `id::${fallbackDesignId}` : `no-design-${productId}`);
+  return `${base}::c=${color}`;
 }

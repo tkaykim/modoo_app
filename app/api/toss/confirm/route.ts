@@ -382,7 +382,7 @@ export async function POST(request: NextRequest) {
       const isGuestDesignId = item.saved_design_id?.startsWith('guest-');
       const savedDesign = (item.saved_design_id && !isGuestDesignId) ? savedDesignsMap.get(item.saved_design_id) : null;
       const designCanvas = savedDesign?.canvas_state || item.canvasState || {};
-      const groupKey = orderItemGroupKey(item.product_id, designCanvas, item.saved_design_id || null);
+      const groupKey = orderItemGroupKey(item.product_id, designCanvas, item.saved_design_id || null, item.product_color);
 
       if (groupedItems.has(groupKey)) {
         // Add variant to existing group
