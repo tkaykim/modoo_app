@@ -73,11 +73,10 @@ export default function InquiriesPage() {
     })();
   }, []);
 
-  // 'my' view requires login
+  // 'my' view는 회원 전용 — 비회원은 로그인 대신 전화번호 기반 비회원 조회로 안내
   useEffect(() => {
     if (view === 'my' && authChecked && !user) {
-      alert('로그인이 필요합니다.');
-      router.push('/login?redirect=/inquiries?tab=my');
+      router.push('/inquiries/lookup');
     }
   }, [view, authChecked, user, router]);
 
@@ -269,7 +268,7 @@ export default function InquiriesPage() {
           {/* 나의 문의 */}
           <button
             onClick={() => {
-              if (!user) { alert('로그인이 필요합니다.'); router.push('/login?redirect=/inquiries?tab=my'); return; }
+              if (!user) { router.push('/inquiries/lookup'); return; }
               router.push('/inquiries?tab=my');
             }}
             className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 transition border-b border-gray-100"
@@ -280,7 +279,7 @@ export default function InquiriesPage() {
             <span className="flex-1 min-w-0">
               <span className="text-sm font-bold text-gray-900">나의 문의</span>
               <span className="block text-xs text-gray-500 mt-0.5">
-                {user ? (myPreview.length > 0 ? `최근 문의 ${myPreview.length}건` : '문의 내역이 없어요') : '로그인 후 확인'}
+                {user ? (myPreview.length > 0 ? `최근 문의 ${myPreview.length}건` : '문의 내역이 없어요') : '전화번호로 조회 (비회원)'}
               </span>
             </span>
             <ChevronRight className="w-5 h-5 text-gray-300 shrink-0" />
