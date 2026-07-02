@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from './supabase-admin';
+import { getRemoteAreaSurcharge } from './remoteAreaShipping';
 
 // 가격 위변조 방지를 위한 서버측 검증.
 // 클라가 보낸 amount/total_amount를 그대로 신뢰하지 않고, DB의 권위 데이터와 교차 검증.
@@ -18,6 +19,8 @@ export interface PricingValidatorOrderData {
   total_amount: number;
   coupon_discount: number;
   salesman_discount_amount?: number | null;
+  /** 국내배송 시 우편번호 — 제주·도서산간 추가 택배비 판정에 사용 */
+  postal_code?: string | null;
 }
 
 export interface PricingValidationOk {
@@ -45,7 +48,7 @@ export interface PricingValidationError {
 
 export type PricingValidationResult = PricingValidationOk | PricingValidationError;
 
-const EXPECTED_DELIVERY_FEE: Record<PricingValidatorOrderData['shipping_method'], number> = {
+const BASE_DELIVERY_FEE: Record<PricingValidatorOrderData['shipping_method'], number> = {
   pickup: 0,
   domestic: 3000,
   international: 5000,
@@ -195,9 +198,9 @@ export async function validateOrderPricing(args: {
     }
   }
 
-  // 3) delivery_fee 검증
-  const expectedDeliveryFee = EXPECTED_DELIVERY_FEE[orderData.shipping_method];
-  if (typeof expectedDeliveryFee !== 'number') {
+  // 3) delivery_fee 검증 (기본요금 + 제주·도서산간 추가요금)
+  const baseDeliveryFee = BASE_DELIVERY_FEE[orderData.shipping_method];
+  if (typeof baseDeliveryFee !== 'number') {
     return {
       ok: false,
       code: 'INVALID_INPUT',
@@ -205,6 +208,8 @@ export async function validateOrderPricing(args: {
       details: { shipping_method: orderData.shipping_method },
     };
   }
+  const remoteSurcharge = getRemoteAreaSurcharge(orderData.postal_code, orderData.shipping_method);
+  const expectedDeliveryFee = baseDeliveryFee + remoteSurcharge;
   if (Math.abs((orderData.delivery_fee ?? 0) - expectedDeliveryFee) > PRICE_TOLERANCE_KRW) {
     return {
       ok: false,

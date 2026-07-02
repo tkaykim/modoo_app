@@ -23,6 +23,7 @@ import TossPaymentWidget from '../components/toss/TossPaymentWidget';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import { generateOrderId } from '@/lib/orderIdUtils';
+import { getRemoteAreaSurcharge, REMOTE_AREA_SURCHARGE_KRW } from '@/lib/remoteAreaShipping';
 import { CouponUsage } from '@/types/types';
 import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Upload, Minus, Plus, Trash2, Building2 } from 'lucide-react';
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
@@ -580,7 +581,10 @@ export default function CheckoutPage() {
 
   // Calculate totals — 영업사원 쿠폰은 일반 쿠폰과 별도로 stacking
   const totalPrice = items.reduce((total, item) => total + item.price_per_item * item.quantity, 0);
-  const deliveryFee = shippingMethod === 'pickup' ? 0 : shippingMethod === 'domestic' ? 3000 : 5000;
+  const baseDeliveryFee = shippingMethod === 'pickup' ? 0 : shippingMethod === 'domestic' ? 3000 : 5000;
+  // 제주·도서산간(국내배송) 추가 택배비 — 고객 부담. 우편번호 확정 시 자동 가산.
+  const remoteAreaSurcharge = getRemoteAreaSurcharge(domesticAddress.postalCode, shippingMethod);
+  const deliveryFee = baseDeliveryFee + remoteAreaSurcharge;
   const salesmanDiscount = salesmanCoupon ? calculateCouponDiscount(salesmanCoupon, totalPrice) : 0;
   // 일반 쿠폰은 영업사원 할인 적용 후 금액에 적용 (또는 원금 기준 — 정책 결정 필요. 여기선 영업사원 할인 후 금액 기준)
   const priceForGeneralCoupon = Math.max(0, totalPrice - salesmanDiscount);
@@ -1197,7 +1201,7 @@ export default function CheckoutPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-black">국내배송</p>
-                <p className="text-xs text-gray-500 mt-1">배송비 3,000원</p>
+                <p className="text-xs text-gray-500 mt-1">배송비 3,000원 (제주·도서산간 +{REMOTE_AREA_SURCHARGE_KRW.toLocaleString('ko-KR')}원)</p>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                 shippingMethod === 'domestic' ? 'border-black' : 'border-gray-300'
@@ -1639,6 +1643,12 @@ export default function CheckoutPage() {
             <span className="text-gray-600">배송비</span>
             <span className="text-black">{deliveryFee.toLocaleString('ko-KR')}원</span>
           </div>
+          {remoteAreaSurcharge > 0 && (
+            <div className="flex justify-between text-xs -mt-1">
+              <span className="text-gray-500">└ 제주·도서산간 추가배송비</span>
+              <span className="text-gray-500">+{remoteAreaSurcharge.toLocaleString('ko-KR')}원</span>
+            </div>
+          )}
           {salesmanDiscount > 0 && (
             <div className="flex justify-between text-sm p-2 -mx-2 bg-indigo-50 rounded-lg">
               <span className="text-brand font-medium flex items-center gap-1">

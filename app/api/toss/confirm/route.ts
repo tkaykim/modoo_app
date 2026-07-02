@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         total_amount: orderData.total_amount,
         coupon_discount: orderData.coupon_discount,
         salesman_discount_amount: orderData.salesman_discount_amount ?? 0,
+        postal_code: orderData.postal_code,
       },
       amount,
     });
