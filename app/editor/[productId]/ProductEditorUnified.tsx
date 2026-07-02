@@ -165,6 +165,9 @@ export default function ProductEditorUnified({
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
   const [isRecallGuestDesignOpen, setIsRecallGuestDesignOpen] = useState(false);
   const [guestDesign, setGuestDesign] = useState<GuestDesign | null>(null);
+  // 비회원 디자인 불러오기(recall) 진행중 플래그. landing→editor 캔버스 리마운트 때문에
+  // 복원은 반드시 editor 단계의 캔버스가 마운트된 뒤 수행해야 한다(아래 effect 참고).
+  const [recallRequested, setRecallRequested] = useState(false);
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null);
   const [isSavingToMall, setIsSavingToMall] = useState(false);
   const [retouchRequested, setRetouchRequested] = useState(false);
@@ -267,6 +270,17 @@ export default function ProductEditorUnified({
       brand: product.manufacturer_name ?? undefined,
       category: product.category ?? undefined,
     });
+  };
+
+  // 비회원 저장 디자인 불러오기 시작.
+  // ⚠ 복원은 여기서 즉시 하지 않는다. 일반 비회원은 recall 모달이 'landing' 단계에서 뜨는데,
+  // landing의 (숨은) 캔버스에 복원한 뒤 editor로 전환하면 editor가 캔버스를 새로 마운트하면서
+  // 복원된 객체가 사라진다(디자인은 없고 디자인 비용만 남는 버그). 그래서 editor로 먼저 전환하고,
+  // editor 캔버스가 준비된 뒤 아래 effect에서 복원한다.
+  const handleBeginRecall = async () => {
+    if (!guestDesign) { setIsRecallGuestDesignOpen(false); return; }
+    setRecallRequested(true);
+    if (currentStep !== 'editor') goToEditor();
   };
 
   const handleEditorDone = () => {
@@ -1052,6 +1066,62 @@ export default function ProductEditorUnified({
     });
   }, [cartItemId, partnerMallAdd, partnerMallBuy, product.id]);
 
+  // 비회원 저장 디자인 실제 복원.
+  // handleBeginRecall이 recallRequested=true + editor 전환을 트리거하면, 이 effect는 editor 단계의
+  // 캔버스(리마운트 후 최종 인스턴스)가 준비될 때까지 기다렸다가 그 캔버스에 복원한다.
+  // 이 effect는 커밋 이후 실행되므로 landing 캔버스는 이미 unregister된 상태 → stale 캔버스 복원 레이스 방지.
+  useEffect(() => {
+    if (!recallRequested || currentStep !== 'editor') return;
+    let cancelled = false;
+    (async () => {
+      const checkCanvasesReady = () => {
+        const store = useCanvasStore.getState();
+        return product.configuration.every(
+          (side) => store.canvasMap[side.id] && store.imageLoadedMap[side.id]
+        );
+      };
+      let attempts = 0;
+      while (!checkCanvasesReady() && attempts < 50) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        attempts++;
+      }
+      if (cancelled) return;
+      const design = guestDesign;
+      if (!design || !checkCanvasesReady()) {
+        setRecallRequested(false);
+        setIsRecallGuestDesignOpen(false);
+        return;
+      }
+      // Load custom fonts before restoring canvas state
+      if (design.customFonts && design.customFonts.length > 0) {
+        const fontStore = useFontStore.getState();
+        fontStore.setCustomFonts(design.customFonts);
+        await fontStore.loadAllFonts();
+      }
+      if (cancelled) return;
+      setProductColor(design.productColor);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (cancelled) return;
+      await restoreAllCanvasState(design.canvasState);
+      incrementCanvasVersion();
+      setRecallRequested(false);
+      setIsRecallGuestDesignOpen(false);
+      trackDesignResume({ product_id: product.id });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    recallRequested,
+    currentStep,
+    guestDesign,
+    product.configuration,
+    product.id,
+    setProductColor,
+    restoreAllCanvasState,
+    incrementCanvasVersion,
+  ]);
+
   // Set active side on mount
   useEffect(() => {
     if (product.configuration.length > 0) {
@@ -1277,33 +1347,7 @@ export default function ProductEditorUnified({
         />
         <GuestDesignRecallModal
           isOpen={isRecallGuestDesignOpen}
-          onRecall={async () => {
-            if (!guestDesign) { setIsRecallGuestDesignOpen(false); return; }
-            const checkCanvasesReady = () => {
-              const store = useCanvasStore.getState();
-              return product.configuration.every(side => store.canvasMap[side.id] && store.imageLoadedMap[side.id]);
-            };
-            let attempts = 0;
-            while (!checkCanvasesReady() && attempts < 50) {
-              await new Promise(resolve => setTimeout(resolve, 100));
-              attempts++;
-            }
-            if (!checkCanvasesReady()) { setIsRecallGuestDesignOpen(false); return; }
-            // Load custom fonts before restoring canvas state
-            if (guestDesign.customFonts && guestDesign.customFonts.length > 0) {
-              const fontStore = useFontStore.getState();
-              fontStore.setCustomFonts(guestDesign.customFonts);
-              await fontStore.loadAllFonts();
-            }
-            setProductColor(guestDesign.productColor);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await restoreAllCanvasState(guestDesign.canvasState);
-            incrementCanvasVersion();
-            setIsRecallGuestDesignOpen(false);
-            trackDesignResume({ product_id: product.id });
-            // Go directly to editor since they had a design
-            goToEditor();
-          }}
+          onRecall={handleBeginRecall}
           onDiscard={() => {
             removeGuestDesign(product.id);
             setGuestDesign(null);
@@ -1849,31 +1893,7 @@ export default function ProductEditorUnified({
 
       <GuestDesignRecallModal
         isOpen={isRecallGuestDesignOpen}
-        onRecall={async () => {
-          if (!guestDesign) { setIsRecallGuestDesignOpen(false); return; }
-          const checkCanvasesReady = () => {
-            const store = useCanvasStore.getState();
-            return product.configuration.every(side => store.canvasMap[side.id] && store.imageLoadedMap[side.id]);
-          };
-          let attempts = 0;
-          while (!checkCanvasesReady() && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-          if (!checkCanvasesReady()) { setIsRecallGuestDesignOpen(false); return; }
-          // Load custom fonts before restoring canvas state
-          if (guestDesign.customFonts && guestDesign.customFonts.length > 0) {
-            const fontStore = useFontStore.getState();
-            fontStore.setCustomFonts(guestDesign.customFonts);
-            await fontStore.loadAllFonts();
-          }
-          setProductColor(guestDesign.productColor);
-          await new Promise(resolve => setTimeout(resolve, 100));
-          await restoreAllCanvasState(guestDesign.canvasState);
-          incrementCanvasVersion();
-          setIsRecallGuestDesignOpen(false);
-          trackDesignResume({ product_id: product.id });
-        }}
+        onRecall={handleBeginRecall}
         onDiscard={() => {
           removeGuestDesign(product.id);
           setGuestDesign(null);
