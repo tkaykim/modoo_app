@@ -38,6 +38,18 @@ export async function GET(
 
     const adminClient = createAdminClient();
 
+    // 요청한 orderItemId가 이 주문에 속하는지 검증 (IDOR 방지 — POST 핸들러와 동일)
+    const { data: ownedItem } = await adminClient
+      .from('order_items')
+      .select('id')
+      .eq('id', orderItemId)
+      .eq('order_id', orderId)
+      .single();
+
+    if (!ownedItem) {
+      return NextResponse.json({ error: '주문 항목을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
     const { data, error } = await adminClient
       .from('editor_chat_messages')
       .select('*, sender:profiles!editor_chat_messages_sender_id_fkey(name, role, email)')
