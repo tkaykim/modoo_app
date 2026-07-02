@@ -13,9 +13,92 @@ interface BestReviewsSectionProps {
   reviews: ReviewWithProduct[];
 }
 
-function editorProductHref(review: Pick<ReviewWithProduct, 'product_id' | 'product'>): string {
-  const id = review.product?.id ?? review.product_id;
-  return `/editor/${id}`;
+// 후기에 연결된 제품 표시. 비활성(is_active=false) 제품은 /editor/[id]가 404이므로
+// 링크 없이 정보만 노출한다. 제품 조인이 없으면 아무것도 렌더하지 않는다.
+function ProductReference({
+  review,
+  size,
+  onNavigate,
+}: {
+  review: ReviewWithProduct;
+  size: 'card' | 'modal';
+  onNavigate?: () => void;
+}) {
+  const product = review.product;
+  if (!product) {
+    return null;
+  }
+
+  const thumbnail = product.thumbnail_image_link?.[0];
+  const linkable = product.is_active !== false;
+
+  if (size === 'card') {
+    const inner = (
+      <>
+        {thumbnail && (
+          <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden flex-shrink-0">
+            <Image
+              src={thumbnail}
+              alt={product.title}
+              fill
+              unoptimized
+              className="object-cover"
+              sizes="32px"
+            />
+          </div>
+        )}
+        <span className="text-xs text-gray-500 group-hover:text-gray-700 truncate">
+          {product.title}
+        </span>
+      </>
+    );
+
+    return linkable ? (
+      <Link
+        href={`/editor/${product.id}`}
+        className="flex items-center gap-2 mt-2 group"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {inner}
+      </Link>
+    ) : (
+      <div className="flex items-center gap-2 mt-2">{inner}</div>
+    );
+  }
+
+  // modal
+  const inner = (
+    <>
+      {thumbnail && (
+        <div className="relative w-12 h-12 rounded-lg border border-gray-200 overflow-hidden shrink-0">
+          <Image
+            src={thumbnail}
+            alt={product.title}
+            fill
+            unoptimized
+            className="object-cover"
+            sizes="48px"
+          />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{product.title}</p>
+        {linkable && <p className="text-xs text-gray-500">상품 보러가기 →</p>}
+      </div>
+    </>
+  );
+
+  return linkable ? (
+    <Link
+      href={`/editor/${product.id}`}
+      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+      onClick={onNavigate}
+    >
+      {inner}
+    </Link>
+  ) : (
+    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">{inner}</div>
+  );
 }
 
 export default function BestReviewsSection({ reviews }: BestReviewsSectionProps) {
@@ -75,28 +158,8 @@ export default function BestReviewsSection({ reviews }: BestReviewsSectionProps)
                 {review.content}
               </p>
 
-              {/* Product Link */}
-              <Link
-                href={editorProductHref(review)}
-                className="flex items-center gap-2 mt-2 group"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {review.product?.thumbnail_image_link?.[0] && (
-                  <div className="relative w-8 h-8 rounded border border-gray-200 overflow-hidden flex-shrink-0">
-                    <Image
-                      src={review.product.thumbnail_image_link[0]}
-                      alt={review.product?.title ?? '상품'}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="32px"
-                    />
-                  </div>
-                )}
-                <span className="text-xs text-gray-500 group-hover:text-gray-700 truncate">
-                  {review.product?.title ?? '상품 보기'}
-                </span>
-              </Link>
+              {/* Product Reference (비활성 제품은 링크 없이 표시) */}
+              <ProductReference review={review} size="card" />
             </div>
           </div>
         ))}
@@ -214,31 +277,12 @@ export default function BestReviewsSection({ reviews }: BestReviewsSectionProps)
                 {formatKstDateOnly(selectedReview.created_at)}
               </p>
 
-              {/* Product Link */}
-              <Link
-                href={editorProductHref(selectedReview)}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                onClick={() => setSelectedReview(null)}
-              >
-                {selectedReview.product?.thumbnail_image_link?.[0] && (
-                  <div className="relative w-12 h-12 rounded-lg border border-gray-200 overflow-hidden shrink-0">
-                    <Image
-                      src={selectedReview.product.thumbnail_image_link[0]}
-                      alt={selectedReview.product?.title ?? '상품'}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {selectedReview.product?.title ?? '상품 보기'}
-                  </p>
-                  <p className="text-xs text-gray-500">상품 보러가기 →</p>
-                </div>
-              </Link>
+              {/* Product Reference (비활성 제품은 링크 없이 표시) */}
+              <ProductReference
+                review={selectedReview}
+                size="modal"
+                onNavigate={() => setSelectedReview(null)}
+              />
             </div>
           </div>
         </div>

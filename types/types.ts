@@ -873,6 +873,8 @@ export interface ReviewWithProduct extends Review {
     id: string;
     title: string;
     thumbnail_image_link: string[] | null;
+    // 비활성 제품은 /editor/[id]가 404이므로, 카드에서 링크 노출 여부 판단에 사용.
+    is_active?: boolean;
   };
 }
 

@@ -131,23 +131,25 @@ const getBestReviews = unstable_cache(
       return [];
     }
 
-    type JoinedProduct = NonNullable<ReviewWithProduct['product']> & {
+    type JoinedProduct = {
+      id: string;
+      title: string;
+      thumbnail_image_link: string[] | null;
       is_active: boolean;
     };
 
-    return (data ?? [])
-      .map((row) => {
-        let product = (row as { product?: JoinedProduct | JoinedProduct[] }).product;
-        if (Array.isArray(product)) {
-          product = product[0];
-        }
-        if (!product || !product.is_active) {
-          return null;
-        }
-        const { is_active: _omit, ...productRest } = product;
-        return { ...(row as object), product: productRest } as ReviewWithProduct;
-      })
-      .filter((r): r is ReviewWithProduct => r !== null);
+    // BEST 후기는 관리자가 홈 노출용으로 직접 큐레이션한 콘텐츠다. 연결된 제품이
+    // 비활성(is_active=false)이라도 후기 자체는 계속 노출한다. (예전엔 제품이 비활성이면
+    // 후기를 통째로 드롭해, 관리자가 BEST로 지정한 후기가 홈에서 사라지고 그리드에
+    // 빈 칸이 생겼다.) 다만 /editor/[id]는 비활성 제품이면 404이므로 is_active를
+    // 그대로 넘겨, 카드 쪽에서 링크 노출 여부를 판단하게 한다.
+    return (data ?? []).map((row) => {
+      let product = (row as { product?: JoinedProduct | JoinedProduct[] }).product;
+      if (Array.isArray(product)) {
+        product = product[0];
+      }
+      return { ...(row as object), product: product ?? undefined } as ReviewWithProduct;
+    });
   },
   ['home-best-reviews'],
   { revalidate: 60, tags: ['reviews'] }
