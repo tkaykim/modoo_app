@@ -39,6 +39,7 @@ export default function CartPage() {
   const [selectedCartItemId, setSelectedCartItemId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isCartHydrated, setIsCartHydrated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quantityChangeGroup, setQuantityChangeGroup] = useState<GroupedCartItem | null>(null);
   const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
@@ -142,10 +143,20 @@ export default function CartPage() {
     }
   };
 
-  // Initial fetch
+  // 게스트 카트는 zustand persist 하이드레이션이 끝난 뒤 읽어야 항목 누락이 없다.
+  // (하드 로드/직접 URL 진입 시 스토어 복원 전에 한 번만 읽어 담긴 항목이 빈 카트로
+  //  보이던 문제 방지 — cartStore.items를 구독하지 않고 effect에서 1회 복사하기 때문)
   useEffect(() => {
+    if (useCartStore.persist.hasHydrated()) setIsCartHydrated(true);
+    const unsub = useCartStore.persist.onFinishHydration(() => setIsCartHydrated(true));
+    return unsub;
+  }, []);
+
+  // Initial fetch (스토어 하이드레이션 완료 후)
+  useEffect(() => {
+    if (!isCartHydrated) return;
     fetchCartItems();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isCartHydrated]);
 
   // GTM: view_cart (마운트 후 1회, items가 채워졌을 때)
   const viewCartTrackedRef = useRef(false);
