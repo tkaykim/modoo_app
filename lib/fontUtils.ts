@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { uploadFileToStorage, deleteFileFromStorage, UploadResult } from './supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
+import { reportHandledError } from './reportHandledError';
 
 export interface FontMetadata {
   fontFamily: string; // Display name/family name
@@ -55,15 +56,35 @@ export async function uploadFont(
     const designPrefix = designId ? `${designId}-` : '';
     const fileName = `${designPrefix}${timestamp}-${uniqueId}.${format}`;
 
+    // 브라우저는 폰트를 흔히 application/octet-stream 으로 올리는데, user-fonts
+    // 버킷 allowed_mime_types 에 없어 업로드가 거부된다. 확장자 기반 폰트 MIME을
+    // 명시해 항상 허용 목록과 일치시킨다.
+    const FONT_MIME: Record<string, string> = {
+      ttf: 'font/ttf',
+      otf: 'font/otf',
+      woff: 'font/woff',
+      woff2: 'font/woff2',
+    };
+
     // Upload to Supabase Storage
     const uploadResult: UploadResult = await uploadFileToStorage(
       supabase,
       fontFile,
       STORAGE_BUCKETS.FONTS,
-      STORAGE_FOLDERS.FONTS
+      STORAGE_FOLDERS.FONTS,
+      FONT_MIME[format] || 'font/ttf'
     );
 
     if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+      // 폰트 업로드 실패는 alert 로만 보이고 파이프라인엔 안 잡히던 사각지대 —
+      // 명시적으로 보고해 우리가 알아챌 수 있게 한다.
+      reportHandledError(`font upload failed: ${uploadResult.error ?? 'unknown'}`, {
+        feature: 'font-upload',
+        fileName: fontFile.name,
+        fileType: fontFile.type,
+        fileSize: fontFile.size,
+        format,
+      });
       return {
         success: false,
         error: uploadResult.error || 'Failed to upload font',
@@ -86,6 +107,10 @@ export async function uploadFont(
     };
   } catch (error) {
     console.error('Error uploading font:', error);
+    reportHandledError(
+      `font upload exception: ${error instanceof Error ? error.message : String(error)}`,
+      { feature: 'font-upload', fileName: fontFile.name, fileType: fontFile.type, fileSize: fontFile.size }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

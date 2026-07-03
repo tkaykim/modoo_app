@@ -19,7 +19,8 @@ export async function uploadFileToStorage(
   supabase: SupabaseClient,
   file: File,
   bucket: string,
-  folder?: string
+  folder?: string,
+  contentType?: string
 ): Promise<UploadResult> {
   try {
 
@@ -29,12 +30,15 @@ export async function uploadFileToStorage(
     const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
-    // Upload the file
+    // Upload the file.
+    // contentType을 명시적으로 넘기면 브라우저가 붙인 MIME(폰트는 흔히
+    // application/octet-stream)을 덮어써, 버킷 allowed_mime_types 거부를 막는다.
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false,
+        ...(contentType ? { contentType } : {}),
       });
 
     if (error) {
