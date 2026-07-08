@@ -94,18 +94,34 @@ export async function fetchProductCalibrations(
         console.warn('[CALIB] fetch failed, falling back to legacy', error);
         return new Map<string, SideCalibration>();
       }
-      // 인쇄영역 실측(환산 1순위) 산출에 필요한 printArea 픽셀폭을 제품 config에서 로드.
+      // 인쇄영역 실측(환산 1순위) 산출에 필요한 printArea 픽셀폭과 config 폴백값을 로드.
       const printAreaPxBySide = new Map<string, number>();
+      const printAreaRealBySide = new Map<string, { widthMm: number; heightMm?: number }>();
       try {
         const { data: prod } = await supabase
           .from('products')
           .select('configuration')
           .eq('id', productId)
           .single();
-        const cfg = (prod?.configuration ?? []) as Array<{ id?: string; printArea?: { width?: number } }>;
+        const cfg = (prod?.configuration ?? []) as Array<{
+          id?: string;
+          printArea?: { width?: number };
+          realLifeDimensions?: {
+            printAreaWidthMm?: number | null;
+            printAreaHeightMm?: number | null;
+          };
+        }>;
         for (const s of cfg) {
           const w = Number(s?.printArea?.width) || 0;
           if (s?.id && w > 0) printAreaPxBySide.set(s.id, w);
+          const realW = Number(s?.realLifeDimensions?.printAreaWidthMm) || 0;
+          const realH = Number(s?.realLifeDimensions?.printAreaHeightMm) || 0;
+          if (s?.id && realW > 0) {
+            printAreaRealBySide.set(s.id, {
+              widthMm: realW,
+              heightMm: realH > 0 ? realH : undefined,
+            });
+          }
         }
       } catch (e) {
         console.warn('[CALIB] product config fetch failed; print-area-real disabled', e);
@@ -117,8 +133,11 @@ export async function fetchProductCalibrations(
         const activeLine = pickActiveLine(payload);
         const lineMmPerPx = activeLine ? lineNativeMmPerPx(activeLine) : 0;
         const hasLine = Number.isFinite(lineMmPerPx) && lineMmPerPx > 0;
-        const paW = Number(payload.printAreaRealMm?.widthMm) || 0;
-        const paH = Number(payload.printAreaRealMm?.heightMm) || 0;
+        const configPrintAreaReal = printAreaRealBySide.get(row.side_id);
+        const payloadPaW = Number(payload.printAreaRealMm?.widthMm) || 0;
+        const payloadPaH = Number(payload.printAreaRealMm?.heightMm) || 0;
+        const paW = payloadPaW > 0 ? payloadPaW : (configPrintAreaReal?.widthMm ?? 0);
+        const paH = payloadPaH > 0 ? payloadPaH : (configPrintAreaReal?.heightMm ?? 0);
         const hasPrintAreaReal = paW > 0;
         // 선분도 없고 인쇄영역 실측도 없으면 이 행은 쓸모 없음 → skip.
         if (!hasLine && !hasPrintAreaReal) continue;
@@ -126,6 +145,16 @@ export async function fetchProductCalibrations(
         const paPxW = printAreaPxBySide.get(row.side_id) ?? 0;
         const printAreaMmPerPx = hasPrintAreaReal && paPxW > 0 ? paW / paPxW : 0;
         const nativeMmPerPx = printAreaMmPerPx > 0 ? printAreaMmPerPx : lineMmPerPx;
+        const effectivePayload: SideCalibrationPayload =
+          hasPrintAreaReal
+            ? {
+                ...payload,
+                printAreaRealMm: {
+                  widthMm: paW,
+                  heightMm: paH > 0 ? paH : null,
+                },
+              }
+            : payload;
         const anchors: AnchorPreset[] = (payload.registeredAnchors ?? [])
           .filter((a) => a && typeof a === 'object' && a.id)
           .map((a) => ({
@@ -145,8 +174,29 @@ export async function fetchProductCalibrations(
           printAreaHeightMm: paH > 0 ? paH : undefined,
           activeLineLabel: activeLine?.label,
           anchors,
-          payload,
+          payload: effectivePayload,
           updatedAt: row.updated_at,
+        });
+      }
+      for (const [sideId, real] of printAreaRealBySide) {
+        if (map.has(sideId)) continue;
+        const paPxW = printAreaPxBySide.get(sideId) ?? 0;
+        const nativeMmPerPx = real.widthMm > 0 && paPxW > 0 ? real.widthMm / paPxW : 0;
+        if (!Number.isFinite(nativeMmPerPx) || nativeMmPerPx <= 0) continue;
+        map.set(sideId, {
+          productId,
+          sideId,
+          nativeMmPerPx,
+          printAreaWidthMm: real.widthMm,
+          printAreaHeightMm: real.heightMm,
+          anchors: [],
+          payload: {
+            printAreaRealMm: {
+              widthMm: real.widthMm,
+              heightMm: real.heightMm ?? null,
+            },
+          },
+          updatedAt: '',
         });
       }
       return map;
