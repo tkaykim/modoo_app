@@ -124,9 +124,10 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   }, [isFontDropdownOpen]);
 
   // Update selected object properties
-  const updateTextProperty = (property: string, value: any) => {
+  const updateTextProperty = (property: string, value: unknown) => {
     if (selectedObject) {
-      selectedObject.set(property as keyof fabric.IText, value);
+      const textObject = selectedObject as { set: (property: string, value: unknown) => void };
+      textObject.set(property, value);
       selectedObject.canvas?.renderAll();
     }
   };
@@ -154,9 +155,20 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
     // text) so SVG path export and the admin renderer can resolve the exact
     // font. Previously curved text skipped this and got exported as a fallback
     // font.
-    if (selectedObject && url) {
-      const existingData = (selectedObject as any).data || {};
-      (selectedObject as any).data = { ...existingData, fontUrl: url };
+    if (selectedObject) {
+      const textObject = selectedObject as fabric.FabricObject & {
+        data?: Record<string, unknown>;
+        set: (property: string, value: unknown) => void;
+      };
+      const existingData = textObject.data || {};
+      const nextData = { ...existingData };
+      if (url) {
+        nextData.fontUrl = url;
+      } else {
+        delete nextData.fontUrl;
+      }
+      textObject.set('data', nextData);
+      textObject.set('dirty', true);
     }
   };
 

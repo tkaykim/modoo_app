@@ -1303,21 +1303,17 @@ export default function ProductEditorUnified({
 
   // 라이브 계산 가격 (캔버스 변화에 따라 실시간 갱신)
   const livePricePerItem = product.base_price + pricingData.totalAdditionalPrice;
-  // 카트 재편집 진입 시 freeze: 카트에 담을 당시의 단가를 그대로 표시.
-  // 측정 알고리즘 변경(예: 캘리브 도입)으로 인한 가격 변동을 손님이 겪지 않도록 보장.
-  // 사용자가 디자인을 실제로 수정하면 "다시 카트에 담기" 흐름에서 신규 가격으로 업데이트됨.
-  const frozenCartPrice = cartItemId
-    ? (cartStoreItems.find(it => it.id === cartItemId)?.pricePerItem ?? null)
-    : null;
+  // 재편집 저장은 현재 캔버스 기준 단가를 사용한다.
+  // 옛 장바구니 단가를 계속 쓰면 디자인과 금액이 다시 어긋날 수 있다.
   // 단체몰 진열 구매: 영업사원이 정한 판매가를 단가의 바닥값으로 반영(마진 보존).
   // 고객이 더 비싼 디자인을 추가하면 그쪽(base+인쇄가)이 높아져 자동 상향 — 언더차지 방지.
   const mallBuyFloorPrice =
     partnerMallBuy && partnerMallBuyData?.price && partnerMallBuyData.price > 0
       ? partnerMallBuyData.price
       : null;
-  const pricePerItem = (frozenCartPrice !== null && frozenCartPrice > 0)
-    ? frozenCartPrice
-    : (mallBuyFloorPrice !== null ? Math.max(mallBuyFloorPrice, livePricePerItem) : livePricePerItem);
+  const pricePerItem = mallBuyFloorPrice !== null
+    ? Math.max(mallBuyFloorPrice, livePricePerItem)
+    : livePricePerItem;
   const formattedPrice = product.base_price.toLocaleString('ko-KR');
 
   // ─── Render ──────────────────────────────────────────────────────

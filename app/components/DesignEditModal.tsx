@@ -188,10 +188,10 @@ export default function DesignEditModal({
 
         // Load custom fonts if available
         const customFonts = (design.custom_fonts as FontMetadata[]) || [];
+        const fontStore = useFontStore.getState();
+        fontStore.setCustomFonts(customFonts);
         if (customFonts.length > 0) {
           console.log(`Loading ${customFonts.length} custom fonts...`);
-          const fontStore = useFontStore.getState();
-          fontStore.setCustomFonts(customFonts);
           await fontStore.loadAllFonts();
         }
 
@@ -557,6 +557,7 @@ export default function DesignEditModal({
         : { totalAdditionalPrice: 0, sidePricing: [] };
 
       const newPricePerItem = basePrice + pricing.totalAdditionalPrice;
+      const customFonts = useFontStore.getState().customFonts;
 
       if (cartItemId) {
         // Saving from cart item - update design and all associated cart items
@@ -579,6 +580,8 @@ export default function DesignEditModal({
             canvas_state: canvasState,
             color_selections: { productColor },
             preview_url: previewImage,
+            price_per_item: newPricePerItem,
+            custom_fonts: customFonts,
             updated_at: new Date().toISOString(),
           })
           .eq('id', cartItem.saved_design_id);
@@ -626,6 +629,8 @@ export default function DesignEditModal({
             canvas_state: canvasState,
             color_selections: { productColor },
             preview_url: previewImage,
+            price_per_item: newPricePerItem,
+            custom_fonts: customFonts,
             updated_at: new Date().toISOString(),
           })
           .eq('id', designId);
