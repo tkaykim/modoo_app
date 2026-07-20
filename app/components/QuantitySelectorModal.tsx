@@ -30,6 +30,11 @@ interface QuantitySelectorModalProps {
    * - undefined면 caller가 별도 미리보기를 안 주는 흐름 (디자인 이름·사이즈만)
    */
   previewSlot?: ReactNode;
+  /**
+   * 모달 오픈 시 1회 미리 채울 사이즈별 수량 (key = 사이즈 라벨).
+   * 재주문처럼 이전 선택을 복원하는 진입점에서 사용. 오픈 후 사용자가 수정한 값은 덮지 않는다.
+   */
+  initialQuantities?: Record<string, number>;
 }
 
 export default function QuantitySelectorModal({
@@ -45,6 +50,7 @@ export default function QuantitySelectorModal({
   productId,
   directPurchaseOnly = false,
   previewSlot,
+  initialQuantities,
 }: QuantitySelectorModalProps) {
   const router = useRouter();
   const [designName, setDesignName] = useState(defaultDesignName);
@@ -58,6 +64,8 @@ export default function QuantitySelectorModal({
   const [designNameError, setDesignNameError] = useState(false);
   const designNameInputRef = useRef<HTMLInputElement>(null);
   const latestPricePerItemRef = useRef(pricePerItem);
+  // 오픈당 1회만 프리필 (parent 리렌더로 initialQuantities 참조가 바뀌어도 사용자 수정을 덮지 않도록)
+  const prefilledRef = useRef(false);
 
   // 모달 오픈 시점의 단가를 freeze. 모달이 열려 있는 동안 캔버스가 reflow되거나
   // pricePerItem prop이 변경되어도 사용자에게 보이는 가격과 실제 카트 저장 가격이
@@ -74,6 +82,24 @@ export default function QuantitySelectorModal({
     }, 0);
     return () => window.clearTimeout(timer);
   }, [isOpen]);
+
+  // 재주문 등에서 넘긴 초기 수량 프리필 (오픈당 1회)
+  useEffect(() => {
+    if (!isOpen) {
+      prefilledRef.current = false;
+      return;
+    }
+    if (prefilledRef.current || !initialQuantities) return;
+    prefilledRef.current = true;
+    const sanitized: Record<string, number> = {};
+    for (const [size, qty] of Object.entries(initialQuantities)) {
+      if (Number.isInteger(qty) && qty > 0) sanitized[size] = qty;
+    }
+    if (Object.keys(sanitized).length > 0) {
+      const timer = window.setTimeout(() => setQuantities(sanitized), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [isOpen, initialQuantities]);
 
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);

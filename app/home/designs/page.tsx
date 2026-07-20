@@ -25,6 +25,8 @@ interface SavedDesign {
   created_at: string;
   updated_at: string;
   price_per_item: number;
+  /** 시안확정(제작 확정) 시각 — 있으면 실제 제작된 최종본이라는 뜻 */
+  last_confirmed_at?: string | null;
   product: {
     id: string;
     title: string;
@@ -40,6 +42,7 @@ interface RawSavedDesign {
   created_at: string;
   updated_at: string;
   price_per_item: number;
+  last_confirmed_at?: string | null;
   product: {
     id: string;
     title: string;
@@ -96,6 +99,7 @@ export default function DesignsPage() {
             updated_at,
             color_selections,
             price_per_item,
+            last_confirmed_at,
             product:products (
               id,
               title
@@ -455,6 +459,13 @@ export default function DesignsPage() {
                           </div>
                         )}
                       </button>
+
+                      {/* 제작 확정본 배지 — 시안확정을 거쳐 실제 제작된 최종 디자인 */}
+                      {design.last_confirmed_at && (
+                        <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-emerald-600 text-white text-[8px] sm:text-[10px] font-semibold rounded-full shadow-sm">
+                          제작 확정본
+                        </span>
+                      )}
 
                       {/* Delete Button */}
                       <button

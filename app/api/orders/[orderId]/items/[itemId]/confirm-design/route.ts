@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createHmac } from 'crypto';
 import { sendGmailEmail } from '@/lib/gmail';
+import { writeBackConfirmedDesign } from '@/lib/designWriteBack';
 
 function verifyDesignToken(token: string, orderId: string, _orderItemId: string): boolean {
   try {
@@ -84,6 +85,14 @@ export async function POST(
 
     if (updateError) {
       return NextResponse.json({ error: '상태 업데이트에 실패했습니다.' }, { status: 500 });
+    }
+
+    // 확정된 최종 아트워크를 고객 '내 디자인'에 반영 (실패해도 확정 자체는 유지)
+    try {
+      const writeBack = await writeBackConfirmedDesign(db, itemId);
+      console.log('[confirm-design] design write-back:', writeBack);
+    } catch (err) {
+      console.error('[confirm-design] design write-back failed:', err);
     }
 
     // Get order info for admin notification

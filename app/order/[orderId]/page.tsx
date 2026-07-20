@@ -8,6 +8,7 @@ import { ChevronLeft, Package, Phone, X, XCircle, MessageSquare, Send } from 'lu
 import Link from 'next/link';
 import { OrderItem } from '@/types/types';
 import DesignChatSection from '@/app/components/DesignChatSection';
+import ReorderButton from '@/app/components/ReorderButton';
 
 interface OrderDetail {
   id: string;
@@ -390,14 +391,17 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
-              {/* Design Chat Button */}
-              <button
-                onClick={() => setChatItem(item)}
-                className="mt-3 flex items-center gap-1.5 text-xs text-brand font-medium hover:text-blue-700 transition-colors"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                디자인 소통
-              </button>
+              {/* Item Actions: 디자인 소통 · 재주문 */}
+              <div className="mt-3 flex items-center gap-4">
+                <button
+                  onClick={() => setChatItem(item)}
+                  className="flex items-center gap-1.5 text-xs text-brand font-medium hover:text-blue-700 transition-colors"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  디자인 소통
+                </button>
+                <ReorderButton item={item} />
+              </div>
             </div>
           );
         })}
