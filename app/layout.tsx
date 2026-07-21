@@ -88,6 +88,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
+        {/* 스토리지 차단 브라우저(Firefox dom.storage 비활성 등)에서는 localStorage가 null이라
+            supabase/zustand 등 라이브러리가 즉사한다. 번들 실행 전에 in-memory 대체를 깔아준다. */}
+        <script
+          id="storage-polyfill"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function mem(){var m={};return{get length(){return Object.keys(m).length},key:function(i){var k=Object.keys(m)[i];return k===undefined?null:k},getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null},setItem:function(k,v){m[String(k)]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}}}}function ensure(n){var ok=false;try{var s=window[n];if(s){s.setItem('__probe__','1');s.removeItem('__probe__');ok=true}}catch(e){}if(!ok){try{Object.defineProperty(window,n,{value:mem(),configurable:true})}catch(e){}}}ensure('localStorage');ensure('sessionStorage');})();`,
+          }}
+        />
         {/* Preload the only true webfont so the canvas never renders a fallback for it. */}
         <link rel="preload" href="/fonts/Freshman.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
         {GTM_ID && (
