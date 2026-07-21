@@ -33,6 +33,28 @@ const EMPTY_QUOTE: MethodQuote = {
 };
 
 /**
+ * 나염(실크스크린) 고객 견적 마진 — 장당 1회 가산 (대표 확정 2026-07-21).
+ * customer_print_method_pricing의 나염 base_price는 원가성이라, 고객 노출 견적엔
+ * 반드시 이 마진을 더한다. flat(DTF/DTG)은 단가에 마진이 이미 포함돼 가산하지 않는다.
+ * 워커 AI 답변초안(modoo-cs-triage) 프롬프트의 나염 마진 규칙과 같은 값이어야 한다.
+ */
+export const SCREEN_PRINT_MARGIN_PER_PIECE = 3000;
+
+/**
+ * 방식별 고객가 정책 보정 — 현재는 나염 장당 마진만.
+ * quoteMethod(원가성 raw)를 고객 노출 견적으로 바꿀 때 반드시 통과시킨다.
+ */
+export function applyMethodPricingPolicy(
+  methodKey: string,
+  quote: MethodQuote,
+  quantity: number,
+): MethodQuote {
+  if (methodKey !== 'screen_printing' || quote.total === null) return quote;
+  const total = quote.total + SCREEN_PRINT_MARGIN_PER_PIECE * quantity;
+  return { ...quote, total, unitEffective: Math.round(total / quantity) };
+}
+
+/**
  * 도안 크기에 맞는 단가 행을 고른다 (flat·bulk 공통).
  * 1) 회전 인식 매칭 → 가장 빠듯한 행
  * 2) 실패 시 'A3' 라벨 행 → 그래도 없으면 가장 큰 면적 행 (절대 차단 금지 정책)
@@ -111,7 +133,11 @@ export function rankMethods(
 ): MethodRanking {
   const quotes: RankedQuote[] = methodKeys.map((methodKey) => ({
     methodKey,
-    ...quoteMethod(rowsByKey[methodKey] ?? [], widthCm, heightCm, quantity),
+    ...applyMethodPricingPolicy(
+      methodKey,
+      quoteMethod(rowsByKey[methodKey] ?? [], widthCm, heightCm, quantity),
+      quantity,
+    ),
   }));
 
   const priceable = quotes.filter((q): q is RankedQuote & { total: number } => q.total !== null);
@@ -149,6 +175,8 @@ export function bulkAdvantageThreshold(
   widthCm: number,
   heightCm: number,
   maxQuantity = 1000,
+  /** 묶음방식 장당 가산액(예: 나염 마진 SCREEN_PRINT_MARGIN_PER_PIECE). 비교 공정성 유지용. */
+  bulkMarginPerPiece = 0,
 ): number | null {
   if (!bulkRows?.length || !dtfRows?.length) return null;
 
@@ -156,7 +184,7 @@ export function bulkAdvantageThreshold(
     const bulk = quoteMethod(bulkRows, widthCm, heightCm, q).total;
     const dtf = quoteMethod(dtfRows, widthCm, heightCm, q).total;
     if (bulk === null || dtf === null) continue;
-    if (bulk <= dtf) return q;
+    if (bulk + bulkMarginPerPiece * q <= dtf) return q;
   }
   return null;
 }

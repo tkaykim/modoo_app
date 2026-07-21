@@ -23,6 +23,8 @@ import {
   quoteMethod,
   rankMethods,
   bulkAdvantageThreshold,
+  applyMethodPricingPolicy,
+  SCREEN_PRINT_MARGIN_PER_PIECE,
 } from '@/lib/printMethodPricing';
 import { PRINT_METHOD_META } from '@/lib/printPricingConfig';
 import type { PrintMethod } from '@/types/types';
@@ -88,7 +90,12 @@ export default function PricingLabSection({
   );
 
   const selectedQuote = useMemo(
-    () => quoteMethod(rowsByKey[selected] ?? [], artworkWidthCm, artworkHeightCm, quantity),
+    () =>
+      applyMethodPricingPolicy(
+        selected,
+        quoteMethod(rowsByKey[selected] ?? [], artworkWidthCm, artworkHeightCm, quantity),
+        quantity,
+      ),
     [rowsByKey, selected, artworkWidthCm, artworkHeightCm, quantity],
   );
 
@@ -98,7 +105,14 @@ export default function PricingLabSection({
     const out: Partial<Record<PrintMethod, number | null>> = {};
     for (const key of METHOD_ORDER) {
       if (!BULK_KEYS.has(key)) continue;
-      out[key] = bulkAdvantageThreshold(rowsByKey[key] ?? [], dtfRows, artworkWidthCm, artworkHeightCm);
+      out[key] = bulkAdvantageThreshold(
+        rowsByKey[key] ?? [],
+        dtfRows,
+        artworkWidthCm,
+        artworkHeightCm,
+        1000,
+        key === 'screen_printing' ? SCREEN_PRINT_MARGIN_PER_PIECE : 0,
+      );
     }
     return out;
   }, [rowsByKey, artworkWidthCm, artworkHeightCm]);

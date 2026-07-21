@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-client';
 import { getCustomerPricingByPrintMethod } from '@/lib/customerPricingFetch';
 import type { CustomerPricingRow } from '@/lib/customerPricingMatcher';
-import { quoteMethod } from '@/lib/printMethodPricing';
+import { quoteMethod, SCREEN_PRINT_MARGIN_PER_PIECE } from '@/lib/printMethodPricing';
 import type { PrintMethod } from '@/types/types';
 import type {
   PrintMethodChoice,
@@ -98,7 +98,8 @@ export async function loadRowsByKey(): Promise<Record<string, CustomerPricingRow
   return _rowsByKeyPromise;
 }
 
-// 색상 도수 배수 (bulk 방식만 적용). 1색=1배, 2색=2배... 4색 이상=4배.
+// 색상 도수 배수 (나염만 적용 — 판이 색마다 별도로 들어감). 1색=1배, 2색=2배... 4색 이상=4배.
+// 자수·아플리케는 색상 배수를 적용하지 않는다 (대표 확정 2026-07-21, 워커 AI초안 규칙과 통일).
 function colorMultiplier(colorCount?: ColorCount): number {
   switch (colorCount) {
     case '2색': return 2;
@@ -109,8 +110,10 @@ function colorMultiplier(colorCount?: ColorCount): number {
 }
 
 // 한 방식의 (크기별 개수 × 대표수량) 총 인쇄비. 크기 버킷 합산. 단가표 없으면 null.
-// bulk(나염/자수/아플리케)은 색상 도수만큼 배수, flat(DTF/DTG)은 색 무관.
+// 나염(screen_printing)만: 색상 도수 배수 + 장당 마진(SCREEN_PRINT_MARGIN_PER_PIECE, 장당 1회).
+// flat(DTF/DTG)은 단가에 마진 포함·색 무관, 자수는 배수·마진 모두 없음.
 function methodTotal(
+  methodKey: PrintMethod,
   rows: CustomerPricingRow[],
   sizes: DesignSizeCounts | undefined,
   qty: number,
@@ -125,11 +128,13 @@ function methodTotal(
     const { w, h } = SIZE_CM[bucket];
     const q = quoteMethod(rows, w, h, qty);
     if (q.total === null) return null;
-    const factor = q.pricingModel === 'bulk' ? colorMult : 1;
+    const factor = methodKey === 'screen_printing' && q.pricingModel === 'bulk' ? colorMult : 1;
     total += q.total * factor * count;
     any = true;
   }
-  return any ? total : null;
+  if (!any) return null;
+  if (methodKey === 'screen_printing') total += SCREEN_PRINT_MARGIN_PER_PIECE * qty;
+  return total;
 }
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
@@ -148,22 +153,24 @@ export async function computeMethodQuotes(input: RecommendInput): Promise<Method
   const repDim = SIZE_CM[repBucket];
   const dtfRows = rowsByKey['dtf'] ?? [];
   // 현재 수량 기준 DTF 총액 (소량 묶음방식 비교용)
-  const dtfTotalAtQty = methodTotal(dtfRows, designSizes, qty, colorMult);
+  const dtfTotalAtQty = methodTotal('dtf', dtfRows, designSizes, qty, colorMult);
 
   const quotes: MethodQuoteLite[] = ALL_CHOICES.map((choice) => {
     const key = METHOD_LABEL_TO_KEY[choice];
     const rows = rowsByKey[key] ?? [];
-    const total = methodTotal(rows, designSizes, qty, colorMult);
+    const total = methodTotal(key, rows, designSizes, qty, colorMult);
     let thresholdNote: string | null = null;
     let smallBulkNote = false;
     if (BULK_CHOICES.has(choice) && rows.length > 0 && dtfRows.length > 0) {
-      // 색상 도수 배수를 반영한 "N벌 이상 유리" 분기점 (bulk×도수 ≤ DTF)
+      // "N벌 이상 유리" 분기점 — 나염은 도수 배수+장당 마진 포함해 DTF와 비교
+      const mult = key === 'screen_printing' ? colorMult : 1;
+      const marginPerPiece = key === 'screen_printing' ? SCREEN_PRINT_MARGIN_PER_PIECE : 0;
       let t: number | null = null;
       for (let q = 1; q <= 1000; q += 1) {
         const bulk = quoteMethod(rows, repDim.w, repDim.h, q).total;
         const dtf = quoteMethod(dtfRows, repDim.w, repDim.h, q).total;
         if (bulk == null || dtf == null) continue;
-        if (bulk * colorMult <= dtf) { t = q; break; }
+        if (bulk * mult + marginPerPiece * q <= dtf) { t = q; break; }
       }
       if (t != null) thresholdNote = `${t}벌 이상 유리`;
       // 이 수량에선 묶음방식이 DTF보다 비쌈 → 소량 안내
