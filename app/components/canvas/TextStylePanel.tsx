@@ -30,7 +30,12 @@ import {
   isCurvedText,
   convertToCurvedText,
 } from '@/lib/curvedText';
-import { SYSTEM_FONT_NAMES } from '@/lib/fontConfig';
+import {
+  SYSTEM_FONT_NAMES,
+  fontSupportsKorean,
+  hasKoreanText,
+  KOREAN_FALLBACK_FAMILY,
+} from '@/lib/fontConfig';
 
 interface TextStylePanelProps {
   selectedObject: fabric.IText | fabric.Text;
@@ -71,6 +76,9 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   const [showTextEditModal, setShowTextEditModal] = useState(false);
   const [editingText, setEditingText] = useState('');
 
+  // 선택된 객체의 현재 텍스트 (한글 폴백 안내 표시 판정용)
+  const [objectText, setObjectText] = useState<string>('');
+
   // Get custom fonts from store
   const { customFonts, addFont, loadAllFonts } = useFontStore();
 
@@ -80,6 +88,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   // Initialize state from selected object
   useEffect(() => {
     if (selectedObject) {
+      setObjectText(((selectedObject as { text?: string }).text as string) || '');
       setFontFamily((selectedObject.fontFamily as string) || 'Arial');
       setFontSize((selectedObject.fontSize as number) || 30);
       setFillColor((selectedObject.fill as string) || '#333333');
@@ -109,6 +118,20 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
   useEffect(() => {
     setIsFontDropdownOpen(false);
   }, [activeTab, selectedObject]);
+
+  // 캔버스에서 직접 텍스트를 입력/수정할 때도 한글 폴백 안내가 즉시 반영되도록 동기화
+  useEffect(() => {
+    if (!selectedObject) return;
+    const emitter = selectedObject as unknown as {
+      on: (event: string, handler: () => void) => void;
+      off: (event: string, handler: () => void) => void;
+    };
+    const sync = () => setObjectText(((selectedObject as { text?: string }).text as string) || '');
+    emitter.on('changed', sync);
+    return () => {
+      emitter.off('changed', sync);
+    };
+  }, [selectedObject]);
 
   useEffect(() => {
     if (!isFontDropdownOpen) return;
@@ -398,6 +421,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
       selectedObject.set('text', editingText);
       selectedObject.canvas?.renderAll();
     }
+    setObjectText(editingText);
     setShowTextEditModal(false);
   };
 
@@ -406,6 +430,10 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
     setShowTextEditModal(false);
     setEditingText('');
   };
+
+  // 선택한 글꼴이 한글을 지원하지 않는데 한글이 입력된 경우 → 폴백 안내 표시
+  const showKoreanFallbackNotice =
+    hasKoreanText(objectText) && !fontSupportsKorean(fontFamily);
 
   return (
     <>
@@ -726,6 +754,18 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
                   </span>
                   <ChevronDown className="size-4 shrink-0 text-gray-600" />
                 </button>
+
+                {/* 한글 미지원 글꼴 안내: 한글은 기본 폰트로 표시·인쇄됨 */}
+                {showKoreanFallbackNotice && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                    <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      &lsquo;{fontFamily}&rsquo; 글꼴은 한글을 지원하지 않아, 한글은
+                      기본 글꼴(<span className="font-semibold">{KOREAN_FALLBACK_FAMILY}</span>)로
+                      표시·인쇄됩니다.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Font Size */}

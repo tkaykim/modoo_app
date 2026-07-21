@@ -9,6 +9,8 @@ import { formatCm, calculateObjectDimensionsMm, updateObjectDimensionsData } fro
 import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
 // Import CurvedText to register the class with fabric.js for deserialization
 import '@/lib/curvedText';
+// 한글 폴백 폰트 패치 (Fabric 텍스트 렌더링에 Pretendard 폴백 주입 — 임포트 시 자동 적용)
+import { ensureKoreanFallbackFontLoaded } from '@/lib/fabricFontFallback';
 
 
 interface SingleSideCanvasProps {
@@ -208,6 +210,12 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     if (!canvasEl.current) {
       return; // if the canvas element is not initialized properly pass this code
     }
+
+    // 한글 폴백 폰트(Pretendard)를 미리 로드하고, 로드되면 캔버스를 다시 그려
+    // 영문 전용 폰트에 입력된 한글이 첫 렌더부터 깨지지 않게 한다.
+    ensureKoreanFallbackFontLoaded().then(() => {
+      canvasRef.current?.requestRenderAll();
+    });
 
     const canvas = new fabric.Canvas(canvasEl.current, {
       width,
@@ -733,6 +741,10 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         if (!isSessionActive()) return;
 
         if (validResults.length === 0) {
+          // 목업 레이어가 하나도 안 떠도 이 면은 "처리 끝"으로 표시한다.
+          // 안 그러면 뷰어의 sides.every(imageLoadedMap) 게이트가 영영 안 풀려
+          // 디자인 복원이 통째로 멈추고 빈 제품만 보인다(시안확인 '빈 티셔츠' 버그).
+          markImageLoaded(side.id);
           setIsLoading(false);
           return;
         }
@@ -851,12 +863,16 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         });
       }).catch(() => {
         if (!isSessionActive()) return;
+        // 레이어 로드 실패 시에도 게이트는 풀어준다(빈 티셔츠 방지).
+        markImageLoaded(side.id);
         setIsLoading(false);
       });
     } else {
       // Legacy single-image mode: use imageUrl (or selected color's per-side mockup override)
       const imageUrl = sideMockupOverride ?? side.imageUrl;
       if (!imageUrl) {
+        // 목업 URL이 없는 면도 "처리 끝"으로 표시(뷰어 복원 게이트 해제).
+        markImageLoaded(side.id);
         setIsLoading(false);
         return;
       }
@@ -907,6 +923,9 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         if (!isSessionActive()) return;
 
         if (!img) {
+          // 목업 이미지 로드/디코드 실패(네트워크·타임아웃·CORS)에도
+          // 게이트는 풀어준다 — 한 면 실패가 전체 디자인 복원을 막지 않도록.
+          markImageLoaded(side.id);
           setIsLoading(false);
           return;
         }

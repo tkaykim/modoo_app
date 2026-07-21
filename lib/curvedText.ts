@@ -1,4 +1,5 @@
 import * as fabric from 'fabric';
+import { KOREAN_FALLBACK_CSS } from './fontConfig';
 
 /**
  * CurvedText - Custom canvas object that renders text along a curve
@@ -299,7 +300,9 @@ export class CurvedText extends fabric.FabricObject {
    * Build CSS font string
    */
   private _buildFont(): string {
-    return `${this.fontStyle} ${this.fontWeight} ${this.fontSize}px "${this.fontFamily}"`;
+    // 한글 폴백(Pretendard)을 덧붙여, 영문 전용 폰트에 한글이 섞여도
+    // 글자 단위로 한글이 기본 폰트로 렌더링되게 한다.
+    return `${this.fontStyle} ${this.fontWeight} ${this.fontSize}px "${this.fontFamily}", ${KOREAN_FALLBACK_CSS}`;
   }
 
   /**
@@ -725,7 +728,7 @@ export function createCurvedTextFromText(
   const tempCanvas = document.createElement('canvas');
   const ctx = tempCanvas.getContext('2d')!;
   const fontSize = source.fontSize || 40;
-  ctx.font = `${source.fontStyle || 'normal'} ${source.fontWeight || 'normal'} ${fontSize}px "${source.fontFamily || 'Arial'}"`;
+  ctx.font = `${source.fontStyle || 'normal'} ${source.fontWeight || 'normal'} ${fontSize}px "${source.fontFamily || 'Arial'}", ${KOREAN_FALLBACK_CSS}`;
   const metrics = ctx.measureText(source.text || 'Text');
   const textWidth = metrics.width;
 

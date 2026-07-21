@@ -4,7 +4,11 @@ import { uploadSVGToStorage, uploadDataUrlToStorage, UploadResult } from './supa
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { CurvedText, isCurvedText } from './curvedText';
-import { SYSTEM_FONT_PATH_MAP } from './fontConfig';
+import {
+  SYSTEM_FONT_PATH_MAP,
+  KOREAN_FALLBACK_FONT_PATH,
+  KOREAN_FALLBACK_FONT_PATH_BOLD,
+} from './fontConfig';
 
 // Default DPI for high-resolution export (300 DPI for print quality)
 const EXPORT_DPI = 300;
@@ -68,15 +72,57 @@ async function loadFont(
 }
 
 /**
- * Convert regular text to SVG path data using opentype.js
+ * Load the Korean fallback font (Pretendard) for glyph-level fallback.
+ * 영문 전용 폰트(Arial→Arimo 등)에는 한글 글리프가 없어 .notdef(빈 글자)로
+ * 추출되던 문제를 막기 위해, 한글 글자는 이 폰트의 글리프로 대체한다.
+ */
+async function loadKoreanFallbackFont(bold = false): Promise<opentype.Font | null> {
+  const url = bold ? KOREAN_FALLBACK_FONT_PATH_BOLD : KOREAN_FALLBACK_FONT_PATH;
+  if (fontCache.has(url)) {
+    return fontCache.get(url)!;
+  }
+  try {
+    const font = await opentype.load(url);
+    fontCache.set(url, font);
+    return font;
+  } catch (error) {
+    console.error('[SVG Export] Failed to load Korean fallback font:', error);
+    return null;
+  }
+}
+
+/** fontWeight 값이 굵게(bold)인지 판정 */
+function isBoldWeight(fontWeight: unknown): boolean {
+  if (fontWeight === 'bold') return true;
+  const n = Number(fontWeight);
+  return Number.isFinite(n) && n >= 600;
+}
+
+/**
+ * 해당 글자의 글리프를 가진 폰트를 고른다.
+ * 선택한 폰트(primary)에 글리프가 있으면 그대로, 없으면(한글 등) 폴백 폰트를 쓴다.
+ */
+function pickGlyphFont(
+  char: string,
+  primary: opentype.Font,
+  fallback: opentype.Font | null
+): opentype.Font {
+  if (primary.charToGlyphIndex(char) !== 0) return primary;
+  if (fallback && fallback.charToGlyphIndex(char) !== 0) return fallback;
+  return primary;
+}
+
+/**
+ * Convert regular text to SVG path data using opentype.js.
+ * fallbackFont 가 주어지면 글자별로 글리프 폴백을 적용한다(한글 등).
  */
 function textToPathData(
   text: string,
   font: opentype.Font,
   fontSize: number,
-  charSpacing: number = 0
+  charSpacing: number = 0,
+  fallbackFont: opentype.Font | null = null
 ): string {
-  const scale = fontSize / font.unitsPerEm;
   const spacing = (charSpacing / 1000) * fontSize;
 
   const pathCommands: string[] = [];
@@ -84,7 +130,9 @@ function textToPathData(
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    const glyph = font.charToGlyph(char);
+    const glyphFont = pickGlyphFont(char, font, fallbackFont);
+    const scale = fontSize / glyphFont.unitsPerEm;
+    const glyph = glyphFont.charToGlyph(char);
     const glyphPath = glyph.getPath(currentX, 0, fontSize);
 
     for (const cmd of glyphPath.commands) {
@@ -125,22 +173,30 @@ function getTextMetrics(
   text: string,
   font: opentype.Font,
   fontSize: number,
-  charSpacing: number = 0
+  charSpacing: number = 0,
+  fallbackFont: opentype.Font | null = null
 ): { width: number; height: number; ascender: number; descender: number } {
-  const scale = fontSize / font.unitsPerEm;
   const spacing = (charSpacing / 1000) * fontSize;
 
   let width = 0;
+  let usedFallback = false;
   for (let i = 0; i < text.length; i++) {
-    const glyph = font.charToGlyph(text[i]);
-    width += (glyph.advanceWidth || 0) * scale;
+    const glyphFont = pickGlyphFont(text[i], font, fallbackFont);
+    if (glyphFont !== font) usedFallback = true;
+    const glyph = glyphFont.charToGlyph(text[i]);
+    width += (glyph.advanceWidth || 0) * (fontSize / glyphFont.unitsPerEm);
     if (i < text.length - 1) {
       width += spacing;
     }
   }
 
-  const ascender = font.ascender * scale;
-  const descender = Math.abs(font.descender * scale);
+  let ascender = (font.ascender / font.unitsPerEm) * fontSize;
+  let descender = Math.abs((font.descender / font.unitsPerEm) * fontSize);
+  // 한글 폴백 글리프가 섞였으면 세로 정렬이 깨지지 않도록 더 큰 ascender/descender 사용
+  if (usedFallback && fallbackFont) {
+    ascender = Math.max(ascender, (fallbackFont.ascender / fallbackFont.unitsPerEm) * fontSize);
+    descender = Math.max(descender, Math.abs((fallbackFont.descender / fallbackFont.unitsPerEm) * fontSize));
+  }
   const height = ascender + descender;
 
   return { width, height, ascender, descender };
@@ -191,7 +247,8 @@ function curvedTextToPathData(
   font: opentype.Font,
   fontSize: number,
   curveIntensity: number,
-  charSpacing: number = 0
+  charSpacing: number = 0,
+  fallbackFont: opentype.Font | null = null
 ): string | null {
   if (!text || curveIntensity === 0) return null;
 
@@ -201,14 +258,14 @@ function curvedTextToPathData(
 
   if (arcAngle < 0.01) return null;
 
-  const scale = fontSize / font.unitsPerEm;
   const spacing = (charSpacing / 1000) * fontSize;
 
-  // Calculate total text width
+  // Calculate total text width (글자별 폴백 폰트 기준)
   let totalWidth = 0;
   for (let i = 0; i < text.length; i++) {
-    const glyph = font.charToGlyph(text[i]);
-    totalWidth += (glyph.advanceWidth || 0) * scale;
+    const glyphFont = pickGlyphFont(text[i], font, fallbackFont);
+    const glyph = glyphFont.charToGlyph(text[i]);
+    totalWidth += (glyph.advanceWidth || 0) * (fontSize / glyphFont.unitsPerEm);
     if (i < text.length - 1) {
       totalWidth += spacing;
     }
@@ -226,7 +283,9 @@ function curvedTextToPathData(
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    const glyph = font.charToGlyph(char);
+    const glyphFont = pickGlyphFont(char, font, fallbackFont);
+    const glyphScale = fontSize / glyphFont.unitsPerEm;
+    const glyph = glyphFont.charToGlyph(char);
     const glyphPath = glyph.getPath(0, 0, fontSize);
 
     for (const cmd of glyphPath.commands) {
@@ -331,7 +390,7 @@ function curvedTextToPathData(
       }
     }
 
-    currentX += (glyph.advanceWidth || 0) * scale + spacing;
+    currentX += (glyph.advanceWidth || 0) * glyphScale + spacing;
   }
 
   return pathCommands.join(' ');
@@ -378,14 +437,17 @@ async function generateCurvedTextPathSVG(
     };
   }
 
+  // 한글 폴백 폰트 (선택 폰트에 한글 글리프가 없을 때 글자별로 대체)
+  const fallbackFont = await loadKoreanFallbackFont(isBoldWeight(curvedText.fontWeight));
+
   // For straight text (no curve), use regular path conversion
   if (curveIntensity === 0) {
-    const pathData = textToPathData(text, font, fontSize, charSpacing);
+    const pathData = textToPathData(text, font, fontSize, charSpacing, fallbackFont);
     if (!pathData) {
       return { svg: curvedText.toSVG(), pathData: null };
     }
 
-    const metrics = getTextMetrics(text, font, fontSize, charSpacing);
+    const metrics = getTextMetrics(text, font, fontSize, charSpacing, fallbackFont);
     const transforms: string[] = [];
     transforms.push(`translate(${left}, ${top})`);
     if (angle !== 0) transforms.push(`rotate(${angle})`);
@@ -411,7 +473,8 @@ async function generateCurvedTextPathSVG(
     font,
     fontSize,
     curveIntensity,
-    charSpacing
+    charSpacing,
+    fallbackFont
   );
 
   if (!pathData) {
@@ -546,8 +609,11 @@ async function generateTextPathSVG(
     };
   }
 
+  // 한글 폴백 폰트 (선택 폰트에 한글 글리프가 없을 때 글자별로 대체)
+  const fallbackFont = await loadKoreanFallbackFont(isBoldWeight(textObj.fontWeight));
+
   // Generate path data
-  const pathData = textToPathData(text, font, fontSize, charSpacing);
+  const pathData = textToPathData(text, font, fontSize, charSpacing, fallbackFont);
 
   if (!pathData) {
     return {
@@ -557,7 +623,7 @@ async function generateTextPathSVG(
   }
 
   // Calculate text metrics for positioning
-  const metrics = getTextMetrics(text, font, fontSize, charSpacing);
+  const metrics = getTextMetrics(text, font, fontSize, charSpacing, fallbackFont);
 
   // Calculate offset based on text alignment
   let alignOffsetX = 0;

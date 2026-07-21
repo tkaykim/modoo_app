@@ -6,6 +6,22 @@
   font-display: swap;
 }
 
+/* 한글 기본(폴백) 폰트 — 영문 전용 폰트에 한글 입력 시 이 폰트로 표시된다. */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/Pretendard-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/Pretendard-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -36,7 +52,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Pretendard', Arial, Helvetica, sans-serif;
 }
 
 
