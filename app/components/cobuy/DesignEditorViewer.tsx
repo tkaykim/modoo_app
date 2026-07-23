@@ -20,6 +20,27 @@ const GAP = 24;
 const LABEL_H = 24;
 const FIT_PADDING = 60;
 
+function countLiveUserObjects(canvas: { getObjects?: () => Array<{ excludeFromExport?: boolean; data?: { id?: string } }> } | undefined) {
+  if (!canvas?.getObjects) return 0;
+  return canvas.getObjects().filter((obj) => {
+    if (obj.excludeFromExport) return false;
+    if (obj.data?.id === 'background-product-image') return false;
+    return true;
+  }).length;
+}
+
+function countSavedUserObjects(raw: unknown) {
+  if (!raw) return 0;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray((parsed as { objects?: unknown[] }).objects)
+      ? ((parsed as { objects?: unknown[] }).objects?.length || 0)
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
 interface DesignEditorViewerProps {
   config: ProductConfig;
   canvasState: Record<string, string>;
@@ -30,6 +51,8 @@ interface DesignEditorViewerProps {
   fullscreen?: boolean;
   /** 'grid'(기본, 줌/팬 그리드) | 'carousel'(면별 탭+스와이프, 모바일 친화) */
   layout?: 'grid' | 'carousel';
+  /** Static fallback shown when live Fabric restore stalls in a customer browser. */
+  fallbackImageUrl?: string | null;
 }
 
 /**
@@ -47,6 +70,7 @@ export default function DesignEditorViewer({
   customFonts,
   fullscreen = false,
   layout = 'grid',
+  fallbackImageUrl,
 }: DesignEditorViewerProps) {
   const {
     activeSideId,
@@ -108,6 +132,10 @@ export default function DesignEditorViewer({
     }
     return out as Record<string, string>;
   }, [parsedCanvasState, originalSides, instanceNs]);
+  const restoreKey = useMemo(
+    () => JSON.stringify({ productId: config.productId, canvasState: nsCanvasState }),
+    [config.productId, nsCanvasState]
+  );
 
   // ── Store initialization ──
   useEffect(() => {
@@ -145,7 +173,21 @@ export default function DesignEditorViewer({
   // 기다리지 않으므로, 앞면이 먼저 뜨고 뒷면·옆면은 준비되는 대로 채워진다.
   // (병목 체감 최소화 + 다중 디자인 키 충돌은 nsCanvasState 네임스페이스로 이미 해결)
   const restoredRef = useRef<Set<string>>(new Set());
-  useEffect(() => { restoredRef.current = new Set(); fontsReadyRef.current = null; }, [nsCanvasState, config.productId]);
+  const [restoredState, setRestoredState] = useState<{ key: string; ids: Record<string, boolean> }>({ key: '', ids: {} });
+  const restoredIds = restoredState.key === restoreKey ? restoredState.ids : {};
+  const markRestored = useCallback((id: string) => {
+    setRestoredState((prev) => ({
+      key: restoreKey,
+      ids: {
+        ...(prev.key === restoreKey ? prev.ids : {}),
+        [id]: true,
+      },
+    }));
+  }, [restoreKey]);
+  useEffect(() => {
+    restoredRef.current = new Set();
+    fontsReadyRef.current = null;
+  }, [nsCanvasState, config.productId]);
 
   useEffect(() => {
     if (!nsCanvasState) return;
@@ -160,20 +202,28 @@ export default function DesignEditorViewer({
       if (!ready && !deadlinePassed) return;
       restoredRef.current.add(id); // 면당 1회만
       const raw = src[id];
-      if (raw === undefined || raw === null) return; // 이 면엔 복원할 시안 없음
+      if (raw === undefined || raw === null) {
+        markRestored(id);
+        return; // 이 면엔 복원할 시안 없음
+      }
       const json = typeof raw === 'string' ? raw : JSON.stringify(raw);
+      const expectedObjects = countSavedUserObjects(raw);
       (async () => {
         try {
           await prepareFonts();
           await restoreCanvasState(id, json);
           canvasMap[id]?.requestRenderAll();
+          const actualObjects = countLiveUserObjects(canvasMap[id] || canvas);
+          if (expectedObjects === 0 || actualObjects > 0) {
+            markRestored(id);
+          }
           incrementCanvasVersion();
         } catch (e) {
           console.error('[DesignEditorViewer] per-side restore failed:', id, e);
         }
       })();
     });
-  }, [canvasMap, imageLoadedMap, nsCanvasState, sides, deadlinePassed, restoreCanvasState, incrementCanvasVersion, prepareFonts]);
+  }, [canvasMap, imageLoadedMap, nsCanvasState, sides, deadlinePassed, restoreCanvasState, incrementCanvasVersion, prepareFonts, markRestored]);
 
   // ── Fit grid centered in container ──
   useEffect(() => {
@@ -355,7 +405,14 @@ export default function DesignEditorViewer({
   // 처음엔 앞면(첫 면)만 마운트해 즉시 보여주고, 그 면이 준비되면 다음 면을
   // 하나씩 마운트한다(직렬). 사용자가 스와이프로 이동한 면은 즉시 마운트.
   const [mountedCount, setMountedCount] = useState(1);
+  const fallbackKey = `${layout}:${restoreKey}`;
+  const [fallbackReadyKey, setFallbackReadyKey] = useState('');
+  const fallbackReady = fallbackReadyKey === fallbackKey;
   useEffect(() => { setMountedCount(1); }, [sides]);
+  useEffect(() => {
+    const t = setTimeout(() => setFallbackReadyKey(fallbackKey), 8000);
+    return () => clearTimeout(t);
+  }, [fallbackKey]);
   useEffect(() => {
     if (layout !== 'carousel') return;
     if (mountedCount >= sides.length) return;
@@ -396,6 +453,23 @@ export default function DesignEditorViewer({
     const t = setTimeout(measure, 200); // 모달 애니메이션 후 재측정
     return () => { window.removeEventListener('resize', measure); clearTimeout(t); };
   }, [layout, sides.length, fullscreen]);
+
+  const activeOriginalSide = originalSides[carIdx];
+  const activeNamespacedSide = sides[carIdx];
+  const activeRawState = activeOriginalSide && parsedCanvasState
+    ? (parsedCanvasState as Record<string, unknown>)[activeOriginalSide.id]
+    : null;
+  const activeHasObjects = useMemo(() => {
+    return countSavedUserObjects(activeRawState) > 0;
+  }, [activeRawState]);
+  const showStaticFallback = Boolean(
+    layout === 'carousel'
+    && fallbackImageUrl
+    && fallbackReady
+    && activeNamespacedSide
+    && activeHasObjects
+    && !restoredIds[activeNamespacedSide.id]
+  );
 
   if (layout === 'carousel') {
     return (
@@ -450,6 +524,15 @@ export default function DesignEditorViewer({
               </div>
             ))}
           </div>
+          {showStaticFallback && (
+            <div className="absolute inset-0 bg-neutral-100 flex items-center justify-center px-5">
+              <img
+                src={fallbackImageUrl || ''}
+                alt="시안 미리보기"
+                className="w-full h-full max-w-full max-h-full object-contain"
+              />
+            </div>
+          )}
           {/* 좌우 화살표 (1면 초과일 때) */}
           {sides.length > 1 && (
             <>

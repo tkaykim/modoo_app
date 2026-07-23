@@ -284,6 +284,7 @@ export default function DesignReviewPage() {
                         canvasState={cs as Record<string, string>}
                         productColor={item.product_color || '#FFFFFF'}
                         customFonts={(item.custom_fonts || []) as never}
+                        fallbackImageUrl={item.thumbnail_url}
                         layout="carousel"
                       />
                     </div>
