@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:regression": "node --experimental-strip-types --test lib/canvasUtils.regression-1.test.ts"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",

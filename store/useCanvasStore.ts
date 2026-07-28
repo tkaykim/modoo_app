@@ -8,7 +8,7 @@ import {
   type SVGExportResult
 } from '@/lib/canvas-svg-export';
 import { createClient } from '@/lib/supabase-client';
-import { calculateTotalBoundingBoxMm } from '@/lib/canvasUtils';
+import { calculateTotalBoundingBoxMm, updateObjectDimensionsData } from '@/lib/canvasUtils';
 import { collectFontFamilies, ensureFontsLoaded } from '@/lib/ensureFonts';
 
 
@@ -332,6 +332,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const canvasData = {
         version: canvas.toJSON().version,
         objects: userObjects.map(obj => {
+          // 저장 시점의 실제 캔버스 경계와 현재 캘리브레이션으로 객체별 mm를
+          // 다시 계산한다. 과거 편집 시점에 박제된 widthMm/heightMm가 남아
+          // 관리자 캔버스와 사이드 패널이 서로 다른 크기를 표시하지 않게 한다.
+          if (scaledImageWidth) {
+            updateObjectDimensionsData(
+              obj,
+              scaledImageWidth,
+              realWorldProductWidth,
+              calibrationCanvasMmPerPx
+            );
+          }
           // Use toObject to include custom properties
           const json = obj.toObject(['data']);
           // For image objects, ensure we preserve the src
@@ -501,6 +512,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const canvasData = {
       version: canvas.toJSON().version,
       objects: userObjects.map(obj => {
+        if (scaledImageWidth) {
+          updateObjectDimensionsData(
+            obj,
+            scaledImageWidth,
+            realWorldProductWidth,
+            calibrationCanvasMmPerPx
+          );
+        }
         // Use toObject to include custom properties
         const json = obj.toObject(['data']);
         // For image objects, ensure we preserve the src
@@ -648,6 +667,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       // Convert objects
       const serializedObjects = userObjects.map((obj) => {
+        if (scaledImageWidth) {
+          updateObjectDimensionsData(
+            obj,
+            scaledImageWidth,
+            realWorldProductWidth,
+            calibrationCanvasMmPerPx
+          );
+        }
         // Regular object serialization (CurvedText handles its own SVG in toSVG)
         const json = obj.toObject(['data']);
         if (obj.type === 'image') {
@@ -709,6 +736,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
     // Convert objects (CurvedText handles its own SVG in toSVG)
     const serializedObjects = userObjects.map((obj) => {
+      if (scaledImageWidth) {
+        updateObjectDimensionsData(
+          obj,
+          scaledImageWidth,
+          realWorldProductWidth,
+          calibrationCanvasMmPerPx
+        );
+      }
       const json = obj.toObject(['data']);
       if (obj.type === 'image') {
         const imgObj = obj as fabric.FabricImage;
