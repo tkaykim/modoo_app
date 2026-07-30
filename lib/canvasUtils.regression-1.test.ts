@@ -17,7 +17,9 @@ test('save-time measurement replaces stale stored object dimensions', () => {
       width: 292.1,
       height: 404.4,
     }),
-  } as unknown as fabric.FabricObject;
+  } as unknown as fabric.FabricObject & {
+    data: Record<string, unknown>;
+  };
 
   updateObjectDimensionsData(object, 1000, 500, 1);
 

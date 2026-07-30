@@ -2,9 +2,22 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { uploadFileToStorage, deleteFileFromStorage, UploadResult } from './supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import { reportHandledError } from './reportHandledError';
+import opentype from 'opentype.js';
 
 export interface FontMetadata {
-  fontFamily: string; // Display name/family name
+  /**
+   * Unique CSS family alias used by Fabric/Canvas.
+   * New uploads are fingerprinted so an uploaded file can never be confused
+   * with an operating-system font that happens to have the same filename.
+   */
+  fontFamily: string;
+  /** Human-readable family parsed from the font file. */
+  displayName?: string;
+  fontSubfamily?: string;
+  postscriptName?: string;
+  fingerprint?: string;
+  intrinsicWeight?: number;
+  intrinsicStyle?: 'normal' | 'italic';
   fileName: string; // Original file name
   url: string; // Public URL from Supabase
   path: string; // Storage path for deletion
@@ -17,12 +30,78 @@ export interface FontMetadata {
  */
 const SUPPORTED_FONT_EXTENSIONS = ['ttf', 'otf', 'woff', 'woff2'] as const;
 
+function getLocalizedFontName(
+  value: Record<string, string> | string | undefined
+): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value.trim() || undefined;
+  return value.en || value.ko || Object.values(value).find(Boolean);
+}
+
+async function fingerprintFont(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest))
+    .slice(0, 8)
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function inspectFontFile(file: File): Promise<{
+  displayName: string;
+  fontSubfamily?: string;
+  postscriptName?: string;
+  intrinsicWeight?: number;
+  intrinsicStyle?: 'normal' | 'italic';
+  fingerprint: string;
+}> {
+  const fileBaseName = file.name.replace(/\.(ttf|otf|woff|woff2)$/i, '').trim();
+  const fingerprint = await fingerprintFont(file);
+
+  try {
+    // opentype.js supports TTF/OTF/WOFF.
+    // WOFF2 still receives a deterministic alias via the filename fallback.
+    const font = opentype.parse(await file.arrayBuffer());
+    const names = font.names as unknown as Record<string, Record<string, string> | string | undefined>;
+    const displayName =
+      getLocalizedFontName(names.preferredFamily) ||
+      getLocalizedFontName(names.fontFamily) ||
+      fileBaseName ||
+      'Custom Font';
+    const fontSubfamily =
+      getLocalizedFontName(names.preferredSubfamily) ||
+      getLocalizedFontName(names.fontSubfamily);
+    const postscriptName = getLocalizedFontName(names.postScriptName);
+    const tables = font.tables as unknown as {
+      os2?: { usWeightClass?: number; fsSelection?: number };
+      post?: { italicAngle?: number };
+    };
+    const italicBySelection = Boolean((tables.os2?.fsSelection ?? 0) & 0x01);
+    const italicByAngle = Math.abs(tables.post?.italicAngle ?? 0) > 0.01;
+
+    return {
+      displayName,
+      fontSubfamily,
+      postscriptName,
+      intrinsicWeight: tables.os2?.usWeightClass,
+      intrinsicStyle: italicBySelection || italicByAngle ? 'italic' : 'normal',
+      fingerprint,
+    };
+  } catch {
+    return {
+      displayName: fileBaseName || 'Custom Font',
+      fingerprint,
+    };
+  }
+}
+
 /**
  * Check if a file is a valid font file
  */
 export function isValidFontFile(file: File): boolean {
   const ext = file.name.split('.').pop()?.toLowerCase();
-  return SUPPORTED_FONT_EXTENSIONS.includes(ext as any);
+  return SUPPORTED_FONT_EXTENSIONS.includes(
+    ext as (typeof SUPPORTED_FONT_EXTENSIONS)[number]
+  );
 }
 
 /**
@@ -46,15 +125,13 @@ export async function uploadFont(
       };
     }
 
-    // Extract font family name from file name (remove extension)
-    const fontFamily = fontFile.name.replace(/\.(ttf|otf|woff|woff2)$/i, '');
+    const inspected = await inspectFontFile(fontFile);
+    const safeDisplayName = inspected.displayName.replace(/["']/g, '').trim() || 'Custom Font';
+    const fontFamily = `Modoo Custom ${safeDisplayName} ${inspected.fingerprint.slice(0, 8)}`;
     const format = fontFile.name.split('.').pop()?.toLowerCase() as FontMetadata['format'];
 
-    // Generate unique file name with design ID if provided
-    const timestamp = Date.now();
-    const uniqueId = Math.random().toString(36).substring(7);
-    const designPrefix = designId ? `${designId}-` : '';
-    const fileName = `${designPrefix}${timestamp}-${uniqueId}.${format}`;
+    // The shared storage helper generates the collision-safe object path.
+    void designId;
 
     // 브라우저는 폰트를 흔히 application/octet-stream 으로 올리는데, user-fonts
     // 버킷 allowed_mime_types 에 없어 업로드가 거부된다. 확장자 기반 폰트 MIME을
@@ -94,6 +171,12 @@ export async function uploadFont(
     // Create font metadata
     const fontMetadata: FontMetadata = {
       fontFamily,
+      displayName: inspected.displayName,
+      fontSubfamily: inspected.fontSubfamily,
+      postscriptName: inspected.postscriptName,
+      fingerprint: inspected.fingerprint,
+      intrinsicWeight: inspected.intrinsicWeight,
+      intrinsicStyle: inspected.intrinsicStyle,
       fileName: fontFile.name,
       url: uploadResult.url,
       path: uploadResult.path,

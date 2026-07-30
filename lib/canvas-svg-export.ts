@@ -9,6 +9,11 @@ import {
   KOREAN_FALLBACK_FONT_PATH,
   KOREAN_FALLBACK_FONT_PATH_BOLD,
 } from './fontConfig';
+import {
+  SYNTHETIC_ITALIC_DEG,
+  isBoldWeight,
+  styledPathMarkup,
+} from './text-vector-style';
 
 // Default DPI for high-resolution export (300 DPI for print quality)
 const EXPORT_DPI = 300;
@@ -89,13 +94,6 @@ async function loadKoreanFallbackFont(bold = false): Promise<opentype.Font | nul
     console.error('[SVG Export] Failed to load Korean fallback font:', error);
     return null;
   }
-}
-
-/** fontWeight 값이 굵게(bold)인지 판정 */
-function isBoldWeight(fontWeight: unknown): boolean {
-  if (fontWeight === 'bold') return true;
-  const n = Number(fontWeight);
-  return Number.isFinite(n) && n >= 600;
 }
 
 /**
@@ -215,14 +213,15 @@ function warpPoint(
   arcAngle: number,
   offsetY: number,
   intensity: number,
-  fontSize: number
+  fontSize: number,
+  italicSkewTan: number = 0
 ): { x: number; y: number } {
   // Convert glyph y to distance from baseline
   const baselineOffset = fontSize * 0.75;
   const distFromBaseline = -(y - baselineOffset);
 
   // Position along the arc (0 to 1)
-  const globalX = charOffset + x;
+  const globalX = charOffset + x - italicSkewTan * y;
   const t = globalX / totalWidth;
 
   // Angle at this position
@@ -248,7 +247,8 @@ function curvedTextToPathData(
   fontSize: number,
   curveIntensity: number,
   charSpacing: number = 0,
-  fallbackFont: opentype.Font | null = null
+  fallbackFont: opentype.Font | null = null,
+  italic: boolean = false
 ): string | null {
   if (!text || curveIntensity === 0) return null;
 
@@ -259,6 +259,7 @@ function curvedTextToPathData(
   if (arcAngle < 0.01) return null;
 
   const spacing = (charSpacing / 1000) * fontSize;
+  const italicSkewTan = italic ? Math.tan((SYNTHETIC_ITALIC_DEG * Math.PI) / 180) : 0;
 
   // Calculate total text width (글자별 폴백 폰트 기준)
   let totalWidth = 0;
@@ -300,7 +301,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         pathCommands.push(`M ${formatNum(p.x)} ${formatNum(p.y)}`);
       } else if (cmd.type === 'L') {
@@ -314,7 +316,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         pathCommands.push(`L ${formatNum(p.x)} ${formatNum(p.y)}`);
       } else if (cmd.type === 'C') {
@@ -328,7 +331,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         const p2 = warpPoint(
           cmd.x2!,
@@ -340,7 +344,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         const p = warpPoint(
           cmd.x!,
@@ -352,7 +357,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         pathCommands.push(
           `C ${formatNum(p1.x)} ${formatNum(p1.y)} ${formatNum(p2.x)} ${formatNum(p2.y)} ${formatNum(p.x)} ${formatNum(p.y)}`
@@ -368,7 +374,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         const p = warpPoint(
           cmd.x!,
@@ -380,7 +387,8 @@ function curvedTextToPathData(
           arcAngle,
           offsetY,
           intensity,
-          fontSize
+          fontSize,
+          italicSkewTan
         );
         pathCommands.push(
           `Q ${formatNum(p1.x)} ${formatNum(p1.y)} ${formatNum(p.x)} ${formatNum(p.y)}`
@@ -455,13 +463,19 @@ async function generateCurvedTextPathSVG(
     // CurvedText is center-aligned
     transforms.push(`translate(${-metrics.width / 2}, ${-metrics.ascender})`);
 
-    const strokeAttr =
-      stroke && strokeWidth > 0
-        ? ` stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}"`
-        : '';
+    const styledPath = styledPathMarkup({
+      pathData,
+      fill,
+      stroke,
+      strokeWidth,
+      fontSize,
+      fontWeight: curvedText.fontWeight,
+      fontStyle: curvedText.fontStyle,
+      opacity,
+    });
 
     const svg = `<g transform="${transforms.join(' ')}">
-  <path d="${pathData}" fill="${escapeXml(fill)}" opacity="${opacity}"${strokeAttr} />
+  ${styledPath}
 </g>`;
 
     return { svg, pathData };
@@ -474,7 +488,8 @@ async function generateCurvedTextPathSVG(
     fontSize,
     curveIntensity,
     charSpacing,
-    fallbackFont
+    fallbackFont,
+    curvedText.fontStyle?.toLowerCase() === 'italic'
   );
 
   if (!pathData) {
@@ -490,13 +505,20 @@ async function generateCurvedTextPathSVG(
   if (angle !== 0) transforms.push(`rotate(${angle})`);
   if (scaleX !== 1 || scaleY !== 1) transforms.push(`scale(${scaleX}, ${scaleY})`);
 
-  const strokeAttr =
-    stroke && strokeWidth > 0
-      ? ` stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}"`
-      : '';
+  const styledPath = styledPathMarkup({
+    pathData,
+    fill,
+    stroke,
+    strokeWidth,
+    fontSize,
+    fontWeight: curvedText.fontWeight,
+    fontStyle: curvedText.fontStyle,
+    opacity,
+    applyItalicTransform: false,
+  });
 
   const svg = `<g transform="${transforms.join(' ')}">
-  <path d="${pathData}" fill="${escapeXml(fill)}" opacity="${opacity}"${strokeAttr} />
+  ${styledPath}
 </g>`;
 
   console.log(`[SVG Export] CurvedText "${text}" converted to PATH with curve=${curveIntensity}`);
@@ -656,16 +678,19 @@ async function generateTextPathSVG(
     ` data-converted-from="text"` +
     (printMethod ? ` data-print-method="${escapeXml(printMethod)}"` : '');
 
-  const strokeAttr =
-    stroke && strokeWidth > 0
-      ? ` stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}"`
-      : '';
+  const styledPath = styledPathMarkup({
+    pathData,
+    fill,
+    stroke,
+    strokeWidth,
+    fontSize,
+    fontWeight: textObj.fontWeight,
+    fontStyle: textObj.fontStyle,
+    opacity,
+  });
 
   const svg = `<g${objectWrapperAttrs} transform="${transformAttr}">
-  <path d="${pathData}"
-    fill="${escapeXml(fill)}"
-    opacity="${opacity}"${strokeAttr}
-  />
+  ${styledPath}
 </g>`;
 
   return { svg, pathData };

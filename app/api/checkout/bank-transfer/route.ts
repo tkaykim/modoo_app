@@ -9,6 +9,10 @@ import { FontMetadata } from '@/lib/fontUtils';
 import { sendOrderNotificationEmails } from '@/lib/notifications/order';
 import { validateOrderPricing } from '@/lib/orderPricingValidator';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
+import {
+  extractCustomFontsFromCanvasState,
+  mergeCustomFonts,
+} from '@/lib/font-contract';
 import { getOrderUtmAttribution } from '@/lib/server-analytics';
 import { orderItemGroupKey } from '@/lib/orderGrouping';
 
@@ -310,6 +314,11 @@ export async function POST(request: NextRequest) {
 
       if (groupedItems.has(groupKey)) {
         const group = groupedItems.get(groupKey)!;
+        group.custom_fonts = mergeCustomFonts(
+          group.custom_fonts,
+          item.customFonts,
+          extractCustomFontsFromCanvasState(designCanvas)
+        );
         group.variants.push({
           size_id: item.size_id,
           size_name: item.size_name,
@@ -331,7 +340,11 @@ export async function POST(request: NextRequest) {
           thumbnail_url: savedDesign?.preview_url || item.thumbnail_url || null,
           image_urls: savedDesign?.image_urls || {},
           text_svg_exports: savedDesign?.text_svg_exports || item.textSvgExports,
-          custom_fonts: savedDesign?.custom_fonts || item.customFonts || [],
+          custom_fonts: mergeCustomFonts(
+            savedDesign?.custom_fonts,
+            item.customFonts,
+            extractCustomFontsFromCanvasState(designCanvas)
+          ),
           retouch_requested: savedDesign?.retouch_requested || item.retouchRequested || false,
           price_per_item: item.price_per_item,
           variants: [{
@@ -363,6 +376,7 @@ export async function POST(request: NextRequest) {
         item_options: { variants: group.variants },
         thumbnail_url: group.thumbnail_url,
         image_urls: group.image_urls,
+        text_svg_exports: group.text_svg_exports || {},
         custom_fonts: group.custom_fonts || [],
         retouch_requested: group.retouch_requested,
       };

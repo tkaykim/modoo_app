@@ -7,6 +7,10 @@ import {
 import { FontMetadata } from '@/lib/fontUtils';
 import { insertDesignerRequestsForOrder } from '@/lib/designerRequest';
 import { getOrderUtmAttribution } from '@/lib/server-analytics';
+import {
+  extractCustomFontsFromCanvasState,
+  mergeCustomFonts,
+} from '@/lib/font-contract';
 
 // Type definitions for request body
 interface OrderData {
@@ -199,10 +203,17 @@ export async function POST(request: NextRequest) {
     // Group items by design_id (or product_id if no design)
     for (const item of cartItems) {
       const groupKey = item.saved_design_id || `no-design-${item.product_id}`;
+      const savedDesign = item.saved_design_id ? savedDesignsMap.get(item.saved_design_id) : null;
+      const designCanvas = savedDesign?.canvas_state || item.canvasState || {};
 
       if (groupedItems.has(groupKey)) {
         // Add variant to existing group
         const group = groupedItems.get(groupKey)!;
+        group.custom_fonts = mergeCustomFonts(
+          group.custom_fonts,
+          item.customFonts,
+          extractCustomFontsFromCanvasState(designCanvas)
+        );
         group.variants.push({
           size_id: item.size_id,
           size_name: item.size_name,
@@ -213,9 +224,6 @@ export async function POST(request: NextRequest) {
           quantity: item.quantity,
         });
       } else {
-        // Get saved design data if available
-        const savedDesign = item.saved_design_id ? savedDesignsMap.get(item.saved_design_id) : null;
-
         // Create new group
         groupedItems.set(groupKey, {
           product_id: item.product_id,
@@ -228,7 +236,11 @@ export async function POST(request: NextRequest) {
           thumbnail_url: savedDesign?.preview_url || item.thumbnail_url || null,
           image_urls: savedDesign?.image_urls || {},
           text_svg_exports: savedDesign?.text_svg_exports || item.textSvgExports,
-          custom_fonts: savedDesign?.custom_fonts || item.customFonts || [],
+          custom_fonts: mergeCustomFonts(
+            savedDesign?.custom_fonts,
+            item.customFonts,
+            extractCustomFontsFromCanvasState(designCanvas)
+          ),
           price_per_item: item.price_per_item,
           variants: [{
             size_id: item.size_id,
@@ -264,6 +276,7 @@ export async function POST(request: NextRequest) {
         },
         thumbnail_url: group.thumbnail_url,
         image_urls: group.image_urls,
+        text_svg_exports: group.text_svg_exports || {},
         custom_fonts: group.custom_fonts || [], // Include custom fonts in order
       };
     });

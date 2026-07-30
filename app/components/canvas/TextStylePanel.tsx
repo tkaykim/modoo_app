@@ -84,6 +84,8 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
 
   // System font families from shared config
   const systemFonts = SYSTEM_FONT_NAMES;
+  const selectedFontDisplayName =
+    customFonts.find((font) => font.fontFamily === fontFamily)?.displayName || fontFamily;
 
   // Initialize state from selected object
   useEffect(() => {
@@ -160,10 +162,10 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
 
     // Find font URL from customFonts if not provided
     let url = fontUrl;
+    const fontMetadata = customFonts.find(f => f.fontFamily === value);
     if (!url) {
-      const customFont = customFonts.find(f => f.fontFamily === value);
-      if (customFont) {
-        url = customFont.url;
+      if (fontMetadata) {
+        url = fontMetadata.url;
       }
     }
 
@@ -187,8 +189,20 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
       const nextData = { ...existingData };
       if (url) {
         nextData.fontUrl = url;
+        nextData.fontMetadata = fontMetadata || {
+          fontFamily: value,
+          displayName: value,
+          fileName: value,
+          url,
+          path: '',
+          uploadedAt: new Date().toISOString(),
+          format: url.split('?')[0].split('.').pop()?.toLowerCase() || 'ttf',
+        };
+        nextData.fontDisplayName = fontMetadata?.displayName || value;
       } else {
         delete nextData.fontUrl;
+        delete nextData.fontMetadata;
+        delete nextData.fontDisplayName;
       }
       textObject.set('data', nextData);
       textObject.set('dirty', true);
@@ -343,7 +357,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
         handleFontFamilyChange(result.fontMetadata.fontFamily, result.fontMetadata.url);
 
         // Show copyright notice modal
-        setUploadedFontName(result.fontMetadata.fontFamily);
+        setUploadedFontName(result.fontMetadata.displayName || result.fontMetadata.fontFamily);
         setShowCopyrightNotice(true);
       } else {
         alert(`폰트 업로드 실패: ${result.error}`);
@@ -548,7 +562,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
                         {isSelected ? <Check className="size-4" /> : null}
                       </span>
                       <span className="flex-1 min-w-0 truncate" style={{ fontFamily: customFont.fontFamily }}>
-                        {customFont.fontFamily}
+                        {customFont.displayName || customFont.fontFamily}
                       </span>
                       <span className="shrink-0 text-sm text-gray-500" style={{ fontFamily: customFont.fontFamily }}>
                         Aa 가나다
@@ -750,7 +764,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent flex items-center justify-between gap-2"
                 >
                   <span className="truncate" style={{ fontFamily }}>
-                    {fontFamily}
+                    {selectedFontDisplayName}
                   </span>
                   <ChevronDown className="size-4 shrink-0 text-gray-600" />
                 </button>
@@ -760,7 +774,7 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedObject, onClose
                   <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                     <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
                     <p className="text-xs text-amber-700 leading-relaxed">
-                      &lsquo;{fontFamily}&rsquo; 글꼴은 한글을 지원하지 않아, 한글은
+                      &lsquo;{selectedFontDisplayName}&rsquo; 글꼴은 한글을 지원하지 않아, 한글은
                       기본 글꼴(<span className="font-semibold">{KOREAN_FALLBACK_FAMILY}</span>)로
                       표시·인쇄됩니다.
                     </p>

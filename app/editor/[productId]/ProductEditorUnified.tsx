@@ -40,6 +40,8 @@ import { useAuthStore } from "@/store/useAuthStore";
 import LoginPromptModal from "@/app/components/LoginPromptModal";
 import GuestDesignRecallModal from "@/app/components/GuestDesignRecallModal";
 import { getGuestDesign, removeGuestDesign, saveGuestDesign, createGuestDesignAutosaver, type GuestDesign } from "@/lib/guestDesignStorage";
+import { bindCustomFontsToCanvasState } from "@/lib/font-contract";
+import { exportTextAssetsForCheckout } from "@/lib/textAssetExport";
 import { setPrintPricingConfig } from "@/lib/printPricingConfig";
 import LandingStep from "./steps/LandingStep";
 import ColorSelectorModal from "@/app/components/canvas/ColorSelectorModal";
@@ -489,19 +491,27 @@ export default function ProductEditorUnified({
 
     if (!isAuthenticated) {
       // Guest flow: save to cart store (localStorage) and navigate
-      const canvasState = saveAllCanvasState();
+      const fontBoundDesign = bindCustomFontsToCanvasState(
+        saveAllCanvasState(),
+        useFontStore.getState().customFonts
+      );
+      const canvasState = fontBoundDesign.canvasState;
       const thumbnail = hasCheckoutCanvas ? generateProductThumbnail(checkoutCanvasMap, 'front', 200, 200) : '';
       const previewImage = await buildProofImage(checkoutCanvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
-      const customFonts = useFontStore.getState().customFonts;
+      const customFonts = fontBoundDesign.customFonts;
+      // One stable ID binds the cart variants and their immutable vector assets.
+      const guestDesignId = createGuestDesignId(product.id);
+      const textSvgExports = await exportTextAssetsForCheckout(
+        checkoutCanvasMap,
+        customFonts,
+        guestDesignId
+      );
 
       // Also save guest design as backup
       saveGuestDesign({ productId: product.id, productColor, canvasState, customFonts });
-
-      // Generate a shared design ID so all sizes from this design are grouped together
-      const guestDesignId = createGuestDesignId(product.id);
 
       for (const item of selectedItems) {
         addToCart({
@@ -518,6 +528,7 @@ export default function ProductEditorUnified({
           savedDesignId: guestDesignId,
           designName,
           customFonts,
+          textSvgExports,
           previewImage,
           retouchRequested,
           partnerMallId,
@@ -571,13 +582,17 @@ export default function ProductEditorUnified({
     }
     setIsSaving(true);
     try {
-      const canvasState = saveAllCanvasState();
+      const fontBoundDesign = bindCustomFontsToCanvasState(
+        saveAllCanvasState(),
+        useFontStore.getState().customFonts
+      );
+      const canvasState = fontBoundDesign.canvasState;
       const thumbnail = hasCheckoutCanvas ? generateProductThumbnail(checkoutCanvasMap, 'front', 200, 200) : '';
       const previewImage = await buildProofImage(checkoutCanvasMap);
       const selectedColor = productColors.find(c => c.manufacturer_colors.hex === productColor);
       const colorName = partnerMallBuyData?.colorName || selectedColor?.manufacturer_colors.name || '색상';
       const colorCode = partnerMallBuyData?.colorCode || selectedColor?.manufacturer_colors.color_code;
-      const customFonts = useFontStore.getState().customFonts;
+      const customFonts = fontBoundDesign.customFonts;
 
       let sharedDesignId: string | undefined;
       const newCartItemIds: string[] = [];

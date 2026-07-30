@@ -9,6 +9,8 @@ import { uploadSVGToStorage, uploadDataUrlToStorage } from './supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import { FontMetadata, deleteFonts } from './fontUtils';
 import { formatKstDateTimeMedium } from './kst';
+import { bindCustomFontsToCanvasState } from './font-contract';
+import { isPathOnlyTextSvg } from './text-vector-style';
 
 export interface SaveDesignData {
   productId: string;
@@ -57,8 +59,12 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
       throw new Error('User must be authenticated to save designs');
     }
 
+    const fontBoundDesign = bindCustomFontsToCanvasState(data.canvasState, data.customFonts);
+    const canonicalCanvasState = fontBoundDesign.canvasState;
+    const canonicalCustomFonts = fontBoundDesign.customFonts;
+
     // Extract image URLs from canvas state for easier access
-    const imageUrls = extractImageUrlsFromCanvasState(data.canvasState);
+    const imageUrls = extractImageUrlsFromCanvasState(canonicalCanvasState);
 
     // Export text objects to SVG using Fabric's toSVG() if canvas instances are provided
     const textSvgExports: TextSvgExports = {};
@@ -72,7 +78,7 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
           console.log(`Canvas objects count:`, canvas?.getObjects?.()?.length ?? 'N/A');
 
           // Wait for fonts to load before extracting (ensures curved text becomes paths)
-          const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas, data.customFonts);
+          const { objectSvgs, textObjects } = await extractTextObjectsToSVGAsync(canvas, canonicalCustomFonts);
           console.log(`Side ${sideId}: Found ${textObjects.length} text objects, ${objectSvgs.length} SVGs generated`);
 
           if (objectSvgs.length > 0) {
@@ -83,6 +89,11 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
             const tempDesignId = `temp-${Date.now()}`;
 
             for (const objectSvg of objectSvgs) {
+              if (!isPathOnlyTextSvg(objectSvg.svg)) {
+                throw new Error(
+                  `텍스트를 벡터 경로로 확정할 수 없습니다: ${sideId}/${objectSvg.objectId}`
+                );
+              }
               // Upload SVG
               const svgFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.svg`;
               const uploadResult = await uploadSVGToStorage(
@@ -96,7 +107,9 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
               if (uploadResult.success && uploadResult.url) {
                 sideObjectUrls[objectSvg.objectId] = uploadResult.url;
               } else {
-                console.error(`Failed to upload SVG for ${sideId}/${objectSvg.objectId}:`, uploadResult.error);
+                throw new Error(
+                  `텍스트 SVG 저장 실패: ${sideId}/${objectSvg.objectId} (${uploadResult.error || 'unknown'})`
+                );
               }
 
               // Upload PNG (300 DPI, transparent background)
@@ -139,6 +152,7 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
           }
         } catch (error) {
           console.error(`Error exporting SVG for side ${sideId}:`, error);
+          throw error;
         }
       }
     }
@@ -154,18 +168,18 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
     }
 
     // Prepare the data for insertion
-    const designData: any = {
+    const designData: Record<string, unknown> = {
       user_id: user.id,
       product_id: data.productId,
       title: data.title || `Design ${formatKstDateTimeMedium(new Date())}`,
       color_selections: {
         productColor: data.productColor,
       },
-      canvas_state: data.canvasState,
+      canvas_state: canonicalCanvasState,
       preview_url: data.previewImage || null, // Save preview image as base64 data URL
       image_urls: imageUrls, // Save extracted image URLs for easy access
       price_per_item: data.pricePerItem,
-      custom_fonts: data.customFonts || [], // Save custom fonts metadata
+      custom_fonts: canonicalCustomFonts, // Save immutable custom-font references
       retouch_requested: data.retouchRequested || false,
     };
 
@@ -271,9 +285,13 @@ export async function updateDesign(
   const supabase = createClient();
 
   try {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
+    const fontBoundDesign = data.canvasState
+      ? bindCustomFontsToCanvasState(data.canvasState, data.customFonts)
+      : null;
+    const canonicalCustomFonts = fontBoundDesign?.customFonts || data.customFonts;
 
     if (data.title !== undefined) {
       updateData.title = data.title;
@@ -282,15 +300,16 @@ export async function updateDesign(
       updateData.color_selections = { productColor: data.productColor };
     }
     if (data.canvasState !== undefined) {
-      updateData.canvas_state = data.canvasState;
+      const updatedCanvasState = fontBoundDesign?.canvasState || data.canvasState;
+      updateData.canvas_state = updatedCanvasState;
       // Extract and update image URLs when canvas state changes
-      updateData.image_urls = extractImageUrlsFromCanvasState(data.canvasState);
+      updateData.image_urls = extractImageUrlsFromCanvasState(updatedCanvasState);
     }
     if (data.previewImage !== undefined) {
       updateData.preview_url = data.previewImage;
     }
     if (data.customFonts !== undefined) {
-      updateData.custom_fonts = data.customFonts;
+      updateData.custom_fonts = canonicalCustomFonts || [];
     }
     if (data.retouchRequested !== undefined) {
       updateData.retouch_requested = data.retouchRequested;
@@ -305,13 +324,18 @@ export async function updateDesign(
       for (const [sideId, canvas] of Object.entries(data.canvasMap)) {
         try {
           // Wait for fonts to load before extracting (ensures curved text becomes paths)
-          const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas, data.customFonts);
+          const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas, canonicalCustomFonts);
 
           if (objectSvgs.length > 0) {
             const sideObjectUrls: Record<string, string> = {};
             const sidePngUrls: Record<string, string> = {};
 
             for (const objectSvg of objectSvgs) {
+              if (!isPathOnlyTextSvg(objectSvg.svg)) {
+                throw new Error(
+                  `텍스트를 벡터 경로로 확정할 수 없습니다: ${sideId}/${objectSvg.objectId}`
+                );
+              }
               // Upload SVG
               const svgFileName = `design-${designId}-${sideId}-${objectSvg.objectId}.svg`;
               const uploadResult = await uploadSVGToStorage(
@@ -325,7 +349,9 @@ export async function updateDesign(
               if (uploadResult.success && uploadResult.url) {
                 sideObjectUrls[objectSvg.objectId] = uploadResult.url;
               } else {
-                console.error(`Failed to upload SVG for ${sideId}/${objectSvg.objectId}:`, uploadResult.error);
+                throw new Error(
+                  `텍스트 SVG 저장 실패: ${sideId}/${objectSvg.objectId} (${uploadResult.error || 'unknown'})`
+                );
               }
 
               // Upload PNG (300 DPI, transparent background)
@@ -367,6 +393,7 @@ export async function updateDesign(
           }
         } catch (error) {
           console.error(`Error exporting SVG/PNG for side ${sideId}:`, error);
+          throw error;
         }
       }
 
