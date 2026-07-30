@@ -13,6 +13,22 @@ export function isPathOnlyTextSvg(svg: string): boolean {
   return /<path\b/i.test(svg) && !/<text\b/i.test(svg);
 }
 
+export type TextSvgStorageMode = 'path' | 'font' | 'invalid';
+
+/**
+ * Production prefers font-free paths, but saving the customer's design must
+ * never be blocked when a browser/font cannot be outlined.
+ *
+ * In that case Fabric's original <text> SVG is the canonical fallback.
+ * It retains font-family, weight, style, fill, stroke, and stroke-width.
+ */
+export function getTextSvgStorageMode(svg: string): TextSvgStorageMode {
+  if (!/<svg\b/i.test(svg)) return 'invalid';
+  if (isPathOnlyTextSvg(svg)) return 'path';
+  if (/<text\b/i.test(svg)) return 'font';
+  return 'invalid';
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')

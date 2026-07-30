@@ -10,7 +10,7 @@ import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import { FontMetadata, deleteFonts } from './fontUtils';
 import { formatKstDateTimeMedium } from './kst';
 import { bindCustomFontsToCanvasState } from './font-contract';
-import { isPathOnlyTextSvg } from './text-vector-style';
+import { getTextSvgStorageMode } from './text-vector-style';
 
 export interface SaveDesignData {
   productId: string;
@@ -89,27 +89,33 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
             const tempDesignId = `temp-${Date.now()}`;
 
             for (const objectSvg of objectSvgs) {
-              if (!isPathOnlyTextSvg(objectSvg.svg)) {
-                throw new Error(
-                  `텍스트를 벡터 경로로 확정할 수 없습니다: ${sideId}/${objectSvg.objectId}`
-                );
-              }
-              // Upload SVG
+              const storageMode = getTextSvgStorageMode(objectSvg.svg);
               const svgFileName = `design-${tempDesignId}-${sideId}-${objectSvg.objectId}.svg`;
-              const uploadResult = await uploadSVGToStorage(
-                supabase,
-                objectSvg.svg,
-                STORAGE_BUCKETS.TEXT_EXPORTS,
-                STORAGE_FOLDERS.SVG,
-                svgFileName
-              );
-
-              if (uploadResult.success && uploadResult.url) {
-                sideObjectUrls[objectSvg.objectId] = uploadResult.url;
-              } else {
-                throw new Error(
-                  `텍스트 SVG 저장 실패: ${sideId}/${objectSvg.objectId} (${uploadResult.error || 'unknown'})`
+              if (storageMode === 'invalid') {
+                console.warn(
+                  `[saveDesign] ${sideId}/${objectSvg.objectId}: 유효한 SVG가 없어 캔버스 원본만 저장합니다.`
                 );
+              } else {
+                if (storageMode === 'font') {
+                  console.warn(
+                    `[saveDesign] ${sideId}/${objectSvg.objectId}: path 변환 불가로 원본 폰트 <text> SVG를 저장합니다.`
+                  );
+                }
+                const uploadResult = await uploadSVGToStorage(
+                  supabase,
+                  objectSvg.svg,
+                  STORAGE_BUCKETS.TEXT_EXPORTS,
+                  STORAGE_FOLDERS.SVG,
+                  svgFileName
+                );
+                if (uploadResult.success && uploadResult.url) {
+                  sideObjectUrls[objectSvg.objectId] = uploadResult.url;
+                } else {
+                  console.warn(
+                    `[saveDesign] ${sideId}/${objectSvg.objectId}: SVG 업로드 실패로 캔버스 원본만 저장합니다.`,
+                    uploadResult.error
+                  );
+                }
               }
 
               // Upload PNG (300 DPI, transparent background)
@@ -151,8 +157,10 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
             }
           }
         } catch (error) {
-          console.error(`Error exporting SVG for side ${sideId}:`, error);
-          throw error;
+          console.warn(
+            `[saveDesign] ${sideId}: 텍스트 자산 생성 실패로 캔버스 원본만 저장합니다.`,
+            error
+          );
         }
       }
     }
@@ -331,27 +339,33 @@ export async function updateDesign(
             const sidePngUrls: Record<string, string> = {};
 
             for (const objectSvg of objectSvgs) {
-              if (!isPathOnlyTextSvg(objectSvg.svg)) {
-                throw new Error(
-                  `텍스트를 벡터 경로로 확정할 수 없습니다: ${sideId}/${objectSvg.objectId}`
-                );
-              }
-              // Upload SVG
+              const storageMode = getTextSvgStorageMode(objectSvg.svg);
               const svgFileName = `design-${designId}-${sideId}-${objectSvg.objectId}.svg`;
-              const uploadResult = await uploadSVGToStorage(
-                supabase,
-                objectSvg.svg,
-                STORAGE_BUCKETS.TEXT_EXPORTS,
-                STORAGE_FOLDERS.SVG,
-                svgFileName
-              );
-
-              if (uploadResult.success && uploadResult.url) {
-                sideObjectUrls[objectSvg.objectId] = uploadResult.url;
-              } else {
-                throw new Error(
-                  `텍스트 SVG 저장 실패: ${sideId}/${objectSvg.objectId} (${uploadResult.error || 'unknown'})`
+              if (storageMode === 'invalid') {
+                console.warn(
+                  `[updateDesign] ${sideId}/${objectSvg.objectId}: 유효한 SVG가 없어 캔버스 원본만 저장합니다.`
                 );
+              } else {
+                if (storageMode === 'font') {
+                  console.warn(
+                    `[updateDesign] ${sideId}/${objectSvg.objectId}: path 변환 불가로 원본 폰트 <text> SVG를 저장합니다.`
+                  );
+                }
+                const uploadResult = await uploadSVGToStorage(
+                  supabase,
+                  objectSvg.svg,
+                  STORAGE_BUCKETS.TEXT_EXPORTS,
+                  STORAGE_FOLDERS.SVG,
+                  svgFileName
+                );
+                if (uploadResult.success && uploadResult.url) {
+                  sideObjectUrls[objectSvg.objectId] = uploadResult.url;
+                } else {
+                  console.warn(
+                    `[updateDesign] ${sideId}/${objectSvg.objectId}: SVG 업로드 실패로 캔버스 원본만 저장합니다.`,
+                    uploadResult.error
+                  );
+                }
               }
 
               // Upload PNG (300 DPI, transparent background)
@@ -392,8 +406,10 @@ export async function updateDesign(
             }
           }
         } catch (error) {
-          console.error(`Error exporting SVG/PNG for side ${sideId}:`, error);
-          throw error;
+          console.warn(
+            `[updateDesign] ${sideId}: 텍스트 자산 생성 실패로 캔버스 원본만 저장합니다.`,
+            error
+          );
         }
       }
 

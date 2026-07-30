@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isPathOnlyTextSvg, styledPathMarkup } from './text-vector-style.ts';
+import {
+  getTextSvgStorageMode,
+  isPathOnlyTextSvg,
+  styledPathMarkup,
+} from './text-vector-style.ts';
 
 test('bakes bold, italic, and the customer stroke into vector paths', () => {
   const svg = styledPathMarkup({
@@ -44,4 +48,16 @@ test('accepts numeric bold weights and can suppress a second italic transform', 
 test('rejects any SVG that still depends on a font text element', () => {
   assert.equal(isPathOnlyTextSvg('<svg><text>ASL</text></svg>'), false);
   assert.equal(isPathOnlyTextSvg('<svg><path d="M0 0Z"/></svg>'), true);
+});
+
+test('stores font text SVG as a safe fallback instead of blocking customer saves', () => {
+  const fallbackSvg =
+    '<svg><text font-family="Pretendard" font-weight="bold" font-style="italic" ' +
+    'stroke="#fffcd6" stroke-width="2" paint-order="stroke fill">모두</text></svg>';
+
+  assert.equal(getTextSvgStorageMode(fallbackSvg), 'font');
+  assert.equal(getTextSvgStorageMode('<svg><path d="M0 0Z"/></svg>'), 'path');
+  assert.equal(getTextSvgStorageMode('<div>not svg</div>'), 'invalid');
+  assert.match(fallbackSvg, /stroke="#fffcd6"/);
+  assert.match(fallbackSvg, /stroke-width="2"/);
 });

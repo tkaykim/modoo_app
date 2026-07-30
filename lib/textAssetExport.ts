@@ -7,7 +7,7 @@ import {
 import { uploadDataUrlToStorage, uploadSVGToStorage } from './supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from './storage-config';
 import type { FontMetadata } from './fontUtils';
-import { isPathOnlyTextSvg } from './text-vector-style';
+import { getTextSvgStorageMode } from './text-vector-style';
 
 function safeSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80);
@@ -27,33 +27,46 @@ export async function exportTextAssetsForCheckout(
   const exports: TextSvgExports = {};
 
   for (const [sideId, canvas] of Object.entries(canvasMap)) {
-    const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas, customFonts);
-    if (objectSvgs.length === 0) continue;
+    try {
+      const { objectSvgs } = await extractTextObjectsToSVGAsync(canvas, customFonts);
+      if (objectSvgs.length === 0) continue;
 
-    const sideObjectUrls: Record<string, string> = {};
-    const sidePngUrls: Record<string, string> = {};
+      const sideObjectUrls: Record<string, string> = {};
+      const sidePngUrls: Record<string, string> = {};
 
-    for (const objectSvg of objectSvgs) {
-      if (!isPathOnlyTextSvg(objectSvg.svg)) {
-        throw new Error(
-          `텍스트를 벡터 경로로 확정할 수 없습니다: ${sideId}/${objectSvg.objectId}`
-        );
-      }
-      const objectId = safeSegment(objectSvg.objectId);
-      const prefix = `${safeSegment(assetPrefix)}-${safeSegment(sideId)}-${objectId}`;
-      const svgResult = await uploadSVGToStorage(
-        supabase,
-        objectSvg.svg,
-        STORAGE_BUCKETS.TEXT_EXPORTS,
-        STORAGE_FOLDERS.SVG,
-        `${prefix}.svg`
-      );
-      if (!svgResult.success || !svgResult.url) {
-        throw new Error(`텍스트 SVG 저장 실패: ${sideId}/${objectSvg.objectId}`);
-      }
-      sideObjectUrls[objectSvg.objectId] = svgResult.url;
+      for (const objectSvg of objectSvgs) {
+        const objectId = safeSegment(objectSvg.objectId);
+        const prefix = `${safeSegment(assetPrefix)}-${safeSegment(sideId)}-${objectId}`;
+        const storageMode = getTextSvgStorageMode(objectSvg.svg);
 
-      if (objectSvg.pngDataUrl) {
+        if (storageMode === 'invalid') {
+          console.warn(
+            `[checkout-text-export] ${sideId}/${objectSvg.objectId}: 유효한 SVG가 없어 캔버스 원본만 저장합니다.`
+          );
+        } else {
+          if (storageMode === 'font') {
+            console.warn(
+              `[checkout-text-export] ${sideId}/${objectSvg.objectId}: path 변환 불가로 원본 폰트 <text> SVG를 저장합니다.`
+            );
+          }
+          const svgResult = await uploadSVGToStorage(
+            supabase,
+            objectSvg.svg,
+            STORAGE_BUCKETS.TEXT_EXPORTS,
+            STORAGE_FOLDERS.SVG,
+            `${prefix}.svg`
+          );
+          if (svgResult.success && svgResult.url) {
+            sideObjectUrls[objectSvg.objectId] = svgResult.url;
+          } else {
+            console.warn(
+              `[checkout-text-export] ${sideId}/${objectSvg.objectId}: SVG 업로드 실패로 캔버스 원본만 저장합니다.`,
+              svgResult.error
+            );
+          }
+        }
+
+        if (!objectSvg.pngDataUrl) continue;
         const pngResult = await uploadDataUrlToStorage(
           supabase,
           objectSvg.pngDataUrl,
@@ -65,13 +78,22 @@ export async function exportTextAssetsForCheckout(
           sidePngUrls[objectSvg.objectId] = pngResult.url;
         }
       }
-    }
 
-    if (!exports.__objects) exports.__objects = {};
-    exports.__objects[sideId] = sideObjectUrls;
-    if (Object.keys(sidePngUrls).length > 0) {
-      if (!exports.__pngs) exports.__pngs = {};
-      exports.__pngs[sideId] = sidePngUrls;
+      if (Object.keys(sideObjectUrls).length > 0) {
+        if (!exports.__objects) exports.__objects = {};
+        exports.__objects[sideId] = sideObjectUrls;
+      }
+      if (Object.keys(sidePngUrls).length > 0) {
+        if (!exports.__pngs) exports.__pngs = {};
+        exports.__pngs[sideId] = sidePngUrls;
+      }
+    } catch (error) {
+      // Vector assets are best-effort.
+      // Canvas JSON + custom font references still preserve the customer design.
+      console.warn(
+        `[checkout-text-export] ${sideId}: 텍스트 자산 생성 실패로 캔버스 원본만 저장합니다.`,
+        error
+      );
     }
   }
 
