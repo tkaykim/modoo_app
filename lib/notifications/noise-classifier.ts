@@ -149,6 +149,24 @@ const RULES: Rule[] = [
       );
     },
   },
+  {
+    // React 스트리밍 SSR 이 HTML 에 직접 심는 인라인 런타임(`$RC` 완결 boundary /
+    // `$RS` 완결 segment)에서 터지는 오류. 이 함수들은 React 가 생성한 코드라
+    // 우리 소스에 존재하지 않고, 우리가 고칠 수 있는 지점이 없다.
+    //
+    //   $RS=function(a,b){a=document.getElementById(a); ... a.parentNode.removeChild(a) ...}
+    //
+    // getElementById 가 null 을 반환하면 `Cannot read properties of null
+    // (reading 'parentNode')` 로 죽는다. 스트림이 늦게 도착하는 사이 자리표시자
+    // 노드가 사라졌을 때 발생한다(스트리밍 도중 이탈·뒤로가기, 번역기/확장
+    // 프로그램의 DOM 치환, 인앱 웹뷰 스크립트 주입 등 외부 요인).
+    //
+    // 관측(2026-08-06): /editor 에서 30일간 3건, 모두 1회성(재발 0)·비로그인,
+    // 같은 기간 디자인 저장 338건 — 정상 사용에는 영향이 없는 저빈도 레이스다.
+    // 저장은 계속 하므로 다이제스트/대시보드에서 추이는 볼 수 있고, 메일만 끊는다.
+    reason: 'react_streaming_runtime',
+    test: (r) => /\$R[CS]\s*[(@]/.test(r.stack ?? ''),
+  },
 ];
 
 export function classifyNoise(report: ErrorReport): NoiseVerdict {
