@@ -7,6 +7,10 @@ import { useCanvasStore } from '@/store/useCanvasStore';
 import { useFontStore } from '@/store/useFontStore';
 import { preloadSystemFonts } from '@/lib/ensureFonts';
 import { FontMetadata } from '@/lib/fontUtils';
+import {
+  prepareViewerCanvasState,
+  waitForCanvasVisualReadiness,
+} from '@/lib/canvas-visual-readiness';
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
   ssr: false,
@@ -19,15 +23,6 @@ const CANVAS_H = 500;
 const GAP = 24;
 const LABEL_H = 24;
 const FIT_PADDING = 60;
-
-function countLiveUserObjects(canvas: { getObjects?: () => Array<{ excludeFromExport?: boolean; data?: { id?: string } }> } | undefined) {
-  if (!canvas?.getObjects) return 0;
-  return canvas.getObjects().filter((obj) => {
-    if (obj.excludeFromExport) return false;
-    if (obj.data?.id === 'background-product-image') return false;
-    return true;
-  }).length;
-}
 
 function countSavedUserObjects(raw: unknown) {
   if (!raw) return 0;
@@ -53,6 +48,8 @@ interface DesignEditorViewerProps {
   layout?: 'grid' | 'carousel';
   /** Static fallback shown when live Fabric restore stalls in a customer browser. */
   fallbackImageUrl?: string | null;
+  /** True only after every side containing artwork has visibly rendered. */
+  onReviewReadyChange?: (ready: boolean) => void;
 }
 
 /**
@@ -71,6 +68,7 @@ export default function DesignEditorViewer({
   fullscreen = false,
   layout = 'grid',
   fallbackImageUrl,
+  onReviewReadyChange,
 }: DesignEditorViewerProps) {
   const {
     activeSideId,
@@ -174,7 +172,10 @@ export default function DesignEditorViewer({
   // (병목 체감 최소화 + 다중 디자인 키 충돌은 nsCanvasState 네임스페이스로 이미 해결)
   const restoredRef = useRef<Set<string>>(new Set());
   const [restoredState, setRestoredState] = useState<{ key: string; ids: Record<string, boolean> }>({ key: '', ids: {} });
+  const [failedState, setFailedState] = useState<{ key: string; ids: Record<string, boolean> }>({ key: '', ids: {} });
+  const [retryNonce, setRetryNonce] = useState(0);
   const restoredIds = restoredState.key === restoreKey ? restoredState.ids : {};
+  const failedIds = failedState.key === restoreKey ? failedState.ids : {};
   const markRestored = useCallback((id: string) => {
     setRestoredState((prev) => ({
       key: restoreKey,
@@ -183,6 +184,31 @@ export default function DesignEditorViewer({
         [id]: true,
       },
     }));
+  }, [restoreKey]);
+  const markFailed = useCallback((id: string) => {
+    setFailedState((prev) => ({
+      key: restoreKey,
+      ids: {
+        ...(prev.key === restoreKey ? prev.ids : {}),
+        [id]: true,
+      },
+    }));
+  }, [restoreKey]);
+  const retrySide = useCallback((id: string) => {
+    restoredRef.current.delete(id);
+    setRestoredState((prev) => {
+      if (prev.key !== restoreKey) return prev;
+      const ids = { ...prev.ids };
+      delete ids[id];
+      return { key: restoreKey, ids };
+    });
+    setFailedState((prev) => {
+      if (prev.key !== restoreKey) return prev;
+      const ids = { ...prev.ids };
+      delete ids[id];
+      return { key: restoreKey, ids };
+    });
+    setRetryNonce((value) => value + 1);
   }, [restoreKey]);
   useEffect(() => {
     restoredRef.current = new Set();
@@ -206,24 +232,44 @@ export default function DesignEditorViewer({
         markRestored(id);
         return; // 이 면엔 복원할 시안 없음
       }
-      const json = typeof raw === 'string' ? raw : JSON.stringify(raw);
       const expectedObjects = countSavedUserObjects(raw);
       (async () => {
         try {
           await prepareFonts();
+          const json = await prepareViewerCanvasState(raw);
           await restoreCanvasState(id, json);
           canvasMap[id]?.requestRenderAll();
-          const actualObjects = countLiveUserObjects(canvasMap[id] || canvas);
-          if (expectedObjects === 0 || actualObjects > 0) {
+          const visuallyReady = await waitForCanvasVisualReadiness(
+            canvasMap[id] || canvas,
+            expectedObjects
+          );
+          if (visuallyReady) {
             markRestored(id);
+          } else {
+            markFailed(id);
           }
           incrementCanvasVersion();
         } catch (e) {
           console.error('[DesignEditorViewer] per-side restore failed:', id, e);
+          markFailed(id);
         }
       })();
     });
-  }, [canvasMap, imageLoadedMap, nsCanvasState, sides, deadlinePassed, restoreCanvasState, incrementCanvasVersion, prepareFonts, markRestored]);
+  }, [canvasMap, imageLoadedMap, nsCanvasState, sides, deadlinePassed, restoreCanvasState, incrementCanvasVersion, prepareFonts, markRestored, markFailed, retryNonce]);
+
+  const expectedContentSideIds = useMemo(() => {
+    if (!parsedCanvasState) return [];
+    const source = parsedCanvasState as Record<string, unknown>;
+    return originalSides
+      .filter((side) => countSavedUserObjects(source[side.id]) > 0)
+      .map((side) => `${instanceNs}__${side.id}`);
+  }, [parsedCanvasState, originalSides, instanceNs]);
+  const reviewReady = expectedContentSideIds.length > 0
+    && expectedContentSideIds.every((id) => restoredIds[id]);
+
+  useEffect(() => {
+    onReviewReadyChange?.(reviewReady);
+  }, [onReviewReadyChange, reviewReady]);
 
   // ── Fit grid centered in container ──
   useEffect(() => {
@@ -405,14 +451,7 @@ export default function DesignEditorViewer({
   // 처음엔 앞면(첫 면)만 마운트해 즉시 보여주고, 그 면이 준비되면 다음 면을
   // 하나씩 마운트한다(직렬). 사용자가 스와이프로 이동한 면은 즉시 마운트.
   const [mountedCount, setMountedCount] = useState(1);
-  const fallbackKey = `${layout}:${restoreKey}`;
-  const [fallbackReadyKey, setFallbackReadyKey] = useState('');
-  const fallbackReady = fallbackReadyKey === fallbackKey;
   useEffect(() => { setMountedCount(1); }, [sides]);
-  useEffect(() => {
-    const t = setTimeout(() => setFallbackReadyKey(fallbackKey), 8000);
-    return () => clearTimeout(t);
-  }, [fallbackKey]);
   useEffect(() => {
     if (layout !== 'carousel') return;
     if (mountedCount >= sides.length) return;
@@ -462,14 +501,18 @@ export default function DesignEditorViewer({
   const activeHasObjects = useMemo(() => {
     return countSavedUserObjects(activeRawState) > 0;
   }, [activeRawState]);
+  const activeRestored = Boolean(activeNamespacedSide && restoredIds[activeNamespacedSide.id]);
+  const activeFailed = Boolean(activeNamespacedSide && failedIds[activeNamespacedSide.id]);
   const showStaticFallback = Boolean(
     layout === 'carousel'
     && fallbackImageUrl
-    && fallbackReady
+    && carIdx === 0
     && activeNamespacedSide
     && activeHasObjects
-    && !restoredIds[activeNamespacedSide.id]
+    && !activeRestored
   );
+  const showLoadingOverlay = activeHasObjects && !activeRestored && !activeFailed && !showStaticFallback;
+  const showLoadError = activeHasObjects && !activeRestored && activeFailed && !showStaticFallback;
 
   if (layout === 'carousel') {
     return (
@@ -531,6 +574,32 @@ export default function DesignEditorViewer({
                 alt="시안 미리보기"
                 className="w-full h-full max-w-full max-h-full object-contain"
               />
+              {activeFailed && activeNamespacedSide && (
+                <button
+                  type="button"
+                  onClick={() => retrySide(activeNamespacedSide.id)}
+                  className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2 bg-white border border-neutral-300 shadow-sm text-sm font-semibold text-neutral-700"
+                >
+                  다시 불러오기
+                </button>
+              )}
+            </div>
+          )}
+          {showLoadingOverlay && (
+            <div className="absolute inset-0 bg-neutral-100 flex items-center justify-center">
+              <div className="w-7 h-7 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-800" aria-label="시안 불러오는 중" />
+            </div>
+          )}
+          {showLoadError && activeNamespacedSide && (
+            <div className="absolute inset-0 bg-neutral-100 flex flex-col items-center justify-center gap-3 px-6 text-center">
+              <p className="text-sm font-medium text-neutral-700">시안을 불러오지 못했습니다.</p>
+              <button
+                type="button"
+                onClick={() => retrySide(activeNamespacedSide.id)}
+                className="px-4 py-2 bg-white border border-neutral-300 shadow-sm text-sm font-semibold text-neutral-700"
+              >
+                다시 불러오기
+              </button>
             </div>
           )}
           {/* 좌우 화살표 (1면 초과일 때) */}

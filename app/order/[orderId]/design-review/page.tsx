@@ -45,6 +45,24 @@ export default function DesignReviewPage() {
   const [revisionNote, setRevisionNote] = useState('');
   const [showRevisionForm, setShowRevisionForm] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [proofReadiness, setProofReadiness] = useState<Record<string, { version: string; ready: boolean }>>({});
+
+  const proofVersion = (item: DesignItem) => `${item.design_shared_at || ''}:${item.thumbnail_url || ''}`;
+  const hasLiveProof = (item: DesignItem) => Boolean(item.product_sides?.length && item.canvas_state);
+  const isProofReady = (item: DesignItem) => {
+    if (!hasLiveProof(item)) return Boolean(item.thumbnail_url);
+    const state = proofReadiness[item.id];
+    return Boolean(state?.version === proofVersion(item) && state.ready);
+  };
+
+  const handleProofReady = (item: DesignItem, ready: boolean) => {
+    const version = proofVersion(item);
+    setProofReadiness((previous) => {
+      const current = previous[item.id];
+      if (current?.version === version && current.ready === ready) return previous;
+      return { ...previous, [item.id]: { version, ready } };
+    });
+  };
 
   const fetchItems = useCallback(async () => {
     try {
@@ -82,11 +100,15 @@ export default function DesignReviewPage() {
     fetchItems();
   }, [fetchItems]);
 
-  const handleConfirm = async (itemId: string) => {
+  const handleConfirm = async (item: DesignItem) => {
+    if (!isProofReady(item)) {
+      alert('시안 전체가 화면에 표시된 후 확정할 수 있습니다.');
+      return;
+    }
     if (!confirm('이 시안을 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.')) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/orders/${orderId}/items/${itemId}/confirm-design`, {
+      const res = await fetch(`/api/orders/${orderId}/items/${item.id}/confirm-design`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
@@ -135,6 +157,10 @@ export default function DesignReviewPage() {
   const handleConfirmAll = async () => {
     const targets = items.filter((i) => i.design_status === 'design_shared');
     if (targets.length === 0) return;
+    if (!targets.every(isProofReady)) {
+      alert('모든 시안이 화면에 표시된 후 한 번에 확정할 수 있습니다.');
+      return;
+    }
     if (!confirm(`${targets.length}개 시안을 모두 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.`)) return;
     setSubmitting(true);
     try {
@@ -260,7 +286,8 @@ export default function DesignReviewPage() {
               const cs = typeof item.canvas_state === 'string'
                 ? (() => { try { return JSON.parse(item.canvas_state as string); } catch { return null; } })()
                 : item.canvas_state;
-              const hasLive = !!(item.product_sides && item.product_sides.length > 0 && cs);
+              const hasLive = Boolean(item.product_sides?.length && cs);
+              const canConfirm = isProofReady(item);
               return (
                 <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
                   {/* 디자인 헤더 */}
@@ -286,6 +313,7 @@ export default function DesignReviewPage() {
                         customFonts={(item.custom_fonts || []) as never}
                         fallbackImageUrl={item.thumbnail_url}
                         layout="carousel"
+                        onReviewReadyChange={(ready) => handleProofReady(item, ready)}
                       />
                     </div>
                   ) : item.thumbnail_url ? (
@@ -305,6 +333,11 @@ export default function DesignReviewPage() {
                   {/* 액션 */}
                   {item.design_status === 'design_shared' && (
                     <div className="p-5">
+                      {!canConfirm && (
+                        <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">
+                          시안 전체가 화면에 표시되면 확정할 수 있습니다.
+                        </p>
+                      )}
                       {showRevisionForm === item.id ? (
                         <div className="space-y-3">
                           <textarea value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} placeholder="수정이 필요한 부분을 상세히 적어주세요..."
@@ -319,7 +352,7 @@ export default function DesignReviewPage() {
                         </div>
                       ) : (
                         <div className="flex gap-2">
-                          <button onClick={() => handleConfirm(item.id)} disabled={submitting}
+                          <button onClick={() => handleConfirm(item)} disabled={submitting || !canConfirm}
                             className="flex-1 py-3 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
                             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}시안 확정
                           </button>
@@ -348,7 +381,7 @@ export default function DesignReviewPage() {
 
         {/* 모두 확정 — 확인 대기 2개 이상일 때 일괄 승인 */}
         {items.filter((i) => i.design_status === 'design_shared').length >= 2 && (
-          <button onClick={handleConfirmAll} disabled={submitting}
+          <button onClick={handleConfirmAll} disabled={submitting || !items.filter((i) => i.design_status === 'design_shared').every(isProofReady)}
             className="w-full mt-4 py-3 px-4 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
             모든 시안 한 번에 확정 ({items.filter((i) => i.design_status === 'design_shared').length}건)
