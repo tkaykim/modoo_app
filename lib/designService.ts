@@ -11,6 +11,7 @@ import { FontMetadata, deleteFonts } from './fontUtils';
 import { formatKstDateTimeMedium } from './kst';
 import { bindCustomFontsToCanvasState } from './font-contract';
 import { getTextSvgStorageMode } from './text-vector-style';
+import { pixelSaveDesign } from './meta-pixel';
 
 export interface SaveDesignData {
   productId: string;
@@ -211,6 +212,16 @@ export async function saveDesign(data: SaveDesignData): Promise<SavedDesign | nu
     if (insertError) {
       console.error('Error saving design:', insertError);
       throw insertError;
+    }
+
+    // 메타 픽셀 커스텀 전환 — 디자인 저장 = 우리 상품의 실질적 구매 의도 신호.
+    // 광고 최적화가 이 이벤트를 학습하도록 발화한다. 실패해도 저장은 영향 없음.
+    if (savedDesign?.id) {
+      pixelSaveDesign({
+        design_id: String(savedDesign.id),
+        content_id: data.productId,
+        value: data.pricePerItem,
+      });
     }
 
     return savedDesign;
