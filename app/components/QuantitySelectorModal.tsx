@@ -24,6 +24,8 @@ interface QuantitySelectorModalProps {
   productId?: string;
   /** 구매 방식 선택 없이 바로 체크아웃으로 보내야 하는 진입점에서 사용한다. */
   directPurchaseOnly?: boolean;
+  /** 이미 확정된 파트너몰 디자인에서 디자인명 입력을 숨긴다. */
+  hideDesignName?: boolean;
   /**
    * 제품 미리보기 영역에 임의 노드를 렌더 (없으면 기본은 빈 영역).
    * 예: 다중 side 캐러셀, ProductDesigner view mode 등.
@@ -49,6 +51,7 @@ export default function QuantitySelectorModal({
   sizingData,
   productId,
   directPurchaseOnly = false,
+  hideDesignName = false,
   previewSlot,
   initialQuantities,
 }: QuantitySelectorModalProps) {
@@ -59,6 +62,7 @@ export default function QuantitySelectorModal({
   const [showPurchaseChoice, setShowPurchaseChoice] = useState(false);
   const [purchaseType, setPurchaseType] = useState<'direct' | 'cart' | null>(null);
   const [showSizeChart, setShowSizeChart] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   // 디자인명 미입력 안내: input을 빨갛게 강조 + 흔들기. 사용자가 "구매하기"를
   // 눌렀는데 왜 안 되는지 모르고 rage click → 이탈하는 케이스 차단.
   const [designNameError, setDesignNameError] = useState(false);
@@ -168,7 +172,7 @@ export default function QuantitySelectorModal({
       alert('수량을 선택해주세요.');
       return;
     }
-    if (!designName.trim()) {
+    if (!hideDesignName && !designName.trim()) {
       // disabled로 막지 않고 시각적으로 즉시 안내한다.
       // 1) 빨간 강조 + 흔들기 (700ms)
       // 2) input으로 스크롤 + 포커스
@@ -196,8 +200,15 @@ export default function QuantitySelectorModal({
       size,
       quantity
     }));
+    const effectiveDesignName = hideDesignName ? defaultDesignName : designName;
 
-    await onConfirm(designName, selectedItems, type, frozenPricePerItem);
+    try {
+      await onConfirm(effectiveDesignName, selectedItems, type, frozenPricePerItem);
+    } catch (error) {
+      setPurchaseType(null);
+      setConfirmError(error instanceof Error ? error.message : '주문 준비에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     if (type === 'direct') {
       const directIds = sessionStorage.getItem('directCheckoutItemIds');
@@ -221,6 +232,7 @@ export default function QuantitySelectorModal({
     setShowSuccess(false);
     setShowPurchaseChoice(false);
     setPurchaseType(null);
+    setConfirmError(null);
     setDesignName('');
     setQuantities({});
   };
@@ -298,40 +310,41 @@ export default function QuantitySelectorModal({
                 </div>
               )}
 
-              {/* Design Name Input */}
-              <div className="mt-4 mb-6">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  디자인 이름 <span className="text-red-500">*</span>
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요. (사람 이름 대신 단체·이벤트·용도)
-                </p>
-                <input
-                  ref={designNameInputRef}
-                  type="text"
-                  value={designName}
-                  onChange={(e) => {
-                    setDesignName(e.target.value);
-                    if (designNameError && e.target.value.trim()) {
-                      setDesignNameError(false);
-                    }
-                  }}
-                  placeholder="예: 청담고 응원티, OO교회 단체티"
-                  maxLength={40}
-                  aria-invalid={designNameError || undefined}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none transition ${
-                    designNameError
-                      ? 'border-red-500 ring-2 ring-red-200 animate-[shake_0.5s_ease-in-out] bg-red-50'
-                      : 'border-gray-300 focus:border-black'
-                  }`}
-                  disabled={isSaving}
-                />
-                {designNameError && (
-                  <p className="text-xs text-red-600 mt-2 font-medium" role="alert">
-                    디자인 이름을 먼저 입력해주세요. (예: 청담고 응원티)
+              {!hideDesignName && (
+                <div className="mt-4 mb-6">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    디자인 이름 <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    공장·담당자가 한눈에 알 수 있는 이름으로 지어주세요. (사람 이름 대신 단체·이벤트·용도)
                   </p>
-                )}
-              </div>
+                  <input
+                    ref={designNameInputRef}
+                    type="text"
+                    value={designName}
+                    onChange={(e) => {
+                      setDesignName(e.target.value);
+                      if (designNameError && e.target.value.trim()) {
+                        setDesignNameError(false);
+                      }
+                    }}
+                    placeholder="예: 청담고 응원티, OO교회 단체티"
+                    maxLength={40}
+                    aria-invalid={designNameError || undefined}
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none transition ${
+                      designNameError
+                        ? 'border-red-500 ring-2 ring-red-200 animate-[shake_0.5s_ease-in-out] bg-red-50'
+                        : 'border-gray-300 focus:border-black'
+                    }`}
+                    disabled={isSaving}
+                  />
+                  {designNameError && (
+                    <p className="text-xs text-red-600 mt-2 font-medium" role="alert">
+                      디자인 이름을 먼저 입력해주세요. (예: 청담고 응원티)
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Size Options */}
               <div className="mb-6">
@@ -399,6 +412,12 @@ export default function QuantitySelectorModal({
                   })}
                 </div>
               </div>
+
+              {confirmError && (
+                <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">
+                  {confirmError}
+                </p>
+              )}
 
             </>
           ) : (

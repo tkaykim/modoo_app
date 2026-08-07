@@ -148,107 +148,110 @@ export default function AddProductModal({
     let fabricCanvas: fabric.Canvas | null = null;
 
     try {
-      const side = selectedProduct.configuration[0];
-      if (!side) throw new Error('제품 구성 정보가 없습니다.');
+      if (selectedProduct.configuration.length === 0) {
+        throw new Error('제품 구성 정보가 없습니다.');
+      }
 
       const canvasW = 500;
       const canvasH = 500;
+      const canvasState: Record<string, string> = {};
+      let previewUrl = '';
 
-      // Create offscreen Fabric.js canvas
-      fabricCanvas = new fabric.Canvas(offscreenCanvasRef.current, {
-        width: canvasW,
-        height: canvasH,
-        backgroundColor: '#EBEBEB',
-      });
-
-      // Determine background image URL (multi-layer or single image)
-      const hasLayers = side.layers && side.layers.length > 0;
-      const bgImageUrl = hasLayers ? side.layers![0].imageUrl : side.imageUrl;
-
-      if (!bgImageUrl) throw new Error('제품 이미지를 찾을 수 없습니다.');
-
-      // Load background product image
-      const bgImg = await fabric.FabricImage.fromURL(bgImageUrl, { crossOrigin: 'anonymous' });
-      const imgWidth = bgImg.width || 1;
-      const imgHeight = bgImg.height || 1;
-      const zoomScale = side.zoomScale || 1.0;
-      const baseScale = Math.min(canvasW / imgWidth, canvasH / imgHeight);
-      const scale = baseScale * zoomScale;
-
-      bgImg.set({
-        scaleX: scale,
-        scaleY: scale,
-        originX: 'center',
-        originY: 'center',
-        left: canvasW / 2,
-        top: canvasH / 2,
-        selectable: false,
-        evented: false,
-        data: { id: 'background-product-image' },
-      });
-
-      // Apply color filter
-      const colorHex = selectedColor?.hex || '#FFFFFF';
-      bgImg.filters = [
-        new fabric.filters.BlendColor({ color: colorHex, mode: 'multiply', alpha: 1 }),
-      ];
-      bgImg.applyFilters();
-
-      fabricCanvas.add(bgImg);
-      fabricCanvas.sendObjectToBack(bgImg);
-
-      // Calculate print area position
-      const imageLeft = (canvasW / 2) - (imgWidth * scale / 2);
-      const imageTop = (canvasH / 2) - (imgHeight * scale / 2);
-      const printAreaLeft = imageLeft + side.printArea.x * scale;
-      const printAreaTop = imageTop + side.printArea.y * scale;
-      const scaledPrintW = side.printArea.width * scale;
-      const scaledPrintH = side.printArea.height * scale;
-
-      // Load and place logo
-      let logoObject: fabric.FabricImage | null = null;
-      if (logoUrl) {
-        const logoImg = await fabric.FabricImage.fromURL(logoUrl, { crossOrigin: 'anonymous' });
-        const logoW = logoImg.width || 100;
-        const logoH = logoImg.height || 100;
-        const maxLogoW = scaledPrintW * 0.2;
-        const maxLogoH = scaledPrintH * 0.2;
-        const logoScale = Math.min(maxLogoW / logoW, maxLogoH / logoH);
-
-        logoImg.set({
-          left: printAreaLeft + scaledPrintW / 2,
-          top: printAreaTop + scaledPrintH / 2,
-          scaleX: logoScale,
-          scaleY: logoScale,
-          originX: 'center',
-          originY: 'center',
-          data: { id: 'partner-mall-logo' },
+      // 완성 디자인은 제품의 모든 면에 확정 로고를 배치해 저장한다.
+      // 기존에는 configuration[0]만 처리해 파트너몰 시안에 앞면만 남았다.
+      for (const [index, side] of selectedProduct.configuration.entries()) {
+        fabricCanvas = new fabric.Canvas(offscreenCanvasRef.current, {
+          width: canvasW,
+          height: canvasH,
+          backgroundColor: '#EBEBEB',
         });
 
-        fabricCanvas.add(logoImg);
-        logoObject = logoImg;
-      }
+        const hasLayers = side.layers && side.layers.length > 0;
+        const bgImageUrl = hasLayers ? side.layers![0].imageUrl : side.imageUrl;
+        if (!bgImageUrl) throw new Error('제품 이미지를 찾을 수 없습니다.');
 
-      fabricCanvas.renderAll();
+        const bgImg = await fabric.FabricImage.fromURL(bgImageUrl, { crossOrigin: 'anonymous' });
+        const imgWidth = bgImg.width || 1;
+        const imgHeight = bgImg.height || 1;
+        const zoomScale = side.zoomScale || 1.0;
+        const baseScale = Math.min(canvasW / imgWidth, canvasH / imgHeight);
+        const scale = baseScale * zoomScale;
 
-      // Generate preview thumbnail
-      const previewUrl = fabricCanvas.toDataURL({
-        format: 'png',
-        quality: 0.8,
-        multiplier: 0.8,
-      });
+        bgImg.set({
+          scaleX: scale,
+          scaleY: scale,
+          originX: 'center',
+          originY: 'center',
+          left: canvasW / 2,
+          top: canvasH / 2,
+          selectable: false,
+          evented: false,
+          data: { id: 'background-product-image' },
+        });
 
-      // Build canvas state (same format as saveAllCanvasState)
-      const canvasState: Record<string, string> = {};
-      if (logoObject) {
-        const logoJson = logoObject.toObject(['data'] as any);
-        logoJson.src = (logoObject as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || logoObject.getSrc();
+        const colorHex = selectedColor?.hex || '#FFFFFF';
+        bgImg.filters = [
+          new fabric.filters.BlendColor({ color: colorHex, mode: 'multiply', alpha: 1 }),
+        ];
+        bgImg.applyFilters();
+
+        fabricCanvas.add(bgImg);
+        fabricCanvas.sendObjectToBack(bgImg);
+
+        const imageLeft = (canvasW / 2) - (imgWidth * scale / 2);
+        const imageTop = (canvasH / 2) - (imgHeight * scale / 2);
+        const printAreaLeft = imageLeft + side.printArea.x * scale;
+        const printAreaTop = imageTop + side.printArea.y * scale;
+        const scaledPrintW = side.printArea.width * scale;
+        const scaledPrintH = side.printArea.height * scale;
+
+        let logoObject: fabric.FabricImage | null = null;
+        if (logoUrl) {
+          const logoImg = await fabric.FabricImage.fromURL(logoUrl, { crossOrigin: 'anonymous' });
+          const logoW = logoImg.width || 100;
+          const logoH = logoImg.height || 100;
+          const maxLogoW = scaledPrintW * 0.2;
+          const maxLogoH = scaledPrintH * 0.2;
+          const logoScale = Math.min(maxLogoW / logoW, maxLogoH / logoH);
+
+          logoImg.set({
+            left: printAreaLeft + scaledPrintW / 2,
+            top: printAreaTop + scaledPrintH / 2,
+            scaleX: logoScale,
+            scaleY: logoScale,
+            originX: 'center',
+            originY: 'center',
+            data: { id: 'partner-mall-logo' },
+          });
+
+          fabricCanvas.add(logoImg);
+          logoObject = logoImg;
+        }
+
+        fabricCanvas.renderAll();
+        if (index === 0) {
+          previewUrl = fabricCanvas.toDataURL({
+            format: 'png',
+            quality: 0.8,
+            multiplier: 0.8,
+          });
+        }
+
+        // Fabric's typed include list does not know about our custom data field.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const logoJson = logoObject ? logoObject.toObject(['data'] as any) : null;
+        if (logoJson && logoObject) {
+          logoJson.src = (logoObject as unknown as { data?: { supabaseUrl?: string } }).data?.supabaseUrl || logoObject.getSrc();
+        }
         canvasState[side.id] = JSON.stringify({
           version: fabricCanvas.toJSON().version,
-          objects: [logoJson],
+          objects: logoJson ? [logoJson] : [],
           layerColors: {},
           totalBoundingBoxMm: null,
         });
+
+        fabricCanvas.dispose();
+        fabricCanvas = null;
       }
 
       // POST to API
@@ -273,8 +276,6 @@ export default function AddProductModal({
         throw new Error(err.error || '저장에 실패했습니다.');
       }
 
-      fabricCanvas.dispose();
-      fabricCanvas = null;
       onProductAdded();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : '오류가 발생했습니다.');

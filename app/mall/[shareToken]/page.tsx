@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   ArrowRight,
   Check,
@@ -15,10 +15,13 @@ import {
   X,
 } from 'lucide-react';
 import Header from '@/app/components/Header';
+import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
+import { addToCartDB } from '@/lib/cartService';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
 import { clearMallAutoCoupon, setMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
+import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import type { PartnerMallProductPublic, PartnerMallPublic } from '@/types/types';
+import type { CartItem, PartnerMallProductPublic, PartnerMallPublic } from '@/types/types';
 
 const DesignEditorViewer = dynamic(
   () => import('@/app/components/cobuy/DesignEditorViewer'),
@@ -45,12 +48,14 @@ interface SalesmanCouponPayload {
 const formatPrice = (price: number) => `${price.toLocaleString('ko-KR')}원`;
 
 function getCanvasState(product: PartnerMallProductPublic): Record<string, string> {
-  return (product.canvas_state || {}) as Record<string, string>;
+  const source = (product.canvas_state || {}) as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(source).filter(([, value]) => typeof value === 'string'),
+  ) as Record<string, string>;
 }
 
 export default function PartnerMallPage() {
   const params = useParams();
-  const router = useRouter();
   const rawShareToken = params.shareToken;
   const shareToken = Array.isArray(rawShareToken)
     ? rawShareToken[0]
@@ -58,6 +63,8 @@ export default function PartnerMallPage() {
 
   const [mall, setMall] = useState<PartnerMallPublic | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<PartnerMallProductPublic | null>(null);
+  const [isQuantityModalOpen, setIsQuantityModalOpen] = useState(false);
+  const [isOrdering, setIsOrdering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [salesmanCoupon, setSalesmanCoupon] = useState<SalesmanCouponPayload | null>(null);
@@ -139,28 +146,109 @@ export default function PartnerMallPage() {
     return Math.max(0, discounted);
   };
 
-  const openProductInEditor = (product: PartnerMallProductPublic) => {
-    if (!product.product || !mall) return;
+  const openProductOrder = (product: PartnerMallProductPublic) => {
+    setSelectedProduct(product);
+    setIsQuantityModalOpen(true);
+  };
 
-    try {
-      sessionStorage.setItem(
-        'partnerMallBuyData',
-        JSON.stringify({
-          shareToken,
-          partnerMallId: mall.id,
-          displayName: product.display_name || product.product.title,
-          colorHex: product.color_hex || null,
-          colorName: product.color_name || null,
-          colorCode: product.color_code || null,
-          price: product.price !== null && product.price !== undefined ? product.price : null,
-          canvasState: product.canvas_state || {},
-        }),
-      );
-    } catch (err) {
-      console.warn('[mall] failed to persist partnerMallBuyData', err);
+  const handlePartnerMallOrder = async (
+    designName: string,
+    selectedItems: CartItem[],
+    _purchaseType: 'direct' | 'cart',
+    frozenPricePerItem?: number,
+  ) => {
+    if (!selectedProduct?.product || !mall) {
+      throw new Error('주문할 디자인을 찾을 수 없습니다.');
     }
 
-    router.push(`/editor/${product.product.id}?partnerMallBuy=1`);
+    const product = selectedProduct.product;
+    const productTitle = selectedProduct.display_name || product.title;
+    const productColor = selectedProduct.color_hex || '#FFFFFF';
+    const productColorName = selectedProduct.color_name || '색상';
+    const price = typeof frozenPricePerItem === 'number' && frozenPricePerItem > 0
+      ? frozenPricePerItem
+      : getProductPrice(selectedProduct);
+    const canvasState = getCanvasState(selectedProduct);
+    const thumbnailUrl = selectedProduct.preview_url || product.thumbnail_image_link?.[0] || undefined;
+
+    setIsOrdering(true);
+    try {
+      if (!isAuthenticated) {
+        const guestDesignId = `guest-${product.id}-partner-mall-${Date.now()}`;
+        for (const item of selectedItems) {
+          useCartStore.getState().addItem({
+            productId: product.id,
+            productTitle,
+            productColor,
+            productColorName,
+            productColorCode: selectedProduct.color_code || undefined,
+            size: item.size,
+            quantity: item.quantity,
+            pricePerItem: price,
+            canvasState,
+            thumbnailUrl,
+            savedDesignId: guestDesignId,
+            designName,
+            previewImage: selectedProduct.preview_url || undefined,
+            partnerMallId: mall.id,
+          });
+        }
+
+        const directItemIds = useCartStore.getState().items
+          .filter((item) => item.savedDesignId === guestDesignId)
+          .map((item) => item.id);
+        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(directItemIds));
+        return;
+      }
+
+      let savedDesignId: string | undefined;
+      const directItemIds: string[] = [];
+      for (const item of selectedItems) {
+        const dbCartItem = await addToCartDB({
+          productId: product.id,
+          productTitle,
+          productColor,
+          productColorName,
+          productColorCode: selectedProduct.color_code || undefined,
+          size: item.size,
+          quantity: item.quantity,
+          pricePerItem: price,
+          canvasState,
+          thumbnailUrl,
+          savedDesignId,
+          designName,
+          previewImage: selectedProduct.preview_url || undefined,
+          partnerMallId: mall.id,
+        });
+
+        if (!dbCartItem?.id) {
+          throw new Error('주문 상품을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.');
+        }
+        directItemIds.push(dbCartItem.id);
+        savedDesignId = savedDesignId || dbCartItem.saved_design_id;
+
+        useCartStore.getState().addItem({
+          productId: product.id,
+          productTitle,
+          productColor,
+          productColorName,
+          productColorCode: selectedProduct.color_code || undefined,
+          size: item.size,
+          quantity: item.quantity,
+          pricePerItem: price,
+          canvasState,
+          thumbnailUrl,
+          savedDesignId,
+          designName,
+          previewImage: selectedProduct.preview_url || undefined,
+          partnerMallId: mall.id,
+        });
+      }
+
+      sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(directItemIds));
+    } finally {
+      setIsOrdering(false);
+    }
   };
 
   if (isLoading) {
@@ -356,15 +444,41 @@ export default function PartnerMallPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => openProductInEditor(selectedProduct)}
+                  onClick={() => openProductOrder(selectedProduct)}
                   className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-6 text-base font-black text-white transition hover:bg-neutral-700 sm:w-auto sm:min-w-[230px]"
                 >
-                  이 디자인으로 주문하기 <ArrowRight className="h-5 w-5" />
+                  사이즈·수량 선택하고 주문하기 <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {selectedProduct?.product && (
+        <QuantitySelectorModal
+          isOpen={isQuantityModalOpen}
+          onClose={() => setIsQuantityModalOpen(false)}
+          onConfirm={handlePartnerMallOrder}
+          sizeOptions={selectedProduct.product.size_options || []}
+          pricePerItem={getProductPrice(selectedProduct)}
+          isSaving={isOrdering}
+          defaultDesignName={selectedProduct.display_name || selectedProduct.product.title}
+          hideDesignName
+          directPurchaseOnly
+          sizingChartImage={selectedProduct.product.sizing_chart_image}
+          sizingData={selectedProduct.product.sizing_data}
+          productId={selectedProduct.product.id}
+          previewSlot={
+            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
+              <Check className="h-5 w-5 shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-sm font-bold text-emerald-900">완성된 디자인으로 주문합니다</p>
+                <p className="mt-0.5 text-xs text-emerald-700">수정 없이 사이즈별 수량만 선택하면 배송지 입력으로 이동합니다.</p>
+              </div>
+            </div>
+          }
+        />
       )}
     </div>
   );
