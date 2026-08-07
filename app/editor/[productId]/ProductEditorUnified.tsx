@@ -59,7 +59,8 @@ import type { Canvas as FabricCanvas } from "fabric";
 /**
  * Build the customer-facing design proof image (시안 확인용).
  *
- * Renders the front at high resolution and uploads it to storage, returning a
+ * Renders the designed side at high resolution (the front when it carries the
+ * design — see generateProductThumbnail) and uploads it to storage, returning a
  * URL — so the proof stays crisp for small designs without bloating the DB with
  * inline base64. Falls back to a small inline data URL if the upload fails
  * (e.g. a guest without storage access), so it never blocks save/checkout.
