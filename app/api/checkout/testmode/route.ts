@@ -19,6 +19,10 @@ interface OrderData {
   name: string;
   email: string;
   phone_num: string;
+  // 받는 분 — 구버전 결제 페이로드에는 없을 수 있어 optional.
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
+  recipient_same_as_orderer?: boolean;
   address: string | null;
   country_code: string | null;
   state: string | null;
@@ -104,6 +108,10 @@ export async function POST(request: NextRequest) {
         customer_name: orderData.name,
         customer_email: orderData.email,
         customer_phone: orderData.phone_num,
+        // 받는 분 — 미지정 주문(레거시 페이로드)은 주문자와 동일로 채운다.
+        recipient_name: orderData.recipient_name || orderData.name,
+        recipient_phone: orderData.recipient_phone || orderData.phone_num,
+        recipient_same_as_orderer: orderData.recipient_same_as_orderer !== false,
         shipping_method: orderData.shipping_method,
         country_code: orderData.country_code,
         state: orderData.state,

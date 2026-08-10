@@ -72,6 +72,11 @@ export default function CheckoutPage() {
     phone: '',
   });
 
+  // 받는 분 — 송장·배송 안내 전용. 금액·결제 안내는 주문자(customerInfo)로만 나간다.
+  const [recipientSameAsOrderer, setRecipientSameAsOrderer] = useState(true);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+
   const [domesticAddress, setDomesticAddress] = useState<DomesticAddress>({
     roadAddress: '',
     jibunAddress: '',
@@ -784,6 +789,13 @@ export default function CheckoutPage() {
       throw new Error('주문자 정보를 모두 입력해주세요.');
     }
 
+    // 받는 분을 따로 지정했다면 성함·연락처가 모두 있어야 송장을 낼 수 있다.
+    if (shippingMethod !== 'pickup' && !recipientSameAsOrderer) {
+      if (!recipientName.trim() || !recipientPhone.trim()) {
+        throw new Error('받는 분 성함과 연락처를 입력해주세요.');
+      }
+    }
+
     // Validate address based on shipping method
     if (shippingMethod === 'domestic') {
       if (!domesticAddress.roadAddress) {
@@ -808,6 +820,14 @@ export default function CheckoutPage() {
       name: customerInfo.name,
       email: customerInfo.email,
       phone_num: customerInfo.phone,
+      // 받는 분 — "주문자와 동일"이어도 실값을 복사해 보낸다(NULL fallback 금지).
+      recipient_same_as_orderer: shippingMethod === 'pickup' ? true : recipientSameAsOrderer,
+      recipient_name: (shippingMethod !== 'pickup' && !recipientSameAsOrderer)
+        ? recipientName.trim()
+        : customerInfo.name,
+      recipient_phone: (shippingMethod !== 'pickup' && !recipientSameAsOrderer)
+        ? recipientPhone.trim()
+        : customerInfo.phone,
       address: fullAddress,
       country_code: shippingMethod === 'international' ? internationalAddress.country : null,
       state: shippingMethod === 'international' ? internationalAddress.state : null,
@@ -1151,7 +1171,15 @@ export default function CheckoutPage() {
 
       {/* Customer Information */}
       <div className="bg-white mt-2 p-4 lg:rounded-lg">
-        <h2 className="text-sm font-semibold text-black mb-3">주문자 정보</h2>
+        <h2 className="text-sm font-semibold text-black mb-1">주문자 정보</h2>
+        <p className="text-xs text-gray-500 mb-3">결제하시는 분의 정보입니다.</p>
+        <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-800 leading-relaxed">
+            결제 금액, 입금 안내, 영수증이 <strong>주문자 연락처·이메일</strong>로 발송됩니다.
+            <br />
+            받는 분이 다르다면 아래 배송 정보에서 따로 입력해주세요.
+          </p>
+        </div>
         <div className="space-y-3">
           <div>
             <label className="block text-sm text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
@@ -1260,6 +1288,59 @@ export default function CheckoutPage() {
           </button>
         </div>
       </div>
+
+      {/* 받는 분 — 송장·배송 안내 전용. 금액 정보는 이쪽으로 나가지 않는다. */}
+      {shippingMethod !== 'pickup' && (
+        <div className="bg-white mt-2 p-4 text-sm lg:rounded-lg">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-sm font-semibold text-black">받는 분</h2>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={recipientSameAsOrderer}
+                onChange={(e) => setRecipientSameAsOrderer(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
+              />
+              <span className="text-sm text-gray-700">주문자와 동일</span>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">택배를 수령하실 분입니다.</p>
+
+          {recipientSameAsOrderer ? (
+            <p className="text-xs text-gray-400">
+              {customerInfo.name.trim()
+                ? `${customerInfo.name.trim()} 님께 배송됩니다.`
+                : '주문자 정보로 배송됩니다.'}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">받는 분 성함 <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black"
+                  placeholder="받는 분 성함"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">받는 분 연락처 <span className="text-red-500">*</span></label>
+                <input
+                  type="tel"
+                  value={recipientPhone}
+                  onChange={(e) => setRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black"
+                  placeholder="01012345678"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                송장과 배송 안내에만 사용되며, 결제 금액 안내는 발송되지 않습니다.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Address Input - Domestic */}
       {shippingMethod === 'domestic' && (
