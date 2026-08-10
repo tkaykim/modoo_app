@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   extractImageUrlsFromCanvasState,
@@ -344,7 +345,8 @@ export async function POST(request: NextRequest) {
               updates.image_urls = imageUrls;
             }
 
-            await supabase
+            // 공장 전달용 SVG/이미지 URL 백필은 service-role 로 쓴다(RLS 비의존).
+            await createAdminClient()
               .from('order_items')
               .update(updates)
               .eq('id', item.id)

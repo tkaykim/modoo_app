@@ -426,7 +426,8 @@ export async function POST(request: NextRequest) {
             if (Object.keys(svgUrls).length > 0) updates.text_svg_exports = svgUrls;
             if (Object.keys(imageUrls).length > 0) updates.image_urls = imageUrls;
 
-            await supabase
+            // 공장 전달용 SVG/이미지 URL 백필은 service-role 로 쓴다(RLS 비의존).
+            await adminClient
               .from('order_items')
               .update(updates)
               .eq('id', item.id);

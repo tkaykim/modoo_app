@@ -555,7 +555,10 @@ export async function POST(request: NextRequest) {
 
             console.log(`Updating item ${item.id} with:`, JSON.stringify(updates, null, 2));
 
-            const { data: updatedData, error: updateError } = await supabase
+            // 공장 전달용 SVG/이미지 URL 백필은 service-role 로 쓴다.
+            // 세션 클라이언트로 쓰면 order_items RLS(고객 UPDATE 정책)에 의존하게 되는데,
+            // 이 정책은 보안상 제거 예정이고 실패해도 아래에서 로그만 남아 조용히 누락된다.
+            const { data: updatedData, error: updateError } = await adminClient
               .from('order_items')
               .update(updates)
               .eq('id', item.id)

@@ -302,7 +302,9 @@ export async function POST(request: NextRequest) {
             updates.image_urls = imageUrls;
           }
 
-          await db
+          // 공장 전달용 SVG/이미지 URL 백필은 service-role 로 쓴다.
+          // db 는 로그인 사용자일 때 세션 클라이언트라 order_items RLS(제거 예정)에 의존한다.
+          await createAdminClient()
             .from('order_items')
             .update(updates)
             .eq('id', orderItem.id);
