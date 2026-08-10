@@ -21,6 +21,9 @@ export async function GET(
         customer_name,
         customer_email,
         customer_phone,
+        recipient_name,
+        recipient_phone,
+        recipient_same_as_orderer,
         shipping_method,
         country_code,
         state,
@@ -162,6 +165,9 @@ export async function GET(
         customer_name: order.customer_name,
         customer_email: order.customer_email,
         customer_phone: order.customer_phone,
+        recipient_name: order.recipient_name,
+        recipient_phone: order.recipient_phone,
+        recipient_same_as_orderer: order.recipient_same_as_orderer !== false,
         shipping_method: order.shipping_method,
         country_code: order.country_code,
         state: order.state,
@@ -210,7 +216,7 @@ export async function PUT(
 
     const { data: order, error: orderError } = await adminClient
       .from('orders')
-      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge, delivery_fee, total_amount, payment_link_expires_at, partner_mall_id')
+      .select('id, payment_status, order_status, customer_editable_fields, coupon_discount, admin_discount, admin_surcharge, delivery_fee, total_amount, payment_link_expires_at, partner_mall_id, customer_name, customer_phone')
       .eq('payment_link_token', token)
       .single();
 
@@ -267,6 +273,25 @@ export async function PUT(
 
     if (allowShipping) {
       if (payload.shippingMethod) updatePayload.shipping_method = payload.shippingMethod;
+
+      // 받는 분 — 배송 정보의 일부라 shipping 권한에 묶는다.
+      // "주문자와 동일"이면 값을 복사해 저장한다(NULL fallback 금지).
+      // 소비처(로젠 송장·배송 목록)가 recipient_* 만 읽으면 되도록 항상 실값을 채운다.
+      if (payload.recipientSameAsOrderer !== undefined) {
+        const sameAsOrderer = payload.recipientSameAsOrderer !== false;
+        updatePayload.recipient_same_as_orderer = sameAsOrderer;
+
+        if (sameAsOrderer) {
+          updatePayload.recipient_name =
+            (updatePayload.customer_name as string | undefined) ?? order.customer_name ?? null;
+          updatePayload.recipient_phone =
+            (updatePayload.customer_phone as string | undefined) ?? order.customer_phone ?? null;
+        } else {
+          updatePayload.recipient_name = payload.recipientName || null;
+          updatePayload.recipient_phone = payload.recipientPhone || null;
+        }
+      }
+
       if (payload.shippingMethod === 'domestic') {
         updatePayload.country_code = 'KR';
         if (payload.postalCode) updatePayload.postal_code = payload.postalCode;

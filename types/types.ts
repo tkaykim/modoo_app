@@ -616,6 +616,10 @@ export interface CustomOrderData {
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;
+  // 받는 분 — 송장·배송 안내 전용. 금액·결제 안내는 customer_* 로만 나간다.
+  recipient_name: string | null;
+  recipient_phone: string | null;
+  recipient_same_as_orderer: boolean;
   shipping_method: 'domestic' | 'international' | 'pickup';
   country_code: string | null;
   state: string | null;

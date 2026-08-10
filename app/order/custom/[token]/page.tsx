@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard, Building2, Clock, Minus, Plus, ChevronDown, ChevronUp, X, Ruler, Eye } from 'lucide-react';
+import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard, Building2, Clock, Minus, Plus, ChevronDown, ChevronUp, X, Ruler, Eye, Info } from 'lucide-react';
 import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
 import { CustomOrderData, SizingData } from '@/types/types';
 import SizeChartTable from '@/app/components/SizeChartTable';
@@ -38,10 +38,15 @@ export default function CustomOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [alreadyPaid, setAlreadyPaid] = useState(false);
 
-  // Customer info
+  // 주문자 — 결제·입금 안내가 나가는 채널
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+
+  // 받는 분 — 송장·배송 안내 전용. 금액은 이쪽으로 나가지 않는다.
+  const [recipientSameAsOrderer, setRecipientSameAsOrderer] = useState(true);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
 
   // Shipping
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('domestic');
@@ -123,6 +128,14 @@ export default function CustomOrderPage() {
         setCustomerName(namePlaceholder ? '' : (od.customer_name || ''));
         setCustomerEmail(emailPlaceholder ? '' : (od.customer_email || ''));
         setCustomerPhone((od.customer_phone || '').replace(/[^0-9]/g, ''));
+
+        // 관리자가 받는 분을 따로 지정해 보낸 경우에만 체크를 해제한 상태로 연다.
+        const sameAsOrderer = od.recipient_same_as_orderer !== false;
+        setRecipientSameAsOrderer(sameAsOrderer);
+        if (!sameAsOrderer) {
+          setRecipientName(od.recipient_name || '');
+          setRecipientPhone((od.recipient_phone || '').replace(/[^0-9]/g, ''));
+        }
 
         if (od.shipping_method) {
           setShippingMethod(od.shipping_method === 'pickup' ? 'pickup' : 'domestic');
@@ -242,6 +255,16 @@ export default function CustomOrderPage() {
       try { document.getElementById('order-items-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* noop */ }
       return false;
     }
+    if (shippingMethod === 'domestic' && !recipientSameAsOrderer) {
+      if (!recipientName.trim()) {
+        setFormError('받는 분 성함을 입력해주세요.');
+        return false;
+      }
+      if (!recipientPhone.trim()) {
+        setFormError('받는 분 연락처를 입력해주세요.');
+        return false;
+      }
+    }
     if (shippingMethod === 'domestic' && !domesticAddress.roadAddress) {
       setFormError('배송 주소를 입력해주세요.');
       return false;
@@ -259,6 +282,12 @@ export default function CustomOrderPage() {
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim() || null,
         shippingMethod,
+        // 직접 수령은 주문자가 직접 오시므로 받는 분을 따로 두지 않는다.
+        recipientSameAsOrderer: shippingMethod === 'domestic' ? recipientSameAsOrderer : true,
+        ...(shippingMethod === 'domestic' && !recipientSameAsOrderer && {
+          recipientName: recipientName.trim(),
+          recipientPhone: recipientPhone.trim(),
+        }),
         ...(shippingMethod === 'domestic' && {
           postalCode: domesticAddress.postalCode,
           state: domesticAddress.state,
@@ -660,12 +689,21 @@ export default function CustomOrderPage() {
 
           {!showPayment ? (
             <>
-              {/* Customer Info */}
+              {/* 주문자 정보 — 결제·입금 안내가 나가는 채널 */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b">
-                  <h2 className="font-semibold text-gray-900">고객 정보</h2>
+                  <h2 className="font-semibold text-gray-900">주문자 정보</h2>
+                  <p className="text-xs text-gray-500 mt-1">결제하시는 분의 정보를 입력해주세요.</p>
                 </div>
                 <div className="p-4 space-y-4">
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      입금 안내, 결제 금액, 영수증이 <strong>주문자 연락처·이메일</strong>로 발송됩니다.
+                      <br />
+                      받는 분이 다르다면 아래 배송 정보에서 따로 입력해주세요.
+                    </p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       이름 <span className="text-red-500">*</span>
@@ -699,6 +737,7 @@ export default function CustomOrderPage() {
                       placeholder="01012345678"
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                     />
+                    <p className="text-xs text-gray-400 mt-1">결제·입금 안내를 받으실 번호입니다.</p>
                   </div>
                 </div>
               </div>
@@ -707,6 +746,7 @@ export default function CustomOrderPage() {
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 border-b">
                   <h2 className="font-semibold text-gray-900">배송 정보</h2>
+                  <p className="text-xs text-gray-500 mt-1">택배를 수령하실 분의 정보를 입력해주세요.</p>
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="flex gap-4">
@@ -719,6 +759,52 @@ export default function CustomOrderPage() {
                       <span className="text-sm text-gray-700">직접 수령</span>
                     </label>
                   </div>
+
+                  {/* 받는 분 — 송장·배송 안내 전용. 금액 정보는 이쪽으로 나가지 않는다. */}
+                  {shippingMethod === 'domestic' && (
+                    <div className="pt-1 border-t border-gray-100">
+                      <div className="flex items-center justify-between pt-3 mb-2">
+                        <p className="text-sm font-medium text-gray-900">받는 분</p>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={recipientSameAsOrderer}
+                            onChange={(e) => setRecipientSameAsOrderer(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand"
+                          />
+                          <span className="text-sm text-gray-700">주문자와 동일</span>
+                        </label>
+                      </div>
+
+                      {recipientSameAsOrderer ? (
+                        <p className="text-xs text-gray-400 pb-1">
+                          {customerName.trim()
+                            ? `${customerName.trim()} 님께 배송됩니다.`
+                            : '주문자 정보로 배송됩니다.'}
+                        </p>
+                      ) : (
+                        <div className="space-y-3 pb-1">
+                          <input
+                            type="text"
+                            value={recipientName}
+                            onChange={(e) => setRecipientName(e.target.value)}
+                            placeholder="받는 분 성함"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                          />
+                          <input
+                            type="tel"
+                            value={recipientPhone}
+                            onChange={(e) => setRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                            placeholder="받는 분 연락처 (01012345678)"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                          />
+                          <p className="text-xs text-gray-500">
+                            송장과 배송 안내에만 사용되며, 결제 금액 안내는 발송되지 않습니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {shippingMethod === 'domestic' && (
                     <div className="space-y-3">
