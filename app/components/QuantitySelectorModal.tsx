@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { SizeOption, CartItem, SizingData } from '@/types/types';
-import { describeStorageError } from '@/lib/quotaSafeStorage';
+import { describeStorageError, didCartBackupFail } from '@/lib/quotaSafeStorage';
 import { trackQuantityModalDismiss } from '@/lib/gtm-events';
 import SizeChartTable from './SizeChartTable';
 
@@ -215,14 +215,22 @@ export default function QuantitySelectorModal({
     }
 
     if (type === 'direct') {
-      const directIds = sessionStorage.getItem('directCheckoutItemIds');
-      if (directIds) {
-        sessionStorage.removeItem('directCheckoutItemIds');
+      let directIds: string | null = null;
+      try {
+        directIds = sessionStorage.getItem('directCheckoutItemIds');
+        if (directIds) sessionStorage.removeItem('directCheckoutItemIds');
+      } catch {
+        // 스토리지를 못 읽는 환경 — 전체 장바구니 결제로 폴백한다.
       }
       const checkoutPath = directIds ? `/checkout?directItems=${encodeURIComponent(directIds)}` : '/checkout';
       resetState();
       onClose();
-      if (directPurchaseOnly) {
+
+      // 장바구니 백업이 온전하지 못하면 전체 리로드로 가면 안 된다.
+      // 리로드 순간 메모리의 장바구니가 날아가고 복원할 백업이 없어
+      // 빈 장바구니가 되고, checkout 이 홈으로 되돌려보낸다(비회원 한정).
+      // 이때만 SPA 이동으로 갈아타 메모리 상태를 살린다.
+      if (directPurchaseOnly && !didCartBackupFail()) {
         window.location.assign(checkoutPath);
       } else {
         router.push(checkoutPath);

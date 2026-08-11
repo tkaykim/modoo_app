@@ -16,6 +16,19 @@ import type { StateStorage } from 'zustand/middleware';
 
 type PersistedShape = { state?: { items?: Array<{ addedAt?: number }> } };
 
+/**
+ * 마지막 장바구니 백업이 온전하지 못했는지(실패했거나 항목이 잘렸거나).
+ *
+ * 백업이 실패하면 **전체 페이지 리로드로 이동할 수 없다** — 리로드 순간 메모리
+ * 상태가 날아가는데 복원할 백업이 없어 빈 장바구니가 되고, checkout 이 홈으로
+ * 되돌려보낸다(비회원 한정. 회원은 장바구니가 DB 에 있어 무관).
+ * 이 값이 true 면 호출부는 SPA 이동으로 갈아타 메모리 상태를 살려야 한다.
+ */
+let lastWriteFailed = false;
+export function didCartBackupFail(): boolean {
+  return lastWriteFailed;
+}
+
 /** 최근 항목 우선으로 n개만 남긴 직렬화 문자열. 파싱 불가면 null. */
 function withNewestItems(value: string, keep: number): string | null {
   try {
@@ -45,6 +58,7 @@ export const quotaSafeLocalStorage: StateStorage = {
   setItem: (name, value) => {
     try {
       localStorage.setItem(name, value);
+      lastWriteFailed = false;
       return;
     } catch {
       // 용량 초과. 최근 항목만 남기며 절반씩 줄여 다시 시도한다.
@@ -56,6 +70,9 @@ export const quotaSafeLocalStorage: StateStorage = {
       if (shrunk) {
         try {
           localStorage.setItem(name, shrunk);
+          // 저장은 됐지만 항목이 잘렸다. 리로드하면 방금 담은 상품이 빠질 수
+          // 있으므로 "온전한 백업"으로 치지 않는다.
+          lastWriteFailed = true;
           return;
         } catch {
           // 더 줄여서 재시도
@@ -63,6 +80,8 @@ export const quotaSafeLocalStorage: StateStorage = {
       }
       keep = Math.floor(keep / 2);
     }
+
+    lastWriteFailed = true;
 
     // 백업을 포기한다. 메모리 상태는 그대로라 이번 주문은 정상 진행된다.
     // 남아 있던 옛 백업이 새 상태와 어긋나지 않도록 지운다.
