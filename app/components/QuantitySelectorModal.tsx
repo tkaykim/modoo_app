@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Plus, Minus, X } from 'lucide-react';
 import { SizeOption, CartItem, SizingData } from '@/types/types';
+import { describeStorageError } from '@/lib/quotaSafeStorage';
 import { trackQuantityModalDismiss } from '@/lib/gtm-events';
 import SizeChartTable from './SizeChartTable';
 
@@ -206,7 +207,10 @@ export default function QuantitySelectorModal({
       await onConfirm(effectiveDesignName, selectedItems, type, frozenPricePerItem);
     } catch (error) {
       setPurchaseType(null);
-      setConfirmError(error instanceof Error ? error.message : '주문 준비에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setConfirmError(
+        describeStorageError(error)
+        ?? (error instanceof Error ? error.message : '주문 준비에 실패했습니다. 잠시 후 다시 시도해주세요.')
+      );
       return;
     }
 

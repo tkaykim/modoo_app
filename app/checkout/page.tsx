@@ -857,10 +857,26 @@ export default function CheckoutPage() {
     };
 
     // Store in sessionStorage for use in success page
-    sessionStorage.setItem('pendingTossOrder', JSON.stringify({
-      orderData,
-      cartItems: items
-    }));
+    // 이건 결제 성공 페이지가 주문을 만들 때 쓰는 필수 데이터라 포기할 수 없다.
+    // 저장에 실패하면(브라우저 용량 초과) 뜻 모를 원문 에러 대신 무엇을 하면
+    // 되는지 알려준다. 실제로 iOS Safari 에서 "The quota has been exceeded"가
+    // 그대로 노출돼 고객이 주문을 못 하는 문의가 있었다.
+    const pendingPayload = JSON.stringify({ orderData, cartItems: items });
+    try {
+      sessionStorage.setItem('pendingTossOrder', pendingPayload);
+    } catch {
+      // 이전 결제 시도가 남긴 찌꺼기를 치우고 한 번 더.
+      try {
+        sessionStorage.removeItem('pendingTossOrder');
+        sessionStorage.removeItem('pendingCoBuyPayment');
+        sessionStorage.setItem('pendingTossOrder', pendingPayload);
+      } catch {
+        throw new Error(
+          '브라우저 저장공간이 부족해 결제를 진행할 수 없습니다.\n' +
+          '브라우저 설정에서 사이트 데이터를 삭제하거나 다른 브라우저로 시도해주세요.'
+        );
+      }
+    }
 
     console.log('Order data stored for Toss payment:', orderData);
   };

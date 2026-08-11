@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { trySessionSet } from '@/lib/quotaSafeStorage';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import DesignEditModal from '@/app/components/DesignEditModal';
@@ -319,7 +320,7 @@ export default function DesignsPage() {
 
       // For direct purchase, store item IDs so checkout filters to these only
       if (purchaseType === 'direct' && newCartItemIds.length > 0) {
-        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newCartItemIds));
+        trySessionSet('directCheckoutItemIds', JSON.stringify(newCartItemIds));
       }
     } catch (error) {
       console.error('Add to cart failed:', error);

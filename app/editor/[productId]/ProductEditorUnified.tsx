@@ -1,5 +1,6 @@
 'use client'
 import ProductDesigner from "@/app/components/canvas/ProductDesigner";
+import { trySessionSet } from '@/lib/quotaSafeStorage';
 import LayerColorSelector from "@/app/components/canvas/LayerColorSelector";
 import DesktopToolbar from "@/app/components/canvas/DesktopToolbar";
 import { Product, ProductConfig, CartItem, ProductColor, PrintMethodRecord } from "@/types/types";
@@ -575,7 +576,7 @@ export default function ProductEditorUnified({
         const newItemIds = currentItems
           .filter(i => i.savedDesignId === guestDesignId)
           .map(i => i.id);
-        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newItemIds));
+        trySessionSet('directCheckoutItemIds', JSON.stringify(newItemIds));
       } else {
         router.push('/cart');
       }
@@ -651,7 +652,7 @@ export default function ProductEditorUnified({
 
       // For direct purchase, store the item IDs so checkout only shows these items
       if (purchaseType === 'direct' && newCartItemIds.length > 0) {
-        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newCartItemIds));
+        trySessionSet('directCheckoutItemIds', JSON.stringify(newCartItemIds));
       }
 
       {

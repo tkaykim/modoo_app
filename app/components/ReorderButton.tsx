@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { trySessionSet } from '@/lib/quotaSafeStorage';
 import { RotateCcw, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 import { addToCartDB } from '@/lib/cartService';
@@ -176,7 +177,7 @@ export default function ReorderButton({ item }: ReorderButtonProps) {
       }
 
       if (purchaseType === 'direct' && newCartItemIds.length > 0) {
-        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(newCartItemIds));
+        trySessionSet('directCheckoutItemIds', JSON.stringify(newCartItemIds));
       }
     } catch (error) {
       console.error('Reorder add to cart failed:', error);

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { FontMetadata } from '@/lib/fontUtils';
+import { quotaSafeLocalStorage } from '@/lib/quotaSafeStorage';
 
 export interface CartItemData {
   id: string; // Unique identifier for this cart item
@@ -109,6 +110,10 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage', // localStorage key
+      // 저장 실패(iOS Safari 용량 초과 등)가 주문을 막지 않게 한다.
+      // 파트너몰에서 사이즈별 수량을 고르면 사이즈 수만큼 addItem 이 돌아
+      // 저장량이 한 번에 튀는데, 여기서 예외가 나면 결제로 못 넘어갔다.
+      storage: createJSONStorage(() => quotaSafeLocalStorage),
     }
   )
 );

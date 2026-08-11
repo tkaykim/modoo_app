@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { trySessionSet } from '@/lib/quotaSafeStorage';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
@@ -197,7 +198,7 @@ export default function PartnerMallPage() {
         const directItemIds = useCartStore.getState().items
           .filter((item) => item.savedDesignId === guestDesignId)
           .map((item) => item.id);
-        sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(directItemIds));
+        trySessionSet('directCheckoutItemIds', JSON.stringify(directItemIds));
         return;
       }
 
@@ -245,7 +246,7 @@ export default function PartnerMallPage() {
         });
       }
 
-      sessionStorage.setItem('directCheckoutItemIds', JSON.stringify(directItemIds));
+      trySessionSet('directCheckoutItemIds', JSON.stringify(directItemIds));
     } finally {
       setIsOrdering(false);
     }
