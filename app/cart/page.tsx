@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { didCartBackupFail } from '@/lib/quotaSafeStorage';
 import DesignEditModal from '@/app/components/DesignEditModal';
 import QuantityChangeModal from '@/app/components/QuantityChangeModal';
 import {
@@ -220,7 +221,14 @@ export default function CartPage() {
     } catch {
       // GTM 실패는 결제 흐름을 막지 않는다
     }
-    window.location.href = '/checkout';
+    // 장바구니 백업이 온전하지 못하면 전체 리로드로 가면 안 된다 —
+    // 리로드 순간 메모리의 장바구니가 날아가고 복원할 백업이 없어 빈 카트가 된다
+    // (비회원 한정. 회원은 장바구니가 DB 에 있어 무관).
+    if (didCartBackupFail()) {
+      router.push('/checkout');
+    } else {
+      window.location.href = '/checkout';
+    }
   };
 
   const handleTestModeCheckout = async () => {
