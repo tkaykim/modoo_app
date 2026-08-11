@@ -15,6 +15,7 @@ import {
 } from '@/lib/font-contract';
 import { getOrderUtmAttribution } from '@/lib/server-analytics';
 import { orderItemGroupKey } from '@/lib/orderGrouping';
+import { assertPhoneOrMessage, sanitizePhoneInput } from '@/lib/phone';
 
 interface OrderData {
   id: string;
@@ -90,6 +91,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 연락처 검증 — 클라이언트를 우회해 들어온 오타도 같은 규칙으로 막는다.
+    // 저장은 항상 숫자만(국가번호 붙은 입력은 여기서 국내 포맷으로 교정된다).
+    const customerPhone = sanitizePhoneInput(orderData.phone_num || '');
+    const customerPhoneError = assertPhoneOrMessage(customerPhone, '주문자 연락처');
+    if (customerPhoneError) {
+      return NextResponse.json({ success: false, error: customerPhoneError }, { status: 400 });
+    }
+
+    const recipientPhone = orderData.recipient_phone
+      ? sanitizePhoneInput(orderData.recipient_phone)
+      : customerPhone;
+    const recipientPhoneError = assertPhoneOrMessage(recipientPhone, '받는 분 연락처');
+    if (recipientPhoneError) {
+      return NextResponse.json({ success: false, error: recipientPhoneError }, { status: 400 });
+    }
+
     // 가격 위변조 방지: 무통장 입금 흐름도 동일한 서버 검증을 거친다.
     const pricingResult = await validateOrderPricing({
       cartItems: cartItems.map((it) => ({
@@ -157,10 +174,10 @@ export async function POST(request: NextRequest) {
         user_id: user?.id || null,
         customer_name: orderData.name,
         customer_email: orderData.email,
-        customer_phone: orderData.phone_num,
+        customer_phone: customerPhone,
         // 받는 분 — 미지정 주문(레거시 페이로드)은 주문자와 동일로 채운다.
         recipient_name: orderData.recipient_name || orderData.name,
-        recipient_phone: orderData.recipient_phone || orderData.phone_num,
+        recipient_phone: recipientPhone,
         recipient_same_as_orderer: orderData.recipient_same_as_orderer !== false,
         shipping_method: orderData.shipping_method,
         country_code: orderData.country_code,

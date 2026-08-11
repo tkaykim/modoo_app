@@ -7,6 +7,8 @@ import { Package, MapPin, Search, Loader2, ShieldCheck, CheckCircle2, CreditCard
 import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
 import { CustomOrderData, SizingData } from '@/types/types';
 import SizeChartTable from '@/app/components/SizeChartTable';
+import PhoneInput from '@/app/components/PhoneInput';
+import { checkPhone } from '@/lib/phone';
 import DesignPreviewModal from './DesignPreviewModal';
 
 type ShippingMethod = 'domestic' | 'pickup';
@@ -255,6 +257,14 @@ export default function CustomOrderPage() {
       try { document.getElementById('order-items-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* noop */ }
       return false;
     }
+    // 연락처 오타는 주문 후 연락 두절로 이어진다. 결제 전에 막는다.
+    if (customerPhone.trim()) {
+      const phoneCheck = checkPhone(customerPhone);
+      if (phoneCheck.blocking) {
+        setFormError(phoneCheck.message || '전화번호를 확인해주세요.');
+        return false;
+      }
+    }
     if (shippingMethod === 'domestic' && !recipientSameAsOrderer) {
       if (!recipientName.trim()) {
         setFormError('받는 분 성함을 입력해주세요.');
@@ -262,6 +272,11 @@ export default function CustomOrderPage() {
       }
       if (!recipientPhone.trim()) {
         setFormError('받는 분 연락처를 입력해주세요.');
+        return false;
+      }
+      const recipientCheck = checkPhone(recipientPhone);
+      if (recipientCheck.blocking) {
+        setFormError(recipientCheck.message || '받는 분 연락처를 확인해주세요.');
         return false;
       }
     }
@@ -730,12 +745,11 @@ export default function CustomOrderPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                    <input
-                      type="tel"
+                    <PhoneInput
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="01012345678"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                      onChange={setCustomerPhone}
+                      ariaLabel="주문자 전화번호"
+                      className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                     />
                     <p className="text-xs text-gray-400 mt-1">결제·입금 안내를 받으실 번호입니다.</p>
                   </div>
@@ -791,12 +805,12 @@ export default function CustomOrderPage() {
                             placeholder="받는 분 성함"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                           />
-                          <input
-                            type="tel"
+                          <PhoneInput
                             value={recipientPhone}
-                            onChange={(e) => setRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                            placeholder="받는 분 연락처 (01012345678)"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+                            onChange={setRecipientPhone}
+                            placeholder="받는 분 연락처 (010-1234-5678)"
+                            ariaLabel="받는 분 연락처"
+                            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
                           />
                           <p className="text-xs text-gray-500">
                             송장과 배송 안내에만 사용되며, 결제 금액 안내는 발송되지 않습니다.

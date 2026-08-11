@@ -15,6 +15,7 @@ import {
   extractCustomFontsFromCanvasState,
   mergeCustomFonts,
 } from '@/lib/font-contract';
+import { assertPhoneOrMessage, sanitizePhoneInput } from '@/lib/phone';
 
 const widgetSecretKey = process.env.TOSS_SECRET_KEY;
 
@@ -120,6 +121,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 연락처 검증 — 토스 승인(아래 confirm 호출) 전에 막아야 결제된 뒤 연락 두절이 안 생긴다.
+    // 저장은 항상 숫자만(국가번호 붙은 입력은 여기서 국내 포맷으로 교정된다).
+    const customerPhone = sanitizePhoneInput(orderData.phone_num || '');
+    const customerPhoneError = assertPhoneOrMessage(customerPhone, '주문자 연락처');
+    if (customerPhoneError) {
+      return NextResponse.json({ success: false, error: customerPhoneError }, { status: 400 });
+    }
+
+    const recipientPhone = orderData.recipient_phone
+      ? sanitizePhoneInput(orderData.recipient_phone)
+      : customerPhone;
+    const recipientPhoneError = assertPhoneOrMessage(recipientPhone, '받는 분 연락처');
+    if (recipientPhoneError) {
+      return NextResponse.json({ success: false, error: recipientPhoneError }, { status: 400 });
+    }
+
     const isFreeOrder = paymentKey === 'FREE_ORDER' && amount === 0;
     let tossData = null;
 
@@ -222,10 +239,10 @@ export async function POST(request: NextRequest) {
         user_id: user?.id || null,
         customer_name: orderData.name,
         customer_email: orderData.email,
-        customer_phone: orderData.phone_num,
+        customer_phone: customerPhone,
         // 받는 분 — 미지정 주문(레거시 페이로드)은 주문자와 동일로 채운다.
         recipient_name: orderData.recipient_name || orderData.name,
-        recipient_phone: orderData.recipient_phone || orderData.phone_num,
+        recipient_phone: recipientPhone,
         recipient_same_as_orderer: orderData.recipient_same_as_orderer !== false,
         shipping_method: orderData.shipping_method,
         country_code: orderData.country_code,

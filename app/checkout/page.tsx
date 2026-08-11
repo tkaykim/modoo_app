@@ -29,6 +29,8 @@ import { Ticket, ChevronDown, ChevronUp, X, Check, AlertCircle, Paperclip, Uploa
 import { createClient as createBrowserClient } from '@/lib/supabase-client';
 import { uploadFileToStorage } from '@/lib/supabase-storage';
 import LoginPromptModal from '@/app/components/LoginPromptModal';
+import PhoneInput from '@/app/components/PhoneInput';
+import { checkPhone } from '@/lib/phone';
 import { trackPurchase, trackBeginCheckout } from '@/lib/gtm-events';
 
 type ShippingMethod = 'domestic' | 'international' | 'pickup';
@@ -789,10 +791,20 @@ export default function CheckoutPage() {
       throw new Error('주문자 정보를 모두 입력해주세요.');
     }
 
+    // 연락처 오타는 주문 후 연락 두절로 이어진다(0104931766 사례). 결제 전에 막는다.
+    const customerPhoneCheck = checkPhone(customerInfo.phone);
+    if (customerPhoneCheck.blocking) {
+      throw new Error(customerPhoneCheck.message || '주문자 휴대폰 번호를 확인해주세요.');
+    }
+
     // 받는 분을 따로 지정했다면 성함·연락처가 모두 있어야 송장을 낼 수 있다.
     if (shippingMethod !== 'pickup' && !recipientSameAsOrderer) {
       if (!recipientName.trim() || !recipientPhone.trim()) {
         throw new Error('받는 분 성함과 연락처를 입력해주세요.');
+      }
+      const recipientPhoneCheck = checkPhone(recipientPhone);
+      if (recipientPhoneCheck.blocking) {
+        throw new Error(recipientPhoneCheck.message || '받는 분 연락처를 확인해주세요.');
       }
     }
 
@@ -1219,12 +1231,10 @@ export default function CheckoutPage() {
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">휴대폰 번호 <span className="text-red-500">*</span></label>
-            <input
-              type="tel"
+            <PhoneInput
               value={customerInfo.phone}
-              onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value.replace(/[^0-9]/g, '') })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black"
-              placeholder="01012345678"
+              onChange={(phone) => setCustomerInfo({ ...customerInfo, phone })}
+              ariaLabel="주문자 휴대폰 번호"
             />
           </div>
         </div>
@@ -1342,12 +1352,10 @@ export default function CheckoutPage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-700 mb-1">받는 분 연락처 <span className="text-red-500">*</span></label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={recipientPhone}
-                  onChange={(e) => setRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black"
-                  placeholder="01012345678"
+                  onChange={setRecipientPhone}
+                  ariaLabel="받는 분 연락처"
                 />
               </div>
               <p className="text-xs text-gray-500">

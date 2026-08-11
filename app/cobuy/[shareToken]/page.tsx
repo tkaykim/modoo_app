@@ -17,6 +17,7 @@ import TossPaymentWidget from '@/app/components/toss/TossPaymentWidget';
 import { createClient } from '@/lib/supabase-client';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { formatKstDateOnly } from '@/lib/kst';
+import { checkPhone, formatPhone, sanitizePhoneInput } from '@/lib/phone';
 
 type DesignWithProduct = SavedDesignScreenshot & { product?: Product };
 
@@ -308,6 +309,9 @@ export default function CoBuySharePage() {
         }
         if (!phone.trim()) {
           newErrors.phone = '전화번호를 입력해주세요';
+        } else {
+          const check = checkPhone(phone);
+          if (check.blocking) newErrors.phone = check.message || '전화번호를 확인해주세요';
         }
         break;
 
@@ -317,7 +321,13 @@ export default function CoBuySharePage() {
 
       case 'delivery-address':
         if (!deliveryInfo?.recipientName?.trim()) newErrors.recipientName = '수령인 이름을 입력해주세요';
-        if (!deliveryInfo?.phone?.trim()) newErrors.deliveryPhone = '연락처를 입력해주세요';
+        if (!deliveryInfo?.phone?.trim()) {
+          newErrors.deliveryPhone = '연락처를 입력해주세요';
+        } else {
+          // 공동구매는 참여자별 송장이라 오타 하나가 그대로 배송 사고가 된다.
+          const check = checkPhone(deliveryInfo.phone);
+          if (check.blocking) newErrors.deliveryPhone = check.message || '연락처를 확인해주세요';
+        }
         if (!deliveryInfo?.address?.trim()) newErrors.address = '주소를 입력해주세요';
         if (!deliveryInfo?.addressDetail?.trim()) newErrors.addressDetail = '상세 주소를 입력해주세요';
         break;
@@ -892,9 +902,11 @@ export default function CoBuySharePage() {
                   </label>
                   <input
                     type="tel"
-                    value={phone}
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    value={formatPhone(phone)}
                     onChange={(e) => {
-                      setPhone(e.target.value.replace(/[^0-9]/g, ''));
+                      setPhone(sanitizePhoneInput(e.target.value));
                       setErrors(prev => { const n = { ...prev }; delete n.phone; return n; });
                     }}
                     className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm md:text-base ${
@@ -1035,9 +1047,11 @@ export default function CoBuySharePage() {
                   </label>
                   <input
                     type="tel"
-                    value={deliveryInfo?.phone || ''}
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    value={formatPhone(deliveryInfo?.phone || '')}
                     onChange={(e) => {
-                      setDeliveryInfo(prev => ({ ...prev!, phone: e.target.value.replace(/[^0-9]/g, '') }));
+                      setDeliveryInfo(prev => ({ ...prev!, phone: sanitizePhoneInput(e.target.value) }));
                       setErrors(prev => { const n = { ...prev }; delete n.deliveryPhone; return n; });
                     }}
                     className={`w-full px-3 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand text-sm md:text-base ${
@@ -1163,9 +1177,14 @@ export default function CoBuySharePage() {
                     ) : (
                       <input
                         type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                        value={fieldResponses[field.id] || ''}
+                        inputMode={field.type === 'phone' ? 'numeric' : undefined}
+                        value={
+                          field.type === 'phone'
+                            ? formatPhone(fieldResponses[field.id] || '')
+                            : fieldResponses[field.id] || ''
+                        }
                         onChange={(e) => {
-                          const value = field.type === 'phone' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value;
+                          const value = field.type === 'phone' ? sanitizePhoneInput(e.target.value) : e.target.value;
                           setFieldResponses(prev => ({ ...prev, [field.id]: value }));
                           setErrors(prev => { const n = { ...prev }; delete n[field.id]; return n; });
                         }}

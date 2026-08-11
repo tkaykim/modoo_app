@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Script from 'next/script';
 import { CoBuyCustomField, CoBuySelectedItem, CoBuyDeliverySettings, CoBuyDeliveryMethod, CoBuyDeliveryInfo } from '@/types/types';
 import { Plus, Minus, Trash2, Truck, MapPin, Search } from 'lucide-react';
+import PhoneInput from '@/app/components/PhoneInput';
+import { checkPhone } from '@/lib/phone';
 
 interface ParticipantFormProps {
   customFields: CoBuyCustomField[];
@@ -239,8 +241,11 @@ const ParticipantForm: React.FC<ParticipantFormProps> = ({
         newErrors[field.id] = '올바른 이메일 형식이 아닙니다';
       }
 
-      if (value && field.type === 'phone' && !/^[0-9]*$/.test(value)) {
-        newErrors[field.id] = '올바른 전화번호 형식이 아닙니다';
+      if (value && field.type === 'phone') {
+        const check = checkPhone(value);
+        if (check.blocking) {
+          newErrors[field.id] = check.message || '올바른 전화번호 형식이 아닙니다';
+        }
       }
     });
 
@@ -257,6 +262,12 @@ const ParticipantForm: React.FC<ParticipantFormProps> = ({
         }
         if (!formData.deliveryInfo?.phone?.trim()) {
           newErrors.deliveryPhone = '연락처를 입력해주세요';
+        } else {
+          // 공동구매는 참여자별로 송장이 나가서 오타 하나가 곧 배송 사고다.
+          const check = checkPhone(formData.deliveryInfo.phone);
+          if (check.blocking) {
+            newErrors.deliveryPhone = check.message || '연락처를 확인해주세요';
+          }
         }
         if (!formData.deliveryInfo?.address?.trim()) {
           newErrors.address = '주소를 입력해주세요';
@@ -386,12 +397,11 @@ const ParticipantForm: React.FC<ParticipantFormProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           전화번호
         </label>
-        <input
-          type="tel"
-          value={formData.phone}
-          onChange={(e) => handleInputChange('phone', e.target.value.replace(/[^0-9]/g, ''))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
-          placeholder="01012345678"
+        <PhoneInput
+          value={formData.phone || ''}
+          onChange={(digits) => handleInputChange('phone', digits)}
+          ariaLabel="참여자 전화번호"
+          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
         />
         {errors.phone && (
           <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
@@ -603,14 +613,11 @@ const ParticipantForm: React.FC<ParticipantFormProps> = ({
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   연락처 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={formData.deliveryInfo?.phone || ''}
-                  onChange={(e) => handleDeliveryInfoChange('phone', e.target.value.replace(/[^0-9]/g, ''))}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm ${
-                    errors.deliveryPhone ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="01012345678"
+                  onChange={(digits) => handleDeliveryInfoChange('phone', digits)}
+                  ariaLabel="수령인 연락처"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm"
                 />
                 {errors.deliveryPhone && (
                   <p className="text-red-500 text-xs mt-1">{errors.deliveryPhone}</p>
