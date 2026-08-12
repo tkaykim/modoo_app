@@ -10,6 +10,8 @@
  * 호출자는 항상 lib/gtm-events.ts의 trackXxx 헬퍼를 사용한다.
  */
 
+import { readNaverAdParams, shouldApplyNaverAttribution } from './utm-attribution';
+
 declare global {
   interface Window {
     dataLayer?: Array<Record<string, unknown>>;
@@ -238,6 +240,21 @@ export const captureUtmFromLocation = (): UtmParams | null => {
     for (const k of UTM_KEYS) {
       const v = params.get(k);
       if (v) fresh[k] = v;
+    }
+    // 네이버 검색광고는 utm 대신 자동추적 n_* 파라미터로 들어온다.
+    // 이 쿠키가 orders.utm_* 의 원천이므로(lib/server-analytics.ts getOrderUtmAttribution),
+    // 여기서 정규화하지 않으면 네이버 주문이 영원히 (none) 으로 남는다.
+    if (shouldApplyNaverAttribution(params) && !fresh.utm_source) {
+      const naver = readNaverAdParams(params);
+      if (naver) {
+        // URL 에 명시된 값이 항상 우선한다 — 아래는 비어 있는 칸만 채운다.
+        fresh.utm_source = 'naver';
+        fresh.utm_medium ??= 'cpc';
+        if (naver.n_ad_group) fresh.utm_campaign ??= naver.n_ad_group;
+        // 검색어를 utm_term 에 실어 "어떤 검색어가 주문을 만들었나"를 주문 단위로 남긴다.
+        if (naver.n_query) fresh.utm_term ??= naver.n_query;
+        if (naver.n_ad) fresh.utm_content ??= naver.n_ad;
+      }
     }
     if (Object.keys(fresh).length > 0) {
       safeWriteCookie(UTM_KEY, JSON.stringify(fresh));

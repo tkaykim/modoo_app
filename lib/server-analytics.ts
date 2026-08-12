@@ -216,6 +216,8 @@ export function getOrderUtmAttribution(request: Request): {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  /** 네이버 검색광고에서는 실제 검색어가 들어온다 — 어떤 검색어가 주문을 만들었는지 주문 단위로 남는다 */
+  utm_term: string | null;
   utm_content: string | null;
   fbclid: string | null;
 } {
@@ -223,6 +225,7 @@ export function getOrderUtmAttribution(request: Request): {
     utm_source: null,
     utm_medium: null,
     utm_campaign: null,
+    utm_term: null,
     utm_content: null,
     fbclid: null,
   };
@@ -248,6 +251,7 @@ export function getOrderUtmAttribution(request: Request): {
       utm_source: pick('utm_source'),
       utm_medium: pick('utm_medium'),
       utm_campaign: pick('utm_campaign'),
+      utm_term: pick('utm_term'),
       utm_content: pick('utm_content'),
       fbclid: pick('fbclid'),
     };
