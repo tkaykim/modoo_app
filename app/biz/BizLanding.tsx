@@ -1,19 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** 방문자 유형. 케이스별로 보여줄 내용과 제안이 갈린다. */
 type Track = 'produce' | 'mall_only' | 'new_shop' | 'outsource' | 'supplier';
 
 const CASES: {
-  key: Track;
-  q: string;
-  who: string;
-  headline: string;
-  body: string;
-  offer: string;
-  price: string;
-  points: string[];
+  key: Track; q: string; who: string; headline: string; body: string;
+  offer: string; price: string; points: string[];
 }[] = [
   {
     key: 'produce',
@@ -91,20 +85,20 @@ const CASES: {
   },
 ];
 
-const PLATFORMS = [
-  { v: 'cafe24', t: '카페24' },
-  { v: 'godo', t: '고도몰' },
-  { v: 'imweb', t: '아임웹' },
-  { v: 'smartstore', t: '스마트스토어' },
-  { v: 'custom', t: '자체 제작' },
-  { v: 'none', t: '없음' },
+const WAYS = [
+  { t: '쓰던 몰에 모듈로 붙이기', d: '카페24·고도몰·아임웹에 주문 편집기를 연결합니다. 가장 빠르고 부담이 적습니다.', p: '월 59,000원부터' },
+  { t: '쇼핑몰을 새로 만들기', d: '커스텀 주문이 처음부터 되는 몰을 만들어 드립니다. 기존 몰이 있으시면 이전도 상담해 드립니다.', p: '범위 협의' },
+  { t: '입점만 하기', d: '몰을 운영하지 않으셔도 됩니다. 저희 플랫폼에 상품만 올리고 판매하십시오.', p: '월 이용료 없음' },
+  { t: '생산 파트너로 참여', d: '설비를 갖추셨다면 시스템을 무상으로 드리고 저희 발주를 연결합니다.', p: '월 이용료 없음' },
 ];
 
+const PLATFORMS = [
+  { v: 'cafe24', t: '카페24' }, { v: 'godo', t: '고도몰' }, { v: 'imweb', t: '아임웹' },
+  { v: 'smartstore', t: '스마트스토어' }, { v: 'custom', t: '자체 제작' }, { v: 'none', t: '없음' },
+];
 const ORDERS = [
-  { v: 'lt10', t: '10건 미만' },
-  { v: '10_50', t: '10~50건' },
-  { v: '50_200', t: '50~200건' },
-  { v: 'gt200', t: '200건 이상' },
+  { v: 'lt10', t: '10건 미만' }, { v: '10_50', t: '10~50건' },
+  { v: '50_200', t: '50~200건' }, { v: 'gt200', t: '200건 이상' },
 ];
 
 export default function BizLanding() {
@@ -142,8 +136,7 @@ export default function BizLanding() {
     setSending(true);
     try {
       const res = await fetch('/api/biz/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...f, track: track ?? 'unknown',
           utmSource: utm.s, utmMedium: utm.m, utmCampaign: utm.c,
@@ -155,20 +148,19 @@ export default function BizLanding() {
       setDone(true);
     } catch (e) {
       setErr(e instanceof Error ? e.message : '접수에 실패했습니다.');
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
   const current = CASES.find(c => c.key === track);
 
   return (
-    <div className="min-h-[100dvh] bg-[#f6f7fb] text-[#17191f]">
+    <div className="biz-page min-h-[100dvh] bg-[#f6f7fb] text-[#17191f]">
       <main className="mx-auto w-full max-w-md overflow-hidden pb-10">
 
-        {/* 히어로 */}
-        <section className="relative overflow-hidden bg-[#07101f] px-5 pb-10 pt-12 text-white">
-          <div className="pointer-events-none absolute -right-20 -top-10 h-56 w-56 rounded-full bg-[#0052cc]/25" />
+        {/* ── 히어로 ── */}
+        <section className="relative overflow-hidden bg-[#07101f] px-5 pb-0 pt-12 text-white">
+          <div className="pointer-events-none absolute -right-20 -top-12 h-60 w-60 rounded-full bg-[#0052cc]/25" />
+          <div className="pointer-events-none absolute -left-16 top-40 h-40 w-40 rounded-full bg-[#0052cc]/12" />
           <div className="relative z-10">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-[#8fb8ff]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#4d8dff]" />
@@ -181,165 +173,227 @@ export default function BizLanding() {
               로고 받고, 시안 만들고, 크기 물어보고, 견적 두드리고, 다시 보내고.
               <br />저희도 그렇게 했습니다. 그래서 그 과정을 전부 웹으로 옮겼습니다.
             </p>
-            <div className="mt-6 rounded-[18px] bg-white p-4 text-[#17191f] shadow-[0_18px_50px_rgba(0,0,0,.35)]">
-              <p className="text-[11px] font-black text-[#0052cc]">지금 하는 일</p>
-              <p className="mt-1 text-[15px] font-bold leading-snug">
-                고객이 직접 그리면<br />견적이 자동으로 나옵니다
-              </p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-[#667085]">
-                주문이 들어오면 인쇄용 파일과 작업지시서가 저절로 만들어져 공장으로 넘어갑니다.
-              </p>
+
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {[['3분', '시연이면 이해됩니다'], ['3일', '이면 붙습니다'], ['0원', '세팅비']].map(([n, l], i) => (
+                <RevealBlock key={n} delay={i * 110}>
+                  <div className="rounded-[16px] bg-white/10 px-3 py-3 text-center backdrop-blur">
+                    <p className="text-[21px] font-black leading-none text-white">{n}</p>
+                    <p className="mt-1.5 text-[10.5px] leading-tight text-[#9fb0ca]">{l}</p>
+                  </div>
+                </RevealBlock>
+              ))}
+            </div>
+
+            {/* 캐릭터 + 말풍선 */}
+            <div className="relative mt-6 h-[236px]">
+              <Bubble className="absolute left-0 top-2 z-20 max-w-[224px]" tail="left">
+                주문받는 건 저희가 할게요.<br />사장님은 찍는 것만 하세요.
+              </Bubble>
+              <img
+                src="/biz/character.png" alt=""
+                className="biz-float pointer-events-none absolute -right-8 bottom-[-96px] w-[240px] max-w-none select-none"
+              />
             </div>
           </div>
         </section>
 
-        {/* 케이스 분기 */}
-        <section className="rounded-t-[30px] -mt-4 relative z-10 bg-[#f6f7fb] px-5 pb-8 pt-8">
-          <p className="text-[11px] font-black text-[#0052cc]">먼저 하나만 알려주십시오</p>
-          <h2 className="mt-1 text-[25px] font-black leading-tight">
-            어느 쪽이십니까
-          </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-            답에 따라 제안이 완전히 달라집니다. 눌러서 확인해 보십시오.
-          </p>
+        {/* ── 문제: 카톡 왕복 ── */}
+        <section className="relative z-10 -mt-4 rounded-t-[30px] bg-[#f6f7fb] px-5 pb-9 pt-8">
+          <RevealBlock>
+            <p className="text-[11px] font-black text-[#0052cc]">아마 오늘도</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">이러고 계실 겁니다</h2>
+          </RevealBlock>
 
           <div className="mt-5 flex flex-col gap-2.5">
-            {CASES.map(c => {
+            {[
+              { side: 'them', t: '로고 보내드렸어요~' },
+              { side: 'me', t: '해상도가 좀 낮은데 원본 있으실까요?' },
+              { side: 'them', t: '앞에 크게 넣어주세요' },
+              { side: 'me', t: '몇 센치로 할까요?' },
+              { side: 'them', t: '적당히 크게요' },
+              { side: 'me', t: '(시안 만들어 보냄)' },
+              { side: 'them', t: '조금만 작게…' },
+            ].map((m, i) => (
+              <RevealBlock key={i} delay={i * 90}>
+                <div className={m.side === 'me' ? 'flex justify-end' : 'flex justify-start'}>
+                  <div className={`max-w-[76%] rounded-[16px] px-3.5 py-2.5 text-[13.5px] leading-snug ${
+                    m.side === 'me' ? 'bg-[#0052cc] font-bold text-white' : 'bg-white font-bold text-[#17191f] shadow-[0_4px_14px_rgba(23,25,31,.06)]'
+                  }`}>{m.t}</div>
+                </div>
+              </RevealBlock>
+            ))}
+          </div>
+
+          <RevealBlock delay={120}>
+            <p className="mt-6 rounded-[18px] bg-[#17191f] px-5 py-4 text-[15px] font-black leading-snug text-white">
+              주문 한 건에 붙는 사람 시간이,<br />그 주문의 마진보다 큽니다.
+            </p>
+          </RevealBlock>
+        </section>
+
+        {/* ── 케이스 분기 ── */}
+        <section className="bg-white px-5 py-9">
+          <RevealBlock>
+            <p className="text-[11px] font-black text-[#0052cc]">먼저 하나만 알려주십시오</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">어느 쪽이십니까</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              답에 따라 제안이 완전히 달라집니다. 눌러서 확인해 보십시오.
+            </p>
+          </RevealBlock>
+
+          <div className="mt-5 flex flex-col gap-2.5">
+            {CASES.map((c, idx) => {
               const open = openCase === c.key;
               return (
-                <div key={c.key} className="overflow-hidden rounded-[20px] bg-white shadow-[0_6px_20px_rgba(23,25,31,.06)]">
-                  <button
-                    type="button"
-                    onClick={() => setOpenCase(open ? null : c.key)}
-                    aria-expanded={open}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
-                  >
-                    <span>
-                      <span className="block text-[15.5px] font-black leading-snug">{c.q}</span>
-                      <span className="mt-0.5 block text-[12px] text-[#667085]">{c.who}</span>
-                    </span>
-                    <span className={`flex h-7 w-7 flex-none items-center justify-center rounded-full text-[15px] font-black transition ${open ? 'bg-[#0052cc] text-white' : 'bg-[#eef2f8] text-[#8b93a3]'}`}>
-                      {open ? '−' : '+'}
-                    </span>
-                  </button>
-
-                  {open && (
-                    <div className="border-t border-[#eef0f5] px-4 pb-4 pt-4">
-                      <p className="text-[16px] font-black leading-snug">{c.headline}</p>
-                      <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">{c.body}</p>
-                      <ul className="mt-3 flex flex-col gap-1.5">
-                        {c.points.map(p => (
-                          <li key={p} className="flex gap-2 text-[13px] leading-relaxed">
-                            <span className="mt-[7px] h-1 w-1 flex-none rounded-full bg-[#0052cc]" />
-                            <span className="text-[#3d4455]">{p}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-4 flex items-center justify-between rounded-[14px] bg-[#eaf2ff] px-4 py-3">
-                        <span className="text-[13px] font-black text-[#0052cc]">{c.offer}</span>
-                        <span className="text-[12.5px] font-bold text-[#17191f]">{c.price}</span>
+                <RevealBlock key={c.key} delay={idx * 70}>
+                  <div className="overflow-hidden rounded-[20px] bg-[#f6f7fb] shadow-[0_6px_20px_rgba(23,25,31,.05)]">
+                    <button type="button" onClick={() => setOpenCase(open ? null : c.key)} aria-expanded={open}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left">
+                      <span>
+                        <span className="block text-[15.5px] font-black leading-snug">{c.q}</span>
+                        <span className="mt-0.5 block text-[12px] text-[#667085]">{c.who}</span>
+                      </span>
+                      <span className={`flex h-7 w-7 flex-none items-center justify-center rounded-full text-[15px] font-black transition-all duration-300 ${open ? 'rotate-180 bg-[#0052cc] text-white' : 'bg-white text-[#8b93a3]'}`}>
+                        {open ? '−' : '+'}
+                      </span>
+                    </button>
+                    <div className={`biz-collapse ${open ? 'is-open' : ''}`}>
+                      <div className="overflow-hidden">
+                        <div className="border-t border-[#e6e9ef] px-4 pb-4 pt-4">
+                          <p className="text-[16px] font-black leading-snug">{c.headline}</p>
+                          <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">{c.body}</p>
+                          <ul className="mt-3 flex flex-col gap-1.5">
+                            {c.points.map(p => (
+                              <li key={p} className="flex gap-2 text-[13px] leading-relaxed text-[#3d4455]">
+                                <span className="mt-[7px] h-1 w-1 flex-none rounded-full bg-[#0052cc]" />
+                                <span>{p}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="mt-4 flex items-center justify-between rounded-[14px] bg-[#eaf2ff] px-4 py-3">
+                            <span className="text-[13px] font-black text-[#0052cc]">{c.offer}</span>
+                            <span className="text-[12.5px] font-bold">{c.price}</span>
+                          </div>
+                          <button type="button" onClick={() => pick(c.key)}
+                            className="mt-3 w-full rounded-[15px] bg-[#0052cc] px-4 py-3.5 text-[14.5px] font-black text-white transition active:scale-[.98] active:bg-[#003f9e]">
+                            이 방식으로 상담받기
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => pick(c.key)}
-                        className="mt-3 w-full rounded-[15px] bg-[#0052cc] px-4 py-3.5 text-[14.5px] font-black text-white active:bg-[#003f9e]"
-                      >
-                        이 방식으로 상담받기
-                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                </RevealBlock>
               );
             })}
           </div>
         </section>
 
-        {/* 실제 화면 */}
-        <section className="bg-white px-5 py-9">
-          <p className="text-[11px] font-black text-[#0052cc]">실제 화면</p>
-          <h2 className="mt-1 text-[25px] font-black leading-tight">
-            옷에 찍힐 크기가<br />밀리미터로 나옵니다
-          </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-            제품마다 실측해서 보정값을 넣었습니다. 도안을 키우면 값이 따라 올라갑니다.
-          </p>
-          <figure className="mt-4">
-            <img src="/biz/editor.jpg" alt="웹 디자인 편집기 화면" className="w-full rounded-[16px] border border-[#e8eaf0]" loading="lazy" />
-            <figcaption className="mt-2 text-[12px] leading-relaxed text-[#8b93a3]">
-              기본가 7,900원 + 디자인 8,000원이 자동으로 합산되어 있습니다.
-            </figcaption>
-          </figure>
-
-          <h3 className="mt-8 text-[19px] font-black leading-tight">공장은 링크만 열면 됩니다</h3>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-            계정을 만들지 않아도 됩니다. 네 면의 도안과 인쇄 방식, 크기, 원본 파일이 한 화면에 있습니다.
-          </p>
-          <figure className="mt-4">
-            <img src="/biz/workorder.jpg" alt="공장 작업지시 화면" className="w-full rounded-[16px] border border-[#e8eaf0]" loading="lazy" />
-            <figcaption className="mt-2 text-[12px] leading-relaxed text-[#8b93a3]">
-              방식은 DTF 전사, 크기는 71.9 × 8.2cm로 찍혀 있습니다.
-            </figcaption>
-          </figure>
-
-          <div className="mt-7 rounded-[18px] bg-[#f6f7fb] p-4">
-            <p className="text-[13.5px] font-black">일러스트레이터 AI 파일도 그대로 올라갑니다</p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">
-              PSD도 됩니다. 자동으로 변환해 화면에 올리고 원본은 따로 보관해서, 생산 단계에서 원본을 그대로 내려받습니다.
-              올린 이미지의 배경은 알아서 지워집니다.
+        {/* ── 실제 화면 (확대) ── */}
+        <section className="bg-[#f6f7fb] px-5 py-9">
+          <RevealBlock>
+            <p className="text-[11px] font-black text-[#0052cc]">실제 화면</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">
+              옷에 찍힐 크기가<br />밀리미터로 나옵니다
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              제품마다 실측해서 보정값을 넣었습니다. 도안을 키우면 값이 따라 올라갑니다.
             </p>
-          </div>
+          </RevealBlock>
+
+          <ZoomShot
+            shot="/biz/editor.jpg" zoom="/biz/zoom-price.jpg"
+            alt="웹 디자인 편집기 화면"
+            caption="기본가와 디자인비가 자동으로 합산됩니다"
+            badge="자동 견적"
+          />
+
+          <RevealBlock>
+            <h3 className="mt-9 text-[20px] font-black leading-tight">공장은 링크만 열면 됩니다</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              계정을 만들지 않아도 됩니다. 네 면의 도안과 인쇄 방식, 크기, 원본 파일이 한 화면에 있습니다.
+            </p>
+          </RevealBlock>
+
+          <ZoomShot
+            shot="/biz/workorder.jpg" zoom="/biz/zoom-spec.jpg"
+            alt="공장 작업지시 화면"
+            caption="인쇄 방식과 크기가 그대로 찍혀 나갑니다"
+            badge="작업지시"
+          />
+
+          <RevealBlock>
+            <div className="mt-7 rounded-[18px] bg-white p-4 shadow-[0_6px_20px_rgba(23,25,31,.05)]">
+              <p className="text-[13.5px] font-black">일러스트레이터 AI 파일도 그대로 올라갑니다</p>
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">
+                PSD도 됩니다. 자동으로 변환해 화면에 올리고 원본은 따로 보관해서, 생산 단계에서 원본을 그대로 내려받습니다.
+                올린 이미지의 배경은 알아서 지워집니다.
+              </p>
+            </div>
+          </RevealBlock>
         </section>
 
-        {/* 함께 하는 방식 */}
-        <section className="bg-[#f6f7fb] px-5 py-9">
-          <p className="text-[11px] font-black text-[#0052cc]">고르시면 됩니다</p>
-          <h2 className="mt-1 text-[25px] font-black leading-tight">
-            함께 하는 방식은<br />네 가지입니다
-          </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-            지금 상황에서 가장 부담 적은 쪽으로 시작하시고, 나중에 옮기셔도 됩니다.
-          </p>
-          <div className="mt-4 flex flex-col gap-2.5">
-            {[
-              ['쓰던 몰에 모듈로 붙이기', '카페24·고도몰·아임웹에 주문 편집기를 연결합니다. 가장 빠르고 부담이 적습니다.', '월 59,000원부터'],
-              ['쇼핑몰을 새로 만들기', '커스텀 주문이 처음부터 되는 몰을 만들어 드립니다. 기존 몰이 있으시면 이전도 상담해 드립니다.', '범위 협의'],
-              ['입점만 하기', '몰을 운영하지 않으셔도 됩니다. 저희 플랫폼에 상품만 올리고 판매하십시오.', '월 이용료 없음'],
-              ['생산 파트너로 참여', '설비를 갖추셨다면 시스템을 무상으로 드리고 저희 발주를 연결합니다.', '월 이용료 없음'],
-            ].map(([t, d, p]) => (
-              <div key={t} className="rounded-[18px] bg-white px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[14.5px] font-black leading-snug">{t}</p>
-                  <span className="flex-none rounded-full bg-[#eaf2ff] px-2.5 py-1 text-[11.5px] font-bold text-[#0052cc]">{p}</span>
+        {/* ── 함께 하는 방식 ── */}
+        <section className="bg-white px-5 py-9">
+          <RevealBlock>
+            <p className="text-[11px] font-black text-[#0052cc]">고르시면 됩니다</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">함께 하는 방식은<br />네 가지입니다</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              지금 상황에서 가장 부담 적은 쪽으로 시작하시고, 나중에 옮기셔도 됩니다.
+            </p>
+          </RevealBlock>
+
+          <div className="relative mt-5 pl-8">
+            <div className="biz-flow absolute bottom-5 left-[11px] top-5 w-px bg-[#cfe0ff]" />
+            {WAYS.map((w, i) => (
+              <RevealBlock key={w.t} delay={i * 100}>
+                <div className="relative pb-4">
+                  <span className="absolute -left-8 top-3.5 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#0052cc] text-[11px] font-black text-white">
+                    {i + 1}
+                  </span>
+                  <div className="rounded-[18px] bg-[#f6f7fb] px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-[14.5px] font-black leading-snug">{w.t}</p>
+                      <span className="flex-none rounded-full bg-[#eaf2ff] px-2.5 py-1 text-[11.5px] font-bold text-[#0052cc]">{w.p}</span>
+                    </div>
+                    <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">{w.d}</p>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">{d}</p>
-              </div>
+              </RevealBlock>
             ))}
           </div>
         </section>
 
-        {/* 자주 묻는 조건 */}
-        <section className="bg-white px-5 py-9">
-          <p className="text-[11px] font-black text-[#0052cc]">자주 묻는 조건</p>
-          <h2 className="mt-1 text-[25px] font-black leading-tight">이런 경우도 방법이 있습니다</h2>
-          <ul className="mt-4 flex flex-col gap-2.5">
+        {/* ── 자주 묻는 조건 ── */}
+        <section className="relative overflow-hidden bg-[#07101f] px-5 py-9 text-white">
+          <div className="pointer-events-none absolute -right-16 bottom-8 h-44 w-44 rounded-full bg-[#0052cc]/20" />
+          <RevealBlock className="relative z-10">
+            <p className="text-[11px] font-black text-[#8fb8ff]">자주 묻는 조건</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">이런 경우에도<br />방법이 있습니다</h2>
+          </RevealBlock>
+          <div className="relative z-10 mt-5 flex flex-col gap-2.5">
             {[
-              ['스마트스토어를 쓰고 있습니다', '네이버는 외부 편집기 삽입을 막아두고 있어, 고객이 저희 쪽에서 디자인하고 코드를 받아 옵션에 넣는 방식으로 연결해 드립니다.'],
+              ['스마트스토어를 쓰고 있습니다', '네이버가 외부 편집기 삽입을 막아두고 있어, 고객이 저희 쪽에서 디자인하고 코드를 받아 옵션에 넣는 방식으로 연결해 드립니다.'],
               ['나염이나 자수가 주력입니다', '편집기 자동 계산은 지금 전사(DTF) 기준입니다. 나염·자수는 단가표로 잡아 드리고, 요청이 모이는 순서대로 자동 계산에 넣고 있습니다.'],
               ['디자인 인력이 없습니다', '고객이 직접 올리는 구조라 대부분 해결되지만, 손이 필요한 건은 저희 쪽 작업으로 상담해 드립니다.'],
-            ].map(([t, d]) => (
-              <li key={t} className="rounded-[16px] bg-[#f6f7fb] px-4 py-3.5">
-                <p className="text-[13.5px] font-black leading-snug">{t}</p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-[#667085]">{d}</p>
-              </li>
+            ].map(([t, d], i) => (
+              <RevealBlock key={t} delay={i * 100}>
+                <div className="rounded-[16px] bg-white/[.07] px-4 py-3.5 backdrop-blur">
+                  <p className="text-[13.5px] font-black leading-snug">{t}</p>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-[#a9b6cc]">{d}</p>
+                </div>
+              </RevealBlock>
             ))}
-          </ul>
-          <p className="mt-4 rounded-[16px] bg-[#eaf2ff] px-4 py-3.5 text-[12.5px] leading-relaxed text-[#17191f]">
-            <b className="font-black">여기 없는 요청도 남겨주십시오.</b> 같은 요청이 모이면 우선순위로 만들고 있습니다.
-            지금 안 되는 것도 수요가 확인되면 만듭니다.
-          </p>
+          </div>
+          <RevealBlock delay={120} className="relative z-10">
+            <p className="mt-4 rounded-[16px] bg-[#0052cc] px-4 py-3.5 text-[12.5px] font-bold leading-relaxed">
+              여기 없는 요청도 남겨주십시오. 같은 요청이 모이면 우선순위로 만듭니다.
+              지금 안 되는 것도 수요가 확인되면 만듭니다.
+            </p>
+          </RevealBlock>
         </section>
 
-        {/* 폼 */}
+        {/* ── 폼 ── */}
         <section ref={formRef} className="scroll-mt-4 bg-white px-5 py-9">
           {done ? (
             <div className="rounded-[22px] bg-[#f6f7fb] px-5 py-10 text-center">
@@ -355,90 +409,76 @@ export default function BizLanding() {
             </div>
           ) : (
             <>
-              <p className="text-[11px] font-black text-[#0052cc]">30초 도입 문의</p>
-              <h2 className="mt-1 text-[25px] font-black leading-tight">
-                두 칸만 채우시면 됩니다
-              </h2>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-                나머지는 통화하면서 여쭤보겠습니다. 비용이 발생하지 않습니다.
-              </p>
+              <RevealBlock>
+                <div className="relative">
+                  <Bubble className="max-w-[250px]" tail="left" tone="light">
+                    두 칸만 채우시면 됩니다.<br />나머지는 통화하면서 여쭤볼게요.
+                  </Bubble>
+                </div>
+                <p className="mt-5 text-[11px] font-black text-[#0052cc]">30초 도입 문의</p>
+                <h2 className="mt-1 text-[25px] font-black leading-tight">지금 남겨두시면<br />내일 연락드립니다</h2>
+              </RevealBlock>
 
               <div className="mt-5 rounded-[18px] bg-[#f6f7fb] p-4">
                 <p className="text-[11.5px] font-black text-[#667085]">선택하신 방식</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {CASES.map(c => (
-                    <button
-                      key={c.key}
-                      type="button"
-                      onClick={() => setTrack(c.key)}
-                      className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${
-                        track === c.key ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'
-                      }`}
-                    >
+                    <button key={c.key} type="button" onClick={() => setTrack(c.key)}
+                      className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${track === c.key ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
                       {c.q}
                     </button>
                   ))}
                 </div>
-                {current && (
-                  <p className="mt-2.5 text-[12px] leading-relaxed text-[#0052cc]">
-                    → {current.offer} · {current.price}
-                  </p>
-                )}
+                {current && <p className="mt-2.5 text-[12px] font-bold leading-relaxed text-[#0052cc]">→ {current.offer} · {current.price}</p>}
               </div>
 
               <div className="mt-4 flex flex-col gap-2.5">
-                <input
-                  value={f.contactName} onChange={e => set('contactName', e.target.value)}
-                  placeholder="성함" autoComplete="name"
-                  className="w-full rounded-[15px] border border-[#e2e5ec] bg-white px-4 py-3.5 text-[15px] outline-none focus:border-[#0052cc]"
-                />
-                <input
-                  value={f.phone} onChange={e => set('phone', e.target.value)}
-                  placeholder="연락처" inputMode="tel" autoComplete="tel"
-                  className="w-full rounded-[15px] border border-[#e2e5ec] bg-white px-4 py-3.5 text-[15px] outline-none focus:border-[#0052cc]"
-                />
+                <input value={f.contactName} onChange={e => set('contactName', e.target.value)} placeholder="성함" autoComplete="name"
+                  className="biz-input w-full rounded-[15px] border border-[#e2e5ec] bg-white px-4 py-3.5 text-[15px] outline-none" />
+                <input value={f.phone} onChange={e => set('phone', e.target.value)} placeholder="연락처" inputMode="tel" autoComplete="tel"
+                  className="biz-input w-full rounded-[15px] border border-[#e2e5ec] bg-white px-4 py-3.5 text-[15px] outline-none" />
               </div>
 
-              <button
-                type="button" onClick={() => setMore(v => !v)}
-                className="mt-3 text-[12.5px] font-bold text-[#0052cc] underline underline-offset-2"
-              >
+              <button type="button" onClick={() => setMore(v => !v)}
+                className="mt-3 text-[12.5px] font-bold text-[#0052cc] underline underline-offset-2">
                 {more ? '추가 정보 접기' : '더 빨리 준비하도록 정보 더 주기 (선택)'}
               </button>
 
-              {more && (
-                <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] bg-[#f6f7fb] p-4">
-                  <input value={f.company} onChange={e => set('company', e.target.value)} placeholder="회사명"
-                    className="w-full rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none focus:border-[#0052cc]" />
-                  <input value={f.shopUrl} onChange={e => set('shopUrl', e.target.value)} placeholder="쇼핑몰 주소 (주시면 붙여서 보내드립니다)"
-                    className="w-full rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none focus:border-[#0052cc]" />
-                  <div>
-                    <p className="mb-1.5 text-[11.5px] font-black text-[#667085]">쇼핑몰 종류</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PLATFORMS.map(p => (
-                        <button key={p.v} type="button" onClick={() => set('platform', f.platform === p.v ? '' : p.v)}
-                          className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${f.platform === p.v ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
-                          {p.t}
-                        </button>
-                      ))}
+              <div className={`biz-collapse ${more ? 'is-open' : ''}`}>
+                <div className="overflow-hidden">
+                  <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] bg-[#f6f7fb] p-4">
+                    <input value={f.company} onChange={e => set('company', e.target.value)} placeholder="회사명"
+                      className="biz-input w-full rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none" />
+                    <input value={f.shopUrl} onChange={e => set('shopUrl', e.target.value)} placeholder="쇼핑몰 주소 (주시면 붙여서 보내드립니다)"
+                      className="biz-input w-full rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none" />
+                    <div>
+                      <p className="mb-1.5 text-[11.5px] font-black text-[#667085]">쇼핑몰 종류</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {PLATFORMS.map(p => (
+                          <button key={p.v} type="button" onClick={() => set('platform', f.platform === p.v ? '' : p.v)}
+                            className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${f.platform === p.v ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
+                            {p.t}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <p className="mb-1.5 text-[11.5px] font-black text-[#667085]">월 커스텀 주문</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ORDERS.map(o => (
-                        <button key={o.v} type="button" onClick={() => set('monthlyOrders', f.monthlyOrders === o.v ? '' : o.v)}
-                          className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${f.monthlyOrders === o.v ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
-                          {o.t}
-                        </button>
-                      ))}
+                    <div>
+                      <p className="mb-1.5 text-[11.5px] font-black text-[#667085]">월 커스텀 주문</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ORDERS.map(o => (
+                          <button key={o.v} type="button" onClick={() => set('monthlyOrders', f.monthlyOrders === o.v ? '' : o.v)}
+                            className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold ${f.monthlyOrders === o.v ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
+                            {o.t}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    <textarea value={f.painNote} onChange={e => set('painNote', e.target.value)} rows={2}
+                      placeholder="가장 불편한 점 (한 줄이면 충분합니다)"
+                      className="biz-input w-full resize-none rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none" />
                   </div>
-                  <textarea value={f.painNote} onChange={e => set('painNote', e.target.value)} rows={2}
-                    placeholder="가장 불편한 점 (한 줄이면 충분합니다)"
-                    className="w-full resize-none rounded-[13px] border border-[#e2e5ec] bg-white px-3.5 py-3 text-[14px] outline-none focus:border-[#0052cc]" />
                 </div>
-              )}
+              </div>
 
               <div className="mt-4 flex flex-col gap-2">
                 <label className="flex cursor-pointer items-start gap-2.5 text-[12.5px] leading-relaxed text-[#3d4455]">
@@ -460,10 +500,8 @@ export default function BizLanding() {
 
               {err && <p className="mt-3 rounded-[13px] bg-[#fff5f3] px-4 py-3 text-[13px] font-bold text-[#8e3a2e]">{err}</p>}
 
-              <button
-                type="button" onClick={submit} disabled={sending}
-                className="mt-4 w-full rounded-[16px] bg-[#0052cc] px-4 py-4 text-[15.5px] font-black text-white active:bg-[#003f9e] disabled:opacity-60"
-              >
+              <button type="button" onClick={submit} disabled={sending}
+                className="mt-4 w-full rounded-[16px] bg-[#0052cc] px-4 py-4 text-[15.5px] font-black text-white transition active:scale-[.99] active:bg-[#003f9e] disabled:opacity-60">
                 {sending ? '접수 중…' : '상담 요청하기'}
               </button>
               <p className="mt-2.5 text-center text-[12px] text-[#8b93a3]">
@@ -479,6 +517,104 @@ export default function BizLanding() {
           K-PRINT 2026 킨텍스 제2전시장 부스 M304 · 8월 19일~22일
         </footer>
       </main>
+
+      <style jsx global>{`
+        .biz-page { letter-spacing: 0; word-break: keep-all; overflow-wrap: break-word; }
+        .biz-reveal { opacity: 0; transform: translateY(22px);
+          transition: opacity 620ms ease, transform 620ms ease; will-change: opacity, transform; }
+        .biz-reveal.is-visible { opacity: 1; transform: translateY(0); }
+        .biz-float { animation: biz-float 3.8s ease-in-out infinite; }
+        @keyframes biz-float {
+          0%, 100% { transform: translate3d(0,0,0) rotate(-1deg); }
+          50% { transform: translate3d(0,-7px,0) rotate(1deg); }
+        }
+        .biz-flow { transform-origin: top; animation: biz-draw 1.2s ease-out both;
+          animation-timeline: view(); animation-range: entry 10% cover 55%; }
+        @keyframes biz-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        .biz-collapse { display: grid; grid-template-rows: 0fr;
+          transition: grid-template-rows 340ms cubic-bezier(.4,0,.2,1); }
+        .biz-collapse.is-open { grid-template-rows: 1fr; }
+        .biz-zoom { opacity: 0; transform: scale(.82) translateY(14px);
+          transition: opacity 700ms cubic-bezier(.2,.7,.3,1) 220ms, transform 700ms cubic-bezier(.2,.7,.3,1) 220ms; }
+        .biz-zoom.is-visible { opacity: 1; transform: scale(1) translateY(0); }
+        .biz-input:focus { border-color: #0052cc; box-shadow: 0 0 0 4px rgba(0,82,204,.1); }
+        @media (prefers-reduced-motion: reduce) {
+          .biz-reveal, .biz-reveal.is-visible, .biz-float, .biz-flow, .biz-zoom, .biz-zoom.is-visible {
+            animation: none; opacity: 1; transform: none; transition: none;
+          }
+          .biz-collapse { transition: none; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── 스크롤 진입 시 나타나는 블록 ── */
+function RevealBlock({ children, className = '', delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setVisible(true); return; }
+    const ob = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); ob.disconnect(); }
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.15 });
+    ob.observe(node);
+    return () => ob.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`biz-reveal ${visible ? 'is-visible' : ''} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+/* ── 말풍선 ── */
+function Bubble({ children, className = '', tail = 'left', tone = 'white' }: {
+  children: ReactNode; className?: string; tail?: 'left' | 'right'; tone?: 'white' | 'light';
+}) {
+  const bg = tone === 'light' ? 'bg-[#eaf2ff]' : 'bg-white';
+  return (
+    <div className={`relative rounded-[18px] ${bg} px-4 py-3 text-[#17191f] shadow-[0_12px_28px_rgba(0,0,0,.16)] ${className}`}>
+      <p className="text-[12.5px] font-black leading-snug">{children}</p>
+      <span className={`absolute -bottom-2 ${tail === 'left' ? 'left-8' : 'right-8'} h-4 w-4 rotate-45 ${bg}`} />
+    </div>
+  );
+}
+
+/* ── 화면 + 확대 인셋 ── */
+function ZoomShot({ shot, zoom, alt, caption, badge }: {
+  shot: string; zoom: string; alt: string; caption: string; badge: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setVisible(true); return; }
+    const ob = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); ob.disconnect(); }
+    }, { threshold: 0.25 });
+    ob.observe(node);
+    return () => ob.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="relative mt-5">
+      <div className={`biz-reveal ${visible ? 'is-visible' : ''} overflow-hidden rounded-[18px] border border-[#e4e7ee] bg-white`}>
+        <img src={shot} alt={alt} className="w-full" loading="lazy" />
+      </div>
+      <div className={`biz-zoom ${visible ? 'is-visible' : ''} relative -mt-8 ml-4 mr-1 origin-bottom-left`}>
+        <div className="overflow-hidden rounded-[16px] border-2 border-[#0052cc] bg-white shadow-[0_18px_40px_rgba(0,82,204,.22)]">
+          <div className="flex items-center gap-1.5 bg-[#0052cc] px-3 py-1.5">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/25 text-[9px] font-black text-white">＋</span>
+            <span className="text-[11px] font-black text-white">{badge} 확대</span>
+          </div>
+          <img src={zoom} alt="" className="w-full" loading="lazy" />
+        </div>
+      </div>
+      <p className="mt-3 text-[12px] leading-relaxed text-[#8b93a3]">{caption}</p>
     </div>
   );
 }
