@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import BizLanding from './BizLanding';
 
 export const metadata: Metadata = {
-  title: '번거로운 주문과정을 자동화 해드립니다 | 모두의 유니폼',
+  // 루트 레이아웃의 template("%s | 모두의 유니폼")이 브랜드를 붙이므로 여기선 문구만 둔다
+  title: '번거로운 주문과정을 자동화 해드립니다',
   description:
     '단체복·굿즈 제작업체를 위한 커스텀 주문 시스템입니다. 고객이 웹에서 직접 디자인하면 옷 위 실제 크기가 밀리미터로 표시되고 견적이 자동 산출되며, 인쇄용 파일과 작업지시서가 자동으로 만들어집니다.',
   alternates: { canonical: '/biz' },
