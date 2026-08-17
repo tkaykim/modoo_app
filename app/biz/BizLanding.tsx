@@ -167,7 +167,7 @@ export default function BizLanding() {
               단체복·굿즈 제작업체 전용
             </div>
             <h1 className="mt-4 text-[36px] font-black leading-[1.1]">
-              주문서 한 장에<br />사흘 쓰고 계십니까
+              번거로운 주문과정을<br />자동화 해드립니다
             </h1>
             <p className="mt-4 text-[14px] leading-relaxed text-[#aab6cc]">
               로고 받고, 시안 만들고, 크기 물어보고, 견적 두드리고, 다시 보내고.
@@ -512,7 +512,7 @@ export default function BizLanding() {
         </section>
 
         <footer className="px-5 pb-2 pt-6 text-[11.5px] leading-relaxed text-[#8b93a3]">
-          모두굿즈 (피스코프) · 대표 김현준<br />
+          모두의 유니폼 (피스코프) · 대표 김현준<br />
           modoo.contact@gmail.com · modoouniform.com<br />
           K-PRINT 2026 킨텍스 제2전시장 부스 M304 · 8월 19일~22일
         </footer>
