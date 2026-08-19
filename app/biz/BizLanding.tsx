@@ -3,15 +3,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** 방문자 유형. 케이스별로 보여줄 내용과 제안이 갈린다. */
-type Track = 'produce' | 'mall_only' | 'new_shop' | 'outsource' | 'supplier';
+type Track = 'produce' | 'mall_only' | 'new_shop' | 'outsource';
 
 const CASES: {
-  key: Track; q: string; who: string; headline: string; body: string;
+  key: Track; q: string; chip: string; who: string; headline: string; body: string;
   offer: string; price: string; points: string[];
 }[] = [
   {
     key: 'produce',
-    q: '직접 찍습니다',
+    q: '전사기, 자수기 등 설비를 갖추고 있는 공장이에요!',
+    chip: '설비를 갖추고 있는 생산공장',
     who: '전사기·자수기 등 설비를 갖춘 공장·인쇄소',
     headline: '설비는 있는데 주문받는 데서 시간이 다 샙니다',
     body: '시안 왕복과 수기 견적에 붙는 사람 시간이 그 주문의 마진보다 큽니다. 저희는 그 앞단을 통째로 웹으로 옮겼습니다.',
@@ -26,11 +27,12 @@ const CASES: {
   },
   {
     key: 'mall_only',
-    q: '쇼핑몰은 있는데 커스텀 주문만 못 받습니다',
+    q: '쇼핑몰은 있는데, 일일이 게시판으로 문의 받고, 카톡으로 문의 받아요',
+    chip: '쇼핑몰은 있는데 커스텀 주문 도입하고 싶어요',
     who: '카페24·고도몰·아임웹으로 몰을 운영 중인 곳',
     headline: '쓰시던 몰에 모듈로 붙여드립니다',
-    body: '결제와 배송은 지금 채널이 그대로 하고, 주문 접수 단계만 연결합니다. 3영업일이면 실제로 붙은 화면을 보실 수 있습니다.',
-    offer: '3영업일 안에 붙여드립니다',
+    body: '결제와 배송은 지금 채널이 그대로 하고, 주문 접수 단계만 연결합니다. 어떻게 붙는지는 상담에서 화면으로 보여드립니다.',
+    offer: '쓰시던 몰에 그대로 연결',
     price: '월 59,000원부터 · 세팅비 0원',
     points: [
       '상품 상세에 버튼 한 줄이면 연결됩니다',
@@ -41,7 +43,8 @@ const CASES: {
   },
   {
     key: 'new_shop',
-    q: '쇼핑몰이 없거나, 갈아타고 싶습니다',
+    q: '쇼핑몰이 없거나, 새로 만들고 싶어요',
+    chip: '쇼핑몰이 없거나 새로 만들고 싶어요',
     who: '몰을 새로 열거나 기존 몰이 답답하신 곳',
     headline: '몰부터 같이 만들어 드립니다',
     body: '커스텀 주문이 되는 쇼핑몰을 처음부터 만들어 드립니다. 이미 몰이 있으시면 상품·회원·주문 이전까지 상담해 드립니다.',
@@ -56,7 +59,8 @@ const CASES: {
   },
   {
     key: 'outsource',
-    q: '영업만 하고 생산은 맡깁니다',
+    q: '영업만 하고 생산은 외주를 주고 있어요',
+    chip: '영업만 하고 주문은 외주 맡기고 있어요',
     who: '단체복·굿즈를 받아서 파는 판매업체',
     headline: '입점만 하셔도 되고, 도구만 쓰셔도 됩니다',
     body: '몰을 따로 운영하실 필요가 없습니다. 저희 플랫폼에 입점만 하시거나, 주문 도구는 무료로 쓰시고 제작만 맡기셔도 됩니다.',
@@ -69,26 +73,11 @@ const CASES: {
       '브랜드를 그대로 유지한 전용몰도 가능합니다',
     ],
   },
-  {
-    key: 'supplier',
-    q: '장비나 소재를 공급합니다',
-    who: 'DTF·전사·자수 장비 및 소모품 공급사',
-    headline: '장비 파실 때 같이 얹으실 수 있습니다',
-    body: '장비를 산 사장님들이 주문을 어떻게 받을지 막막해하십니다. 그 자리를 저희 시스템이 채웁니다.',
-    offer: '공급사 제휴 논의',
-    price: '조건 협의',
-    points: [
-      '장비 판매 시 번들로 제안하실 수 있습니다',
-      '고객사 문의를 저희가 받아 처리합니다',
-      '공급사 전용 조건을 따로 논의합니다',
-    ],
-  },
 ];
 
 const WAYS = [
   { t: '쓰던 몰에 모듈로 붙이기', d: '카페24·고도몰·아임웹에 주문 편집기를 연결합니다. 가장 빠르고 부담이 적습니다.', p: '월 59,000원부터' },
   { t: '쇼핑몰을 새로 만들기', d: '커스텀 주문이 처음부터 되는 몰을 만들어 드립니다. 기존 몰이 있으시면 이전도 상담해 드립니다.', p: '범위 협의' },
-  { t: '입점만 하기', d: '몰을 운영하지 않으셔도 됩니다. 저희 플랫폼에 상품만 올리고 판매하십시오.', p: '월 이용료 없음' },
   { t: '생산 파트너로 참여', d: '설비를 갖추셨다면 시스템을 무상으로 드리고 저희 발주를 연결합니다.', p: '월 이용료 없음' },
 ];
 
@@ -175,7 +164,7 @@ export default function BizLanding() {
             </p>
 
             <div className="mt-5 grid grid-cols-3 gap-2">
-              {[['3분', '시연이면 이해됩니다'], ['3일', '이면 붙습니다'], ['0원', '세팅비']].map(([n, l], i) => (
+              {[['3분', '시연이면 이해됩니다'], ['4면', '앞·뒤·좌·우 동시'], ['0원', '세팅비']].map(([n, l], i) => (
                 <RevealBlock key={n} delay={i * 110}>
                   <div className="rounded-[16px] bg-white/10 px-3 py-3 text-center backdrop-blur">
                     <p className="text-[21px] font-black leading-none text-white">{n}</p>
@@ -235,8 +224,8 @@ export default function BizLanding() {
         {/* ── 케이스 분기 ── */}
         <section className="bg-white px-5 py-9">
           <RevealBlock>
-            <p className="text-[11px] font-black text-[#0052cc]">먼저 하나만 알려주십시오</p>
-            <h2 className="mt-1 text-[25px] font-black leading-tight">어느 쪽이십니까</h2>
+            <p className="text-[11px] font-black text-[#0052cc]">케이스별로 안내드립니다</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">어떤 상황이신가요?</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
               답에 따라 제안이 완전히 달라집니다. 눌러서 확인해 보십시오.
             </p>
@@ -337,7 +326,7 @@ export default function BizLanding() {
         <section className="bg-white px-5 py-9">
           <RevealBlock>
             <p className="text-[11px] font-black text-[#0052cc]">고르시면 됩니다</p>
-            <h2 className="mt-1 text-[25px] font-black leading-tight">함께 하는 방식은<br />네 가지입니다</h2>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">함께 하는 방식은<br />세 가지입니다</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
               지금 상황에서 가장 부담 적은 쪽으로 시작하시고, 나중에 옮기셔도 됩니다.
             </p>
@@ -400,8 +389,8 @@ export default function BizLanding() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#0052cc] text-[26px] text-white">✓</div>
               <p className="mt-4 text-[19px] font-black">접수되었습니다</p>
               <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-                영업일 기준 하루 안에 연락드리겠습니다.<br />
-                쇼핑몰 주소를 남기셨다면 3영업일 안에 실제로 붙인 화면을 보내드립니다.
+                남겨주신 연락처로 도입 상담 연락을 드리겠습니다.<br />
+                가격 정책과 도입 절차를 함께 안내드립니다.
               </p>
               <a href="tel:01020870621" className="mt-5 inline-block rounded-[15px] bg-[#17191f] px-5 py-3 text-[13.5px] font-black text-white">
                 급하시면 바로 통화 010-2087-0621
@@ -416,16 +405,16 @@ export default function BizLanding() {
                   </Bubble>
                 </div>
                 <p className="mt-5 text-[11px] font-black text-[#0052cc]">30초 도입 문의</p>
-                <h2 className="mt-1 text-[25px] font-black leading-tight">지금 남겨두시면<br />내일 연락드립니다</h2>
+                <h2 className="mt-1 text-[25px] font-black leading-tight">연락처를 남겨주시면<br />도입 상담 연락을 드립니다</h2>
               </RevealBlock>
 
               <div className="mt-5 rounded-[18px] bg-[#f6f7fb] p-4">
-                <p className="text-[11.5px] font-black text-[#667085]">선택하신 방식</p>
+                <p className="text-[11.5px] font-black text-[#667085]">어떤 업체이신가요?</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {CASES.map(c => (
                     <button key={c.key} type="button" onClick={() => setTrack(c.key)}
                       className={`rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${track === c.key ? 'bg-[#0052cc] text-white' : 'bg-white text-[#667085]'}`}>
-                      {c.q}
+                      {c.chip}
                     </button>
                   ))}
                 </div>
