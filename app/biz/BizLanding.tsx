@@ -159,8 +159,10 @@ export default function BizLanding() {
               번거로운 주문과정을<br />자동화 해드립니다
             </h1>
             <p className="mt-4 text-[14px] leading-relaxed text-[#aab6cc]">
-              로고 받고, 시안 만들고, 크기 물어보고, 견적 두드리고, 다시 보내고.
-              <br />저희도 그렇게 했습니다. 그래서 그 과정을 전부 웹으로 옮겼습니다.
+              로고 받고, 크기 물어보고, 시안 만들고
+              <br />견적 제안하고, 다시 수정하고..
+              <br />저희도 그렇게 해왔습니다.
+              <br />그래서 그 과정을 전부 자동화 했습니다.
             </p>
 
             <div className="mt-5 grid grid-cols-3 gap-2">
@@ -216,10 +218,102 @@ export default function BizLanding() {
 
           <RevealBlock delay={120}>
             <p className="mt-6 rounded-[18px] bg-[#17191f] px-5 py-4 text-[15px] font-black leading-snug text-white">
-              주문 한 건 처리하는 데<br />하루 종일 걸리지 않으시나요?
+              주문 한 건 처리하는 데<br />하루 종일 걸리지 않으세요?
               <span className="mt-2 block text-[13px] font-bold leading-relaxed text-[#9fb0ca]">
-                로고 이미지, 사이즈, 벡터화, 견적 상담, 배송일 안내..
+                로고 이미지, 사이즈, 벡터화, 견적상담, 배송안내 등등
               </span>
+              <span className="mt-3 block text-[19px] font-black leading-snug text-[#6fa5ff]">
+                이 모든걸 자동화 합니다!
+              </span>
+            </p>
+          </RevealBlock>
+        </section>
+
+        {/* ── 실제 화면 (확대) ── */}
+        <section className="bg-[#f6f7fb] px-5 py-9">
+          <RevealBlock>
+            <p className="text-[11px] font-black text-[#0052cc]">실제 화면</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">
+              옷에 찍힐 크기가<br />밀리미터로 나옵니다
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              제품마다 실측해서 보정값을 넣었습니다. 도안을 키우면 값이 따라 올라갑니다.
+            </p>
+          </RevealBlock>
+
+          <ZoomShot
+            shot="/biz/editor.jpg" zoom="/biz/zoom-price.jpg"
+            alt="웹 디자인 편집기 화면"
+            caption="기본가와 디자인비가 자동으로 합산됩니다"
+            badge="자동 견적"
+          />
+
+          <RevealBlock>
+            <h3 className="mt-9 text-[20px] font-black leading-tight">공장은 링크만 열면 됩니다</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              계정을 만들지 않아도 됩니다. 네 면의 도안과 인쇄 방식, 크기, 원본 파일이 한 화면에 있습니다.
+            </p>
+          </RevealBlock>
+
+          <ZoomShot
+            shot="/biz/workorder.jpg" zoom="/biz/zoom-spec.jpg"
+            alt="공장 작업지시 화면"
+            caption="인쇄 방식과 크기가 그대로 찍혀 나갑니다"
+            badge="작업지시"
+          />
+
+          <RevealBlock>
+            <div className="mt-7 rounded-[18px] bg-white p-4 shadow-[0_6px_20px_rgba(23,25,31,.05)]">
+              <p className="text-[13.5px] font-black">일러스트레이터 AI 파일도 그대로 올라갑니다</p>
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">
+                PSD도 됩니다. 자동으로 변환해 화면에 올리고 원본은 따로 보관해서, 생산 단계에서 원본을 그대로 내려받습니다.
+                올린 이미지의 배경은 알아서 지워집니다.
+              </p>
+            </div>
+          </RevealBlock>
+
+          {/* CS 답변 초안 자동 생성 — 승인 전에는 절대 나가지 않는다는 점을 함께 명시 */}
+          <RevealBlock>
+            <h3 className="mt-9 text-[20px] font-black leading-tight">문의 답변까지 초안을 만들어 둡니다</h3>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
+              취급하시는 인쇄 방식과 크기별 단가를 한 번 세팅해 두시면, 그에 맞춰 AI가 답변 초안을 자동으로 만들어 둡니다.
+              담당자님은 발행 승인 버튼만 누르시면 됩니다.
+            </p>
+          </RevealBlock>
+
+          <div className="mt-5 rounded-[18px] border border-[#e4e7ee] bg-white p-4">
+            <RevealBlock>
+              <div className="flex justify-start">
+                <div className="max-w-[82%] rounded-[14px] bg-[#f1f3f8] px-3.5 py-2.5 text-[12.5px] font-bold leading-snug">
+                  후드티 30장에 앞뒤로 프린트하면 얼마인가요?
+                </div>
+              </div>
+            </RevealBlock>
+
+            <RevealBlock delay={150}>
+              <div className="mt-3 rounded-[14px] border border-[#cddffa] bg-[#f2f6fc] p-3.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded-full bg-[#0052cc] px-2 py-0.5 text-[10px] font-black text-white">AI 초안</span>
+                  <span className="text-[11px] font-bold text-[#667085]">승인 대기</span>
+                </div>
+                <p className="mt-2 text-[12.5px] font-bold leading-relaxed">
+                  후드티 30장, 앞·뒤 전사(DTF) 기준으로 계산해 두었습니다.
+                  도안 크기에 따라 단가가 달라져서, 시안 확정 후 확정 견적을 보내드리겠습니다.
+                </p>
+              </div>
+            </RevealBlock>
+
+            <RevealBlock delay={280}>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 rounded-[12px] bg-[#0052cc] py-2.5 text-center text-[13px] font-black text-white">발행 승인</div>
+                <div className="rounded-[12px] border border-[#e2e5ec] px-4 py-2.5 text-[13px] font-bold text-[#667085]">수정</div>
+              </div>
+            </RevealBlock>
+          </div>
+
+          <RevealBlock delay={120}>
+            <p className="mt-3 text-[11.5px] font-bold leading-relaxed text-[#8b94a3]">
+              AI는 초안까지만 만듭니다. 최종 발송 명령 전에는 고객에게 나가지 않습니다.
             </p>
           </RevealBlock>
         </section>
@@ -279,50 +373,6 @@ export default function BizLanding() {
               );
             })}
           </div>
-        </section>
-
-        {/* ── 실제 화면 (확대) ── */}
-        <section className="bg-[#f6f7fb] px-5 py-9">
-          <RevealBlock>
-            <p className="text-[11px] font-black text-[#0052cc]">실제 화면</p>
-            <h2 className="mt-1 text-[25px] font-black leading-tight">
-              옷에 찍힐 크기가<br />밀리미터로 나옵니다
-            </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-              제품마다 실측해서 보정값을 넣었습니다. 도안을 키우면 값이 따라 올라갑니다.
-            </p>
-          </RevealBlock>
-
-          <ZoomShot
-            shot="/biz/editor.jpg" zoom="/biz/zoom-price.jpg"
-            alt="웹 디자인 편집기 화면"
-            caption="기본가와 디자인비가 자동으로 합산됩니다"
-            badge="자동 견적"
-          />
-
-          <RevealBlock>
-            <h3 className="mt-9 text-[20px] font-black leading-tight">공장은 링크만 열면 됩니다</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#667085]">
-              계정을 만들지 않아도 됩니다. 네 면의 도안과 인쇄 방식, 크기, 원본 파일이 한 화면에 있습니다.
-            </p>
-          </RevealBlock>
-
-          <ZoomShot
-            shot="/biz/workorder.jpg" zoom="/biz/zoom-spec.jpg"
-            alt="공장 작업지시 화면"
-            caption="인쇄 방식과 크기가 그대로 찍혀 나갑니다"
-            badge="작업지시"
-          />
-
-          <RevealBlock>
-            <div className="mt-7 rounded-[18px] bg-white p-4 shadow-[0_6px_20px_rgba(23,25,31,.05)]">
-              <p className="text-[13.5px] font-black">일러스트레이터 AI 파일도 그대로 올라갑니다</p>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#667085]">
-                PSD도 됩니다. 자동으로 변환해 화면에 올리고 원본은 따로 보관해서, 생산 단계에서 원본을 그대로 내려받습니다.
-                올린 이미지의 배경은 알아서 지워집니다.
-              </p>
-            </div>
-          </RevealBlock>
         </section>
 
         {/* ── 함께 하는 방식 ── */}
