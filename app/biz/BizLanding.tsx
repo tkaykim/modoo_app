@@ -15,7 +15,7 @@ const CASES: {
     chip: '설비를 갖추고 있는 생산공장',
     who: '전사기·자수기 등 설비를 갖춘 공장·인쇄소',
     headline: '설비는 있는데 주문받는 데서 시간이 다 샙니다',
-    body: '시안 왕복과 수기 견적에 붙는 사람 시간이 그 주문의 마진보다 큽니다. 저희는 그 앞단을 통째로 웹으로 옮겼습니다.',
+    body: '시안 왕복과 수기 견적에 하루가 다 갑니다. 저희는 그 앞단을 통째로 웹으로 옮겼습니다.',
     offer: '시스템을 무상으로 드립니다',
     price: '월 이용료 없음',
     points: [
@@ -177,7 +177,7 @@ export default function BizLanding() {
             {/* 캐릭터 + 말풍선 */}
             <div className="relative mt-6 h-[236px]">
               <Bubble className="absolute left-0 top-2 z-20 max-w-[224px]" tail="left">
-                주문받는 건 저희가 할게요.<br />사장님은 찍는 것만 하세요.
+                복잡한 주문 과정을 싹 정리해서<br />완벽한 작업지시서로 전달드립니다.
               </Bubble>
               <img
                 src="/biz/character.png" alt=""
@@ -190,8 +190,8 @@ export default function BizLanding() {
         {/* ── 문제: 카톡 왕복 ── */}
         <section className="relative z-10 -mt-4 rounded-t-[30px] bg-[#f6f7fb] px-5 pb-9 pt-8">
           <RevealBlock>
-            <p className="text-[11px] font-black text-[#0052cc]">아마 오늘도</p>
-            <h2 className="mt-1 text-[25px] font-black leading-tight">이러고 계실 겁니다</h2>
+            <p className="text-[11px] font-black text-[#0052cc]">매일매일 반복되는 소통..</p>
+            <h2 className="mt-1 text-[25px] font-black leading-tight">누가 처리해줄 수 없을까?</h2>
           </RevealBlock>
 
           <div className="mt-5 flex flex-col gap-2.5">
@@ -216,7 +216,10 @@ export default function BizLanding() {
 
           <RevealBlock delay={120}>
             <p className="mt-6 rounded-[18px] bg-[#17191f] px-5 py-4 text-[15px] font-black leading-snug text-white">
-              주문 한 건에 붙는 사람 시간이,<br />그 주문의 마진보다 큽니다.
+              주문 한 건 처리하는 데<br />하루 종일 걸리지 않으시나요?
+              <span className="mt-2 block text-[13px] font-bold leading-relaxed text-[#9fb0ca]">
+                로고 이미지, 사이즈, 벡터화, 견적 상담, 배송일 안내..
+              </span>
             </p>
           </RevealBlock>
         </section>
