@@ -436,7 +436,7 @@ export default function BizLanding() {
         </section>
 
         {/* ── 폼 ── */}
-        <section ref={formRef} className="scroll-mt-4 bg-white px-5 py-9">
+        <section id="contact" ref={formRef} className="scroll-mt-4 bg-white px-5 py-9">
           {done ? (
             <div className="rounded-[22px] bg-[#f6f7fb] px-5 py-10 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#0052cc] text-[26px] text-white">✓</div>
