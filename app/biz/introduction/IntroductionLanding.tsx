@@ -1,4 +1,44 @@
 import Image from 'next/image';
+import { cache } from 'react';
+import { createAnonClient } from '@/lib/supabase';
+
+type ProductVisual = {
+  title: string;
+  image: string;
+};
+
+const fallbackProductVisuals: ProductVisual[] = [
+  { title: '티셔츠 상품 목업', image: '/icons/tshirt.png' },
+  { title: '커스텀 상품 목업', image: '/icons/tshirt.png' },
+];
+
+const getProductVisuals = cache(async (): Promise<ProductVisual[]> => {
+  try {
+    const supabase = createAnonClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('title, thumbnail_image_link')
+      .eq('is_active', true)
+      .eq('is_featured', true)
+      .order('sort_order', { ascending: true })
+      .limit(4);
+
+    if (error) {
+      console.error('[biz/introduction] Failed to load product visuals:', error);
+      return fallbackProductVisuals;
+    }
+
+    const visuals = (data ?? []).flatMap((product) => {
+      const image = Array.isArray(product.thumbnail_image_link) ? product.thumbnail_image_link[0] : null;
+      return image ? [{ title: product.title, image }] : [];
+    });
+
+    return visuals.length > 0 ? visuals : fallbackProductVisuals;
+  } catch (error) {
+    console.error('[biz/introduction] Product visual lookup unavailable:', error);
+    return fallbackProductVisuals;
+  }
+});
 
 const routes = [
   {
@@ -37,7 +77,9 @@ const processSteps = [
   ['04', '담당 화면에 도착합니다', '운영자는 주문을 확인하고 작업지시서와 원본 파일을 엽니다.'],
 ];
 
-export default function IntroductionLanding() {
+export default async function IntroductionLanding() {
+  const productVisuals = await getProductVisuals();
+
   return (
     <main className="min-h-screen bg-[#f4f6f8] text-[#111827] selection:bg-[#cfe0ff]">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#08111f]/95 text-white backdrop-blur">
@@ -151,7 +193,7 @@ export default function IntroductionLanding() {
             <div className="mb-3 flex items-center justify-between px-1 text-xs font-bold text-[#65748b]"><span>카페24 상품 상세</span><span className="rounded-full bg-white px-2 py-1 text-[10px] text-[#2f6df6]">버튼 한 줄 연결</span></div>
             <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
               <div className="grid gap-5 sm:grid-cols-[0.8fr_1fr] sm:items-center">
-                <div className="flex aspect-square items-center justify-center rounded-xl bg-[#f3f5f7] text-[56px]">👕</div>
+                <ProductVisualCard product={productVisuals[0]} tone="blue" />
                 <div>
                   <p className="text-[11px] font-bold text-[#8a95a5]">PRINTSTAR · 17수 반팔</p>
                   <h3 className="mt-2 text-xl font-black">내 디자인으로 단체티 주문</h3>
@@ -175,7 +217,7 @@ export default function IntroductionLanding() {
                 <div className="flex items-center justify-between border-b border-[#eef0f3] px-4 py-3"><span className="text-[11px] font-black">YOUR BRAND</span><span className="flex gap-1.5"><i className="h-2 w-2 rounded-full bg-[#f27d52]" /><i className="h-2 w-2 rounded-full bg-[#cbd5e1]" /><i className="h-2 w-2 rounded-full bg-[#cbd5e1]" /></span></div>
                 <div className="grid gap-5 p-5 sm:grid-cols-[1fr_0.8fr] sm:p-8">
                   <div><p className="text-[10px] font-black tracking-[0.14em] text-[#f27d52]">CUSTOM ORDER SYSTEM</p><h3 className="mt-3 text-[27px] font-black leading-[1.05] tracking-[-0.06em] sm:text-[38px]">주문받는 시간을<br />줄여드립니다.</h3><p className="mt-3 text-xs leading-5 text-[#667085]">상품을 고르고, 직접 디자인하고, 필요한 수량을 입력하면 주문 정보가 정리됩니다.</p><div className="mt-5 inline-flex rounded-lg bg-[#111827] px-3 py-2 text-[11px] font-black text-white">상품 둘러보기 →</div></div>
-                  <div className="flex min-h-[190px] items-end justify-center rounded-2xl bg-[#f8ebe5] pb-4 text-[90px]">👕</div>
+                  <HomepageProductPreview product={productVisuals[1] ?? productVisuals[0]} />
                 </div>
                 <div className="grid grid-cols-3 gap-2 border-t border-[#eef0f3] p-4 text-center text-[10px] font-bold text-[#667085]"><span>직접 디자인</span><span>자동 견적</span><span>작업지시서</span></div>
               </div>
@@ -291,6 +333,43 @@ function PriceCard({ route, children }: { route: (typeof routes)[number]; childr
       <p className="mt-1 text-xs font-bold text-[#8994a4]">{route.note}</p>
       <div className="mt-7 space-y-3 border-t border-[#edf0f3] pt-5 text-[13px] leading-6 text-[#667085]">{children}</div>
     </article>
+  );
+}
+
+function ProductVisualCard({ product, tone }: { product: ProductVisual; tone: 'blue' | 'peach' }) {
+  return (
+    <div className={`group relative aspect-square overflow-hidden rounded-xl ${tone === 'blue' ? 'bg-[#f3f5f7]' : 'bg-[#f8ebe5]'}`}>
+      <Image
+        src={product.image}
+        alt={`${product.title} 실제 상품 이미지`}
+        fill
+        sizes="(max-width: 640px) 80vw, 300px"
+        className="object-contain p-7 transition duration-700 ease-out group-hover:scale-110"
+      />
+      <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-lg bg-white/90 px-3 py-2 text-[10px] font-black text-[#344054] shadow-sm backdrop-blur">
+        <span className="max-w-[75%] truncate">{product.title}</span>
+        <span className="text-[#2f6df6]">실제 상품</span>
+      </div>
+    </div>
+  );
+}
+
+function HomepageProductPreview({ product }: { product: ProductVisual }) {
+  return (
+    <div className="relative flex min-h-[190px] items-end justify-center overflow-hidden rounded-2xl bg-[#f8ebe5] pb-4">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/60 to-transparent" />
+      <div className="relative h-[170px] w-[170px] animate-[float_3.2s_ease-in-out_infinite] sm:h-[190px] sm:w-[190px]">
+        <Image
+          src={product.image}
+          alt={`${product.title} 실제 상품 이미지`}
+          fill
+          sizes="190px"
+          className="object-contain p-3 drop-shadow-[0_18px_18px_rgba(111,65,46,.16)]"
+        />
+      </div>
+      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1.5 text-[10px] font-black text-[#a85135] shadow-sm backdrop-blur">운영 상품 데이터</span>
+      <span className="absolute bottom-3 right-3 rounded-full bg-[#111827] px-2.5 py-1.5 text-[10px] font-black text-white shadow-sm">디자인 화면 연결</span>
+    </div>
   );
 }
 
