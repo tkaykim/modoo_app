@@ -27,17 +27,17 @@ export default function DescriptionImageSection({
       setNeedsCollapse(false);
       return;
     }
-    if (!contentRef.current) return;
+    const el = contentRef.current;
+    if (!el) return;
     const checkHeight = () => {
-      setNeedsCollapse(contentRef.current!.scrollHeight > collapsedHeight);
+      setNeedsCollapse(el.scrollHeight > collapsedHeight);
     };
     checkHeight();
-    // Recheck after images load
-    const images = contentRef.current.querySelectorAll('img');
-    images.forEach((img) => img.addEventListener('load', checkHeight));
-    return () => {
-      images.forEach((img) => img.removeEventListener('load', checkHeight));
-    };
+    // 이미지는 지연 로드라 최초 측정 시점엔 높이가 0에 가깝다. load 리스너만으로는 지연 로드분과
+    // 로드 후 리사이즈를 놓쳐, '더보기'가 뒤늦게 나타나며 화면이 튀었다. 실제 높이 변화를 관찰한다.
+    const observer = new ResizeObserver(checkHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [collapsedHeight, imageUrls, disableCollapse]);
 
   if (!imageUrls || imageUrls.length === 0) return null;

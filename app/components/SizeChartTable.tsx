@@ -81,14 +81,26 @@ export default function SizeChartTable({
           </span>
         </p>
       </button>
-      <div className={`overflow-hidden transition-all duration-300 ${imageExpanded ? 'max-h-[600px]' : 'max-h-[140px]'}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={sizingChartImage}
-          alt="측정 방법 안내"
-          className="w-full object-contain rounded-lg border border-gray-100 cursor-pointer"
-          onClick={() => setImageExpanded(!imageExpanded)}
-        />
+      {/*
+        펼친 상태에 고정 max-height 를 주면 안 된다. 측정 안내 이미지는 원본이 세로로 길고
+        w-full 로 화면 폭에 맞춰 늘어나므로, 어떤 px 값을 잡아도 그보다 긴 이미지는 잘린다.
+        (기존 max-h-[600px] 이 실제로 하단을 잘라먹고 있었다.)
+        grid-rows 0fr/1fr 패턴은 펼쳤을 때 행 높이가 콘텐츠 높이로 풀려 잘림이 원천적으로 없다.
+      */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+          imageExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[140px]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={sizingChartImage}
+            alt="측정 방법 안내"
+            className="w-full object-contain rounded-lg border border-gray-100 cursor-pointer"
+            onClick={() => setImageExpanded(!imageExpanded)}
+          />
+        </div>
       </div>
     </div>
   ) : null
