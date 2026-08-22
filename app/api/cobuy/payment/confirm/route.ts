@@ -87,13 +87,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, participantId, sessionId, participant: existingParticipant });
     }
 
+    // 가상계좌 가드: confirm 성공이어도 status !== 'DONE'(WAITING_FOR_DEPOSIT)이면 미입금.
+    // 참가자를 pending으로 유지하고, 세션 카운터 증가·완료 이메일·구매 이벤트를 전부 보류한다.
+    // 입금 확인은 워커 대사 크론이 수행. (success:false 반환 금지 — fail 페이지가 참가자를 삭제함)
+    const isPaymentDone = tossData?.status === 'DONE';
+    const tossVirtualAccount = tossData?.virtualAccount
+      ? {
+          bankCode: tossData.virtualAccount.bankCode ?? null,
+          accountNumber: tossData.virtualAccount.accountNumber ?? null,
+          customerName: tossData.virtualAccount.customerName ?? null,
+          dueDate: tossData.virtualAccount.dueDate ?? null,
+        }
+      : null;
+
     const { error: updateError } = await supabase
       .from('cobuy_participants')
       .update({
-        payment_status: 'completed',
+        payment_status: isPaymentDone ? 'completed' : 'pending',
         payment_key: paymentKey,
         payment_amount: amount,
-        paid_at: new Date().toISOString(),
+        paid_at: isPaymentDone ? new Date().toISOString() : null,
+        toss_method: tossData?.method ?? null,
+        toss_status: tossData?.status ?? null,
+        toss_approved_at: tossData?.approvedAt ?? null,
+        toss_virtual_account: tossVirtualAccount,
       })
       .eq('id', participantId);
 
@@ -103,6 +120,17 @@ export async function POST(request: NextRequest) {
         { success: false, error: '결제 상태 업데이트에 실패했습니다.' },
         { status: 500 }
       );
+    }
+
+    if (!isPaymentDone) {
+      return NextResponse.json({
+        success: true,
+        participantId,
+        sessionId,
+        paymentStatus: 'pending',
+        nextAction: 'await_deposit',
+        virtualAccount: tossVirtualAccount,
+      });
     }
 
     const { data: session, error: sessionFetchError } = await supabase
@@ -215,7 +243,7 @@ export async function POST(request: NextRequest) {
       console.error('[cobuy/payment/confirm] analytics dispatch failed:', analyticsErr);
     }
 
-    return NextResponse.json({ success: true, participantId, sessionId, participant: updatedParticipant });
+    return NextResponse.json({ success: true, participantId, sessionId, participant: updatedParticipant, paymentStatus: 'completed' });
   } catch (error) {
     console.error('CoBuy payment confirmation error:', error);
     return NextResponse.json(

@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
         payment_method,
         payment_status,
         order_status,
+        toss_virtual_account,
         coupon_discount,
         created_at,
         updated_at,

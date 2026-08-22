@@ -11,8 +11,9 @@ export default function CustomOrderSuccessPage() {
   const orderId = searchParams.get('orderId');
   const amount = searchParams.get('amount');
 
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'awaiting_deposit' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [vaInfo, setVaInfo] = useState<{ bankCode?: string | null; accountNumber?: string | null; customerName?: string | null; dueDate?: string | null } | null>(null);
 
   useEffect(() => {
     const confirmPayment = async () => {
@@ -42,6 +43,13 @@ export default function CustomOrderSuccessPage() {
           return;
         }
 
+        // 가상계좌 입금대기: HTTP 200이어도 아직 미입금 — 완료로 표시하면 안 됨
+        if (data?.paymentStatus === 'pending') {
+          setVaInfo(data?.virtualAccount ?? null);
+          setStatus('awaiting_deposit');
+          return;
+        }
+
         setStatus('success');
       } catch {
         setStatus('error');
@@ -59,6 +67,34 @@ export default function CustomOrderSuccessPage() {
           <Loader2 className="w-12 h-12 animate-spin text-brand mx-auto mb-4" />
           <p className="text-gray-600 font-medium">결제를 확인하고 있습니다...</p>
           <p className="text-gray-400 text-sm mt-2">잠시만 기다려주세요</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'awaiting_deposit') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto px-6">
+          <Loader2 className="w-20 h-20 mx-auto mb-6 text-amber-500" />
+          <h2 className="text-2xl font-bold mb-2">가상계좌가 발급되었습니다</h2>
+          <p className="text-gray-600 mb-4">아래 계좌로 입금해 주시면 입금 확인 후 주문이 확정됩니다.</p>
+          {vaInfo?.accountNumber && (
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 text-left space-y-1">
+              <p className="font-bold text-gray-900">{vaInfo.accountNumber}</p>
+              {vaInfo.customerName && <p className="text-sm text-gray-600">예금주: {vaInfo.customerName}</p>}
+              {vaInfo.dueDate && (
+                <p className="text-sm text-amber-700">입금기한: {new Date(vaInfo.dueDate).toLocaleString('ko-KR')}</p>
+              )}
+            </div>
+          )}
+          {orderId && (
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+              <p className="text-sm text-gray-500 mb-1">주문번호</p>
+              <p className="font-medium text-gray-900">{orderId}</p>
+            </div>
+          )}
+          <p className="text-sm text-gray-500">입금기한 내 미입금 시 주문이 취소될 수 있습니다.</p>
         </div>
       </div>
     );

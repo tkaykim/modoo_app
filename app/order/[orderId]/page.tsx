@@ -28,6 +28,7 @@ interface OrderDetail {
   payment_method: string | null;
   payment_status: string;
   order_status: string;
+  toss_virtual_account?: { bankCode?: string | null; accountNumber?: string | null; customerName?: string | null; dueDate?: string | null } | null;
   created_at: string;
   updated_at: string;
   order_items: OrderItem[];
@@ -265,6 +266,23 @@ export default function OrderDetailPage() {
               <ChevronLeft className="w-5 h-5 text-purple-400 rotate-180" />
             </div>
           </Link>
+        )}
+
+        {/* 가상계좌 입금대기 안내 */}
+        {order.payment_method === 'toss' && order.payment_status === 'pending' && order.toss_virtual_account?.accountNumber && (
+          <div className="bg-amber-50 border border-amber-200 mt-2 mx-4 rounded-lg px-4 py-4">
+            <h2 className="text-sm font-bold mb-2 text-amber-900">입금 대기 중 — 가상계좌</h2>
+            <div className="space-y-1 text-sm text-amber-900">
+              <p className="font-bold">{order.toss_virtual_account.accountNumber}</p>
+              {order.toss_virtual_account.customerName && (
+                <p>예금주: {order.toss_virtual_account.customerName}</p>
+              )}
+              {order.toss_virtual_account.dueDate && (
+                <p>입금기한: {new Date(order.toss_virtual_account.dueDate).toLocaleString('ko-KR')}</p>
+              )}
+              <p className="text-xs text-amber-700 mt-2">입금 확인 후 주문이 확정됩니다.</p>
+            </div>
+          </div>
         )}
 
         {/* 결제 정보 */}

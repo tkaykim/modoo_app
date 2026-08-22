@@ -6,7 +6,18 @@ import { CheckCircle, Truck, MapPin, Package, User, Mail, Phone, Store } from 'l
 import { CoBuySelectedItem } from '@/types/types';
 import { formatKstDateLong } from '@/lib/kst';
 
-type ConfirmStatus = 'loading' | 'success' | 'error';
+type ConfirmStatus = 'loading' | 'success' | 'awaiting_deposit' | 'error';
+
+type VaInfo = { bankCode?: string | null; accountNumber?: string | null; customerName?: string | null; dueDate?: string | null };
+
+// 토스 은행코드(금결원) → 한글 은행명
+const COBUY_BANK_NAMES: Record<string, string> = {
+  '20': '우리은행', '88': '신한은행', '4': 'KB국민은행', '81': '하나은행',
+  '3': 'IBK기업은행', '11': 'NH농협은행', '90': '카카오뱅크', '92': '토스뱅크',
+  '71': '우체국', '23': 'SC제일은행', '89': '케이뱅크', '45': '새마을금고',
+};
+const cobuyBankName = (code?: string | null) =>
+  code ? (COBUY_BANK_NAMES[String(parseInt(code, 10))] ?? '은행') : '은행';
 
 interface ParticipantInfo {
   name: string;
@@ -71,6 +82,7 @@ function CoBuyPaymentSuccessContent() {
   const [status, setStatus] = useState<ConfirmStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [participant, setParticipant] = useState<ParticipantInfo | null>(null);
+  const [vaInfo, setVaInfo] = useState<VaInfo | null>(null);
 
   useEffect(() => {
     const confirmPayment = async () => {
@@ -169,6 +181,13 @@ function CoBuyPaymentSuccessContent() {
 
         sessionStorage.removeItem('pendingCoBuyPayment');
 
+        // 가상계좌 입금대기 — 결제 실패가 아님. fail 페이지(참가자 삭제)로 절대 보내지 않는다.
+        if ((json as { paymentStatus?: string })?.paymentStatus === 'pending') {
+          setVaInfo((json as { virtualAccount?: VaInfo })?.virtualAccount ?? null);
+          setStatus('awaiting_deposit');
+          return;
+        }
+
         // Extract participant data from response
         const participantData = (json as { participant?: ParticipantInfo })?.participant;
         if (participantData) {
@@ -211,6 +230,45 @@ function CoBuyPaymentSuccessContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-500">{errorMessage || '결제 확인에 실패했습니다.'}</p>
+      </div>
+    );
+  }
+
+  if (status === 'awaiting_deposit') {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="max-w-lg mx-auto">
+          <div className="bg-white rounded-2xl shadow-sm p-6 text-center mb-4">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package className="w-10 h-10 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">가상계좌가 발급되었습니다</h1>
+            <p className="text-gray-600">
+              아래 계좌로 입금해 주시면 입금 확인 후 공동구매 참여가 확정됩니다.
+            </p>
+          </div>
+          {vaInfo && (
+            <div className="bg-white rounded-2xl shadow-sm p-6 mb-4 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">{cobuyBankName(vaInfo.bankCode)}</span>
+                <span className="text-gray-900 font-bold">{vaInfo.accountNumber}</span>
+              </div>
+              {vaInfo.customerName && (
+                <p className="text-sm text-gray-600 text-right">예금주: {vaInfo.customerName}</p>
+              )}
+              {vaInfo.dueDate && (
+                <p className="text-sm text-amber-700 text-right">
+                  입금기한: {new Date(vaInfo.dueDate).toLocaleString('ko-KR')}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-xs text-amber-800">
+              입금기한 내에 입금되지 않으면 참여가 자동으로 취소될 수 있습니다.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

@@ -7,6 +7,20 @@ import { CheckCircle, Clock } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { trackPurchase } from '@/lib/gtm-events';
 
+// 토스 은행코드(금결원 코드) → 한글 은행명. 제로패딩 유무를 정규화해 조회.
+const BANK_NAMES: Record<string, string> = {
+  '20': '우리은행', '88': '신한은행', '4': 'KB국민은행', '81': '하나은행',
+  '3': 'IBK기업은행', '11': 'NH농협은행', '90': '카카오뱅크', '92': '토스뱅크',
+  '31': '대구은행', '32': '부산은행', '39': '경남은행', '34': '광주은행',
+  '37': '전북은행', '35': '제주은행', '7': 'Sh수협은행', '71': '우체국',
+  '23': 'SC제일은행', '27': '한국씨티은행', '89': '케이뱅크', '45': '새마을금고',
+  '48': '신협', '2': '산업은행',
+};
+function bankName(code?: string | null): string {
+  if (!code) return '은행';
+  return BANK_NAMES[String(parseInt(code, 10))] ?? '은행';
+}
+
 function PaymentCompleteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -14,11 +28,24 @@ function PaymentCompleteContent() {
   const orderId = searchParams.get('orderId');
   const method = searchParams.get('method');
   const isBankTransfer = method === 'bank_transfer';
+  // 토스 가상계좌 입금대기 — /toss/success가 sessionStorage에 계좌 정보를 남긴다
+  const isVirtualAccount = method === 'va';
+  const [vaInfo, setVaInfo] = useState<{ bankCode?: string; accountNumber?: string; customerName?: string; dueDate?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!orderId) {
       router.push('/home');
+      return;
+    }
+
+    // 가상계좌 입금대기: 계좌 정보 로드 (Purchase 발화 없음 — 입금 확인 전)
+    if (isVirtualAccount) {
+      try {
+        const raw = sessionStorage.getItem(`va_info_${orderId}`);
+        if (raw) setVaInfo(JSON.parse(raw));
+      } catch { /* 무시 */ }
+      setIsLoading(false);
       return;
     }
 
@@ -58,7 +85,7 @@ function PaymentCompleteContent() {
     }
 
     setIsLoading(false);
-  }, [orderId, router]);
+  }, [orderId, router, isVirtualAccount]);
 
   if (isLoading) {
     return (
@@ -72,7 +99,57 @@ function PaymentCompleteContent() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="flex flex-col items-center text-center">
-          {isBankTransfer ? (
+          {isVirtualAccount ? (
+            <>
+              <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
+                <Clock className="w-12 h-12 text-amber-600" />
+              </div>
+
+              <h1 className="text-2xl font-bold text-black mb-2">
+                가상계좌가 발급되었습니다
+              </h1>
+
+              <p className="text-gray-600 mb-4">
+                아래 계좌로 입금해 주시면 입금 확인 후 주문이 확정됩니다.
+              </p>
+
+              <div className="w-full bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm text-gray-600">주문번호</span>
+                  <span className="text-sm font-medium text-black">{orderId}</span>
+                </div>
+                {vaInfo ? (
+                  <div className="border-t border-gray-200 pt-3 space-y-1">
+                    <p className="text-sm font-semibold text-black mb-2">입금 가상계좌</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">{bankName(vaInfo.bankCode)}</span>
+                      <span className="text-sm text-black font-bold">{vaInfo.accountNumber}</span>
+                    </div>
+                    {vaInfo.customerName && (
+                      <p className="text-sm text-gray-600 text-right">예금주: {vaInfo.customerName}</p>
+                    )}
+                    {vaInfo.dueDate && (
+                      <p className="text-sm text-amber-700 text-right">
+                        입금기한: {new Date(vaInfo.dueDate).toLocaleString('ko-KR')}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="text-sm text-gray-600">
+                      가상계좌 정보는 결제 시 안내된 내용을 확인해 주세요.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="w-full p-3 bg-amber-50 border border-amber-200 rounded-lg mb-8">
+                <p className="text-xs text-amber-800">
+                  입금기한 내에 입금되지 않으면 주문이 자동으로 취소될 수 있습니다.
+                </p>
+              </div>
+            </>
+          ) : isBankTransfer ? (
             <>
               <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6">
                 <Clock className="w-12 h-12 text-amber-600" />

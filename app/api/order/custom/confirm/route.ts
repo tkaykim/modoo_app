@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     }
 
     // Confirm payment with Toss (or skip for free orders)
+    let tossData: { method?: string; status?: string; approvedAt?: string; virtualAccount?: { bankCode?: string; accountNumber?: string; customerName?: string; dueDate?: string } } | null = null;
     if (!isFreeOrder) {
       if (!widgetSecretKey) {
         return NextResponse.json({ error: '결제 설정 오류입니다.' }, { status: 500 });
@@ -84,17 +85,35 @@ export async function POST(request: Request) {
           error: tossError.message || '결제 확인에 실패했습니다.',
         }, { status: 400 });
       }
+      // 성공 응답 본문을 파싱해 status를 검사한다 (기존에는 HTTP 200만 보고 통과시켰음)
+      tossData = await tossResponse.json().catch(() => null);
     }
+
+    // 가상계좌 가드: status !== 'DONE'(WAITING_FOR_DEPOSIT)이면 미입금 — pending 유지.
+    // 입금 확인은 워커 대사 크론이 수행하며, 문의 스레드 기록·구매 이벤트도 그때까지 보류.
+    const isPaymentDone = isFreeOrder || tossData?.status === 'DONE';
+    const tossVirtualAccount = tossData?.virtualAccount
+      ? {
+          bankCode: tossData.virtualAccount.bankCode ?? null,
+          accountNumber: tossData.virtualAccount.accountNumber ?? null,
+          customerName: tossData.virtualAccount.customerName ?? null,
+          dueDate: tossData.virtualAccount.dueDate ?? null,
+        }
+      : null;
 
     // Update order with payment info and customer info
     const updatePayload: Record<string, unknown> = {
       payment_key: isFreeOrder ? null : paymentKey,
-      payment_status: 'completed',
+      payment_status: isPaymentDone ? 'completed' : 'pending',
       payment_method: isFreeOrder ? 'free' : 'toss',
+      toss_method: tossData?.method ?? null,
+      toss_status: tossData?.status ?? null,
+      toss_approved_at: tossData?.approvedAt ?? null,
+      toss_virtual_account: tossVirtualAccount,
       updated_at: new Date().toISOString(),
     };
 
-    if (order.order_status === 'payment_pending') {
+    if (isPaymentDone && order.order_status === 'payment_pending') {
       updatePayload.order_status = 'payment_completed';
     }
 
@@ -125,7 +144,8 @@ export async function POST(request: Request) {
     }
 
     // 간이주문/차액주문(문의 연결)이면 결제 완료를 문의 스레드에 기록 — fire-and-forget, 결제 결과에 영향 없음
-    if (order.inquiry_id) {
+    // 입금대기(가상계좌)면 보류 — 미입금인데 '결제 완료' 노트가 공장 배정을 유발하면 안 됨
+    if (isPaymentDone && order.inquiry_id) {
       try {
         const noteContent = order.parent_order_id
           ? `✅ 차액(추가) 결제가 완료되었습니다.\n주문번호: ${order.id}\n원주문: ${order.parent_order_id}\n결제금액: ${Number(amount).toLocaleString('ko-KR')}원\n\n원주문 사양/수량 변경분에 대한 추가 결제입니다. 생산 사양 반영 후 공장 배정을 진행해 주세요.`
@@ -143,7 +163,8 @@ export async function POST(request: Request) {
     }
 
     // 서버사이드 purchase 이벤트 (custom order는 order_items를 별도 조회)
-    try {
+    // 입금대기면 보류 — 입금 확인 전 구매 이벤트는 광고 신호를 왜곡함
+    if (isPaymentDone) try {
       const { data: items } = await adminClient
         .from('order_items')
         .select('product_id, product_title, price_per_item, quantity')
@@ -180,8 +201,10 @@ export async function POST(request: Request) {
         orderId: order.id,
         paymentKey,
         amount,
-        status: 'completed',
+        status: isPaymentDone ? 'completed' : 'pending',
       },
+      paymentStatus: isPaymentDone ? 'completed' : 'pending',
+      ...(isPaymentDone ? {} : { nextAction: 'await_deposit', virtualAccount: tossVirtualAccount }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : '결제 확인에 실패했습니다.';

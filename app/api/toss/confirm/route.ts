@@ -185,6 +185,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 가상계좌 등 비동기 결제수단 가드: confirm 성공이어도 status가 DONE이 아니면
+    // (WAITING_FOR_DEPOSIT 등) 입금이 안 된 상태다. completed로 저장하면 미입금 주문이
+    // 생산·발송으로 흘러간다(2026-08 실사고 2건). pending으로 저장하고 대사 크론이
+    // 입금 확인 시 completed로 전환한다.
+    const isPaymentDone = isFreeOrder || tossData?.status === 'DONE';
+    // 가상계좌 재표시용 최소 정보만 저장 (전체 응답 저장 금지)
+    const tossVirtualAccount = tossData?.virtualAccount
+      ? {
+          bankCode: tossData.virtualAccount.bankCode ?? null,
+          accountNumber: tossData.virtualAccount.accountNumber ?? null,
+          customerName: tossData.virtualAccount.customerName ?? null,
+          dueDate: tossData.virtualAccount.dueDate ?? null,
+        }
+      : null;
+
     // Create Supabase client
     const supabase = await createClient();
 
@@ -217,16 +232,22 @@ export async function POST(request: NextRequest) {
     if (!isFreeOrder && paymentKey) {
       const { data: existing } = await supabase
         .from('orders')
-        .select('id')
+        .select('id, payment_status, order_status, toss_virtual_account')
         .eq('payment_key', paymentKey)
         .maybeSingle();
       if (existing?.id) {
         console.log('[toss/confirm] idempotent retry detected, returning existing order:', existing.id);
+        const existingPending = existing.payment_status === 'pending';
         return NextResponse.json({
           success: true,
           orderId: existing.id,
           paymentData: tossData,
           idempotent: true,
+          paymentStatus: existingPending ? 'pending' : 'completed',
+          orderStatus: existing.order_status,
+          ...(existingPending
+            ? { nextAction: 'await_deposit', virtualAccount: existing.toss_virtual_account ?? null }
+            : {}),
         });
       }
     }
@@ -255,8 +276,13 @@ export async function POST(request: NextRequest) {
         total_amount: orderData.total_amount,
         payment_method: isFreeOrder ? 'free' : 'toss',
         payment_key: isFreeOrder ? null : paymentKey,
-        payment_status: 'completed',
-        order_status: 'payment_completed',
+        payment_status: isPaymentDone ? 'completed' : 'pending',
+        order_status: isPaymentDone ? 'payment_completed' : 'payment_pending',
+        // 토스 원장 필드 (대사·재표시용)
+        toss_method: tossData?.method ?? null,
+        toss_status: tossData?.status ?? null,
+        toss_approved_at: tossData?.approvedAt ?? null,
+        toss_virtual_account: tossVirtualAccount,
         // 일반 쿠폰
         coupon_usage_id: orderData.coupon_usage_id || null,
         coupon_discount: orderData.coupon_discount || 0,
@@ -629,6 +655,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Send order notification emails (non-blocking)
+    // 입금대기(가상계좌)면 주문완료 이메일·구매 이벤트를 보류 — 입금 확인(대사 크론) 후 처리.
+    if (isPaymentDone) {
     try {
       const notificationItems = Array.from(groupedItems.values()).map((group) => ({
         product_title: group.product_title,
@@ -684,11 +712,17 @@ export async function POST(request: NextRequest) {
     } catch (analyticsErr) {
       console.error('[toss/confirm] analytics dispatch failed:', analyticsErr);
     }
+    } // end isPaymentDone
 
+    // 프론트 계약: 입금대기여도 success:true 유지 (success:false는 결제 실패 화면으로 오인됨).
+    // paymentStatus/nextAction으로 분기하고, 가상계좌 정보는 안내 화면 표시용으로 내려준다.
     return NextResponse.json({
       success: true,
       orderId: order.id,
       paymentData: tossData,
+      paymentStatus: isPaymentDone ? 'completed' : 'pending',
+      orderStatus: isPaymentDone ? 'payment_completed' : 'payment_pending',
+      ...(isPaymentDone ? {} : { nextAction: 'await_deposit', virtualAccount: tossVirtualAccount }),
     });
   } catch (error) {
     console.error('Payment confirmation error:', error);

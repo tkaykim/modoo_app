@@ -58,6 +58,21 @@ function WidgetSuccessPageContent() {
           throw { message: json.message || json.error || '결제 확인 실패', code: json.code };
         }
 
+        // 가상계좌 입금대기: 주문은 생성됐지만 아직 미입금. 결제 실패가 아니므로 완료 페이지의
+        // 입금대기 화면으로 보낸다. Purchase 픽셀은 발화하지 않는다(입금 확인 전).
+        if (json.paymentStatus === 'pending') {
+          try {
+            if (json.virtualAccount) {
+              sessionStorage.setItem(`va_info_${json.orderId}`, JSON.stringify(json.virtualAccount));
+            }
+          } catch { /* 저장 실패해도 흐름은 유지 */ }
+          sessionStorage.removeItem('pendingTossOrder');
+          clearCart().catch(() => {});
+          useCartStore.getState().clearCart();
+          router.push(`/payment/complete?orderId=${json.orderId}&method=va`);
+          return;
+        }
+
         // Purchase 픽셀/GTM 발화는 /payment/complete 도착 페이지에서 수행 (네비게이션 race로 fbq 비콘 유실 방지).
         // 여기서는 페이로드만 sessionStorage에 넘겨둔다.
         try {
