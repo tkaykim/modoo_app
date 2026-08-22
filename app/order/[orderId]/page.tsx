@@ -111,8 +111,15 @@ export default function OrderDetailPage() {
     return price.toLocaleString('ko-KR');
   };
 
+  // 렌더 중 router.replace는 SSR 프리렌더에서 "location is not defined"를 던진다
+  // (2026-06-16부터 간헐 발생한 프로덕션 에러). 리다이렉트는 이펙트에서 수행.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace(`/order/lookup?orderId=${encodeURIComponent(orderId)}`);
+    }
+  }, [isAuthenticated, orderId, router]);
+
   if (!isAuthenticated) {
-    router.replace(`/order/lookup?orderId=${encodeURIComponent(orderId)}`);
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
