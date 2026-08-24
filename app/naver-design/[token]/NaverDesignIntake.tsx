@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-client';
 import type { UploadResult } from '@/lib/supabase-storage';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import type { ProductConfig, ProductSide } from '@/types/types';
-import { ArrowLeft, Check, ChevronRight, FileWarning, Loader2, Save, Shirt } from 'lucide-react';
+import { Check, ChevronRight, FileWarning, Loader2, Save, Shirt } from 'lucide-react';
 
 type DesignJob = {
   id: string;
@@ -202,10 +202,7 @@ export default function NaverDesignIntake({ token }: { token: string }) {
   if (activeJob && config) {
     return (
       <main className="min-h-screen bg-[#EBEBEB]">
-        <div className="fixed inset-x-0 top-0 z-50 flex items-center gap-2 border-b border-gray-200 bg-white/95 px-3 py-3 backdrop-blur">
-          <button onClick={() => void closeEditor()} className="grid min-h-11 min-w-11 place-items-center rounded-full hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black" aria-label="목록으로">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+        <div className="fixed inset-x-0 top-11 z-90 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white/95 px-3 py-1.5 backdrop-blur">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-gray-900">{activeJob.product_name}</p>
             <p className="truncate text-xs text-gray-500">{activeJob.option_summary || `${activeJob.quantity}개`}</p>
@@ -220,7 +217,7 @@ export default function NaverDesignIntake({ token }: { token: string }) {
             <Check className="h-4 w-4" /> 접수
           </button>
         </div>
-        {error && <div role="alert" className="fixed inset-x-3 top-[4.75rem] z-50 mx-auto max-w-lg rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 shadow-lg">{error}</div>}
+        {error && <div role="alert" className="fixed inset-x-3 top-[7.25rem] z-110 mx-auto max-w-lg rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 shadow-lg">{error}</div>}
         <ProductDesigner
           config={config}
           layout="mobile"
