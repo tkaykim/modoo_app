@@ -22,6 +22,7 @@ function isV1Only(pathname: string): boolean {
     pathname === "/mall" ||
     pathname.startsWith("/order/custom/") ||
     pathname.startsWith("/order/") ||
+    pathname.startsWith("/naver-design/") ||
     pathname.startsWith("/checkout") ||
     pathname.startsWith("/cart") ||
     pathname.startsWith("/editor") ||

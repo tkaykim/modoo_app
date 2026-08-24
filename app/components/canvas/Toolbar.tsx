@@ -7,7 +7,7 @@ import { ProductSide } from '@/types/types';
 import TextStylePanel from './TextStylePanel';
 import TemplatePicker from './TemplatePicker';
 import { isCurvedText } from '@/lib/curvedText';
-import { uploadFileToStorage } from '@/lib/supabase-storage';
+import { uploadFileToStorage, type UploadResult } from '@/lib/supabase-storage';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { createClient } from '@/lib/supabase-client';
 import { convertToPNG, isAiOrPsdFile, getConversionErrorMessage, MAX_UPLOAD_BYTES } from '@/lib/imageConvert';
@@ -35,13 +35,14 @@ interface ToolbarProps {
   onColorPress?: () => void;
   displayColor?: string;
   hasColorOptions?: boolean;
+  uploadFile?: (file: File, assetKind: 'original' | 'processed') => Promise<UploadResult>;
 }
 
 // 템플릿 기능 잠정 중단(2026-08-24) — DB의 고객용 템플릿도 전부 비활성 상태.
 // AI 디자이너(/ai-designer)로 대체 준비 중. 재개 시 true + DB is_active 복구.
 const TEMPLATES_ENABLED = false;
 
-const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions, uploadFile }) => {
   const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel, anchorPanelOpen, setAnchorPanelOpen, hoveredAnchorId, setHoveredAnchorId, setLayersPanelOpen } = useCanvasStore();
   const layersLabEnabled = useSearchParams()?.get('layers-lab') === '1';
   const [isExpanded, setIsExpanded] = useState(false);
@@ -84,6 +85,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
   // (instead of reading canvas property) so panel/snap/preview don't race with
   // SingleSideCanvas calibration effect.
   const [nativeMmPerPxForSide, setNativeMmPerPxForSide] = useState<number>(0);
+
+  const performUpload = (file: File, assetKind: 'original' | 'processed') => {
+    if (uploadFile) return uploadFile(file, assetKind);
+    return uploadFileToStorage(
+      createClient(),
+      file,
+      STORAGE_BUCKETS.USER_DESIGNS,
+      STORAGE_FOLDERS.IMAGES,
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -343,8 +354,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       }
 
       try {
-        const supabase = createClient();
-
         if (isAiOrPsdFile(file)) {
           console.log('AI/PSD file detected, converting to PNG...');
           setLoadingMessage('파일 변환 중...');
@@ -353,12 +362,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
 
           const [conversionResult, origUploadResult] = await Promise.all([
             convertToPNG(file, (msg) => setLoadingSubmessage(msg)),
-            uploadFileToStorage(
-              supabase,
-              file,
-              STORAGE_BUCKETS.USER_DESIGNS,
-              STORAGE_FOLDERS.IMAGES,
-            ),
+            performUpload(file, 'original'),
           ]);
 
           setIsLoadingModalOpen(false);
@@ -455,8 +459,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
     setIsLoadingModalOpen(true);
 
     try {
-      const supabase = createClient();
-
       // The bg-removal output (or original kept by user) becomes the display
       // image. Alpha-trim AFTER bg-removal so transparent margins introduced
       // by removal get cropped out.
@@ -478,19 +480,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
       // now — in parallel with the processed/display image to avoid extra latency.
       const needsOriginalUpload = !pending.sourceUrl;
       const [displayUploadResult, originalUploadResult] = await Promise.all([
-        uploadFileToStorage(
-          supabase,
-          trimResult.file,
-          STORAGE_BUCKETS.USER_DESIGNS,
-          STORAGE_FOLDERS.IMAGES,
-        ),
+        performUpload(trimResult.file, 'processed'),
         needsOriginalUpload
-          ? uploadFileToStorage(
-              supabase,
-              pending.sourceFile,
-              STORAGE_BUCKETS.USER_DESIGNS,
-              STORAGE_FOLDERS.IMAGES,
-            )
+          ? performUpload(pending.sourceFile, 'original')
           : Promise.resolve(null),
       ]);
 

@@ -6,6 +6,7 @@ import { ProductConfig } from "@/types/types";
 import Toolbar from "./Toolbar";
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { preloadBackgroundRemoval } from '@/app/components/background-removal/BackgroundRemovalFlow';
+import type { UploadResult } from '@/lib/supabase-storage';
 
 
 const SingleSideCanvas = dynamic(() => import('@/app/components/canvas/SingleSideCanvas'), {
@@ -20,9 +21,10 @@ interface ProductDesignerProps {
   onColorPress?: () => void;
   displayColor?: string;
   hasColorOptions?: boolean;
+  uploadFile?: (file: File, assetKind: 'original' | 'processed') => Promise<UploadResult>;
 }
 
-const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode, onColorPress, displayColor, hasColorOptions }) => {
+const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mobile', onExitEditMode, onColorPress, displayColor, hasColorOptions, uploadFile }) => {
   const { isEditMode, setEditMode, setActiveSide, activeSideId, canvasMap } = useCanvasStore();
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -224,7 +226,7 @@ const ProductDesigner: React.FC<ProductDesignerProps> = ({ config, layout = 'mob
       </div>
 
       {/* Toolbar - shows only in edit mode */}
-      {!isDesktop && <Toolbar sides={config.sides} handleExitEditMode={handleExitEditMode} productId={config.productId} onColorPress={onColorPress} displayColor={displayColor} hasColorOptions={hasColorOptions} />}
+      {!isDesktop && <Toolbar sides={config.sides} handleExitEditMode={handleExitEditMode} productId={config.productId} onColorPress={onColorPress} displayColor={displayColor} hasColorOptions={hasColorOptions} uploadFile={uploadFile} />}
     </div>
   );
 };
