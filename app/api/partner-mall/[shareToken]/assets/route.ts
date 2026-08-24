@@ -1,4 +1,4 @@
-import { createAnonClient } from '@/lib/supabase';
+import { isPartnerMallCapabilityToken } from '@/lib/partnerMallAccess';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { STORAGE_BUCKETS, STORAGE_FOLDERS } from '@/lib/storage-config';
 import { NextResponse } from 'next/server';
@@ -6,23 +6,15 @@ import { NextResponse } from 'next/server';
 const ALLOWED_TYPES = ['logo', 'image', 'reference'] as const;
 type AllowedAssetType = typeof ALLOWED_TYPES[number];
 
-async function resolveMall(slugOrToken: string) {
-  const supabase = createAnonClient();
-  const { data: bySlug } = await supabase
+async function resolveEditorMall(shareToken: string) {
+  if (!isPartnerMallCapabilityToken(shareToken)) return null;
+  const admin = createAdminClient();
+  const { data } = await admin
     .from('partner_malls')
     .select('id')
-    .eq('slug', slugOrToken)
-    .eq('is_active', true)
+    .eq('share_token', shareToken)
     .maybeSingle();
-  if (bySlug) return bySlug;
-
-  const { data: byToken } = await supabase
-    .from('partner_malls')
-    .select('id')
-    .eq('share_token', slugOrToken)
-    .eq('is_active', true)
-    .maybeSingle();
-  return byToken;
+  return data;
 }
 
 export async function POST(
@@ -30,13 +22,9 @@ export async function POST(
   { params }: { params: Promise<{ shareToken: string }> },
 ) {
   const { shareToken } = await params;
-  if (!shareToken) {
-    return NextResponse.json({ error: 'Slug 또는 share token이 필요합니다.' }, { status: 400 });
-  }
-
-  const mall = await resolveMall(shareToken);
+  const mall = await resolveEditorMall(shareToken);
   if (!mall) {
-    return NextResponse.json({ error: '유효하지 않은 파트너몰입니다.' }, { status: 404 });
+    return NextResponse.json({ error: '유효하지 않은 편집 링크입니다.' }, { status: 404 });
   }
 
   const payload = await request.json().catch(() => null);
@@ -61,7 +49,6 @@ export async function POST(
   const fileExt = matches[1] === 'jpeg' ? 'jpg' : matches[1];
   const buffer = Buffer.from(matches[2], 'base64');
 
-  // 5MB 상한
   if (buffer.byteLength > 5 * 1024 * 1024) {
     return NextResponse.json({ error: '5MB 이하 이미지만 업로드 가능합니다.' }, { status: 413 });
   }
@@ -87,7 +74,6 @@ export async function POST(
   const { data: urlData } = admin.storage
     .from(STORAGE_BUCKETS.USER_DESIGNS)
     .getPublicUrl(uploadData.path);
-
   const fingerprint =
     request.headers.get('x-actor-fingerprint') ??
     request.headers.get('user-agent')?.slice(0, 80) ??
