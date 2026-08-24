@@ -37,6 +37,10 @@ interface ToolbarProps {
   hasColorOptions?: boolean;
 }
 
+// 템플릿 기능 잠정 중단(2026-08-24) — DB의 고객용 템플릿도 전부 비활성 상태.
+// AI 디자이너(/ai-designer)로 대체 준비 중. 재개 시 true + DB is_active 복구.
+const TEMPLATES_ENABLED = false;
+
 const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, variant = 'mobile', productId, onColorPress, displayColor, hasColorOptions }) => {
   const { getActiveCanvas, activeSideId, setActiveSide, isEditMode, canvasMap, incrementCanvasVersion, zoomIn, zoomOut, getZoomLevel, anchorPanelOpen, setAnchorPanelOpen, hoveredAnchorId, setHoveredAnchorId, setLayersPanelOpen } = useCanvasStore();
   const layersLabEnabled = useSearchParams()?.get('layers-lab') === '1';
@@ -851,7 +855,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ sides = [], handleExitEditMode, varia
               </div>
               <span className="text-xs text-gray-600 font-medium">이미지</span>
             </button>
-            {productId && (
+            {/* 템플릿 기능 잠정 중단(2026-08-24, AI 디자이너로 대체 준비) — 재개 시 TEMPLATES_ENABLED true */}
+            {TEMPLATES_ENABLED && productId && (
               <button
                 onClick={() => setIsTemplatePickerOpen(true)}
                 className="flex flex-col items-center gap-1.5 group"

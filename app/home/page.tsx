@@ -180,6 +180,28 @@ export default async function HomePage() {
         </section>
       </div>
       <main className="mx-auto max-w-7xl space-y-4 px-4 sm:px-0 lg:space-y-8 py-4 lg:py-6">
+        {/* AI 디자이너 진입 배너 */}
+        <section className="w-full">
+          <Link
+            href="/ai-designer"
+            className="block rounded-2xl bg-gradient-to-r from-brand to-brand-deep text-white px-5 py-5 lg:px-8 lg:py-6"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] lg:text-xs font-semibold text-white/70 tracking-wide">NEW · AI 디자이너</p>
+                <p className="mt-1 text-base lg:text-xl font-black leading-snug">
+                  디자인 몰라도 괜찮아요.
+                  <br className="lg:hidden" /> 옷·색·이미지만 고르면 시안이 나옵니다.
+                </p>
+                <p className="mt-1 text-xs lg:text-sm text-white/80">이미지 올리고 위치만 콕 — 4면 초안까지 1분</p>
+              </div>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white text-brand text-xs lg:text-sm font-bold px-4 py-2">
+                시작하기 <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
+        </section>
+
         {/* Featured Products Section */}
         <section className="w-full">
           <div className="flex items-center justify-between mb-3 lg:mb-4">
