@@ -17,6 +17,7 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const formattedPrice = product.base_price.toLocaleString('ko-KR');
   const firstSideImage = product.thumbnail_image_link?.[0];
+  const productCode = product.product_code?.trim();
   const { user, isAuthenticated } = useAuthStore();
   const [isFavorited, setIsFavorited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -175,8 +176,15 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Product Details */}
         <div className="p-1.5 sm:p-2 lg:p-3">
           {/* Manufacturer */}
-          {product.manufacturer_name && (
-            <p className="text-black text-[8px] sm:text-[10px] lg:text-xs font-bold mb-0.5">{product.manufacturer_name}</p>
+          {(product.manufacturer_name || productCode) && (
+            <p className="text-black text-[8px] sm:text-[10px] lg:text-xs font-bold mb-0.5">
+              {product.manufacturer_name}
+              {productCode && (
+                <span className={`${product.manufacturer_name ? 'ml-1' : ''} font-medium text-gray-500`}>
+                  {productCode}
+                </span>
+              )}
+            </p>
           )}
           {/* Product Name */}
           <p className="text-[10px] sm:text-xs lg:text-sm text-gray-900 line-clamp-2 mb-0.5 sm:mb-1 lg:mb-1.5">{product.title}</p>
