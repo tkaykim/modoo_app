@@ -960,6 +960,7 @@ export interface PartnerMallPublic {
   logo_url: string;
   slug: string | null;
   is_active: boolean;
+  is_preview?: boolean;
   salesman_id: string | null;
   partner_mall_products?: PartnerMallProductPublic[];
   partner_mall_assets?: PartnerMallAssetPublic[];

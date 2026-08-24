@@ -1,47 +1,42 @@
-import { createAnonClient } from '@/lib/supabase';
+import { isPartnerMallCapabilityToken } from '@/lib/partnerMallAccess';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ shareToken: string }> }
-) {
-  const { shareToken } = await params;
+const productSelect = `
+  id, partner_mall_id, product_id,
+  display_name, color_hex, color_name, color_code,
+  logo_placements, canvas_state, preview_url, price,
+  product:products (
+    id, title, base_price, configuration,
+    size_options, discount_rates,
+    thumbnail_image_link
+  )
+`;
 
-  if (!shareToken) {
-    return NextResponse.json({ error: 'Share token is required' }, { status: 400 });
-  }
-
-  // Validate the partner mall exists and is active
-  const supabase = createAnonClient();
-
-  // Try slug first, then share_token
-  let mall = null;
-  const { data: slugResult } = await supabase
+async function resolveEditorMall(shareToken: string) {
+  if (!isPartnerMallCapabilityToken(shareToken)) return null;
+  const admin = createAdminClient();
+  const { data } = await admin
     .from('partner_malls')
     .select('id')
-    .eq('slug', shareToken)
-    .eq('is_active', true)
+    .eq('share_token', shareToken)
     .maybeSingle();
+  return data;
+}
 
-  if (slugResult) {
-    mall = slugResult;
-  } else {
-    const { data: tokenResult } = await supabase
-      .from('partner_malls')
-      .select('id')
-      .eq('share_token', shareToken)
-      .eq('is_active', true)
-      .maybeSingle();
-    mall = tokenResult;
-  }
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ shareToken: string }> },
+) {
+  const { shareToken } = await params;
+  const mall = await resolveEditorMall(shareToken);
 
   if (!mall) {
-    return NextResponse.json({ error: '유효하지 않은 파트너몰입니다.' }, { status: 404 });
+    return NextResponse.json({ error: '유효하지 않은 편집 링크입니다.' }, { status: 404 });
   }
 
   const payload = await request.json().catch(() => null);
-  if (!payload?.product_id) {
+  if (!payload?.product_id || typeof payload.product_id !== 'string') {
     return NextResponse.json({ error: '제품 ID가 필요합니다.' }, { status: 400 });
   }
 
@@ -51,11 +46,6 @@ export async function POST(
     request.headers.get('x-actor-fingerprint') ??
     request.headers.get('user-agent')?.slice(0, 80) ??
     null;
-  const requestedRole = request.headers.get('x-actor-role');
-  const allowedRoles = ['salesman', 'admin', 'guest', 'owner'] as const;
-  const createdByRole = (allowedRoles as readonly string[]).includes(requestedRole ?? '')
-    ? (requestedRole as 'salesman' | 'admin' | 'guest' | 'owner')
-    : 'guest';
   const { data, error } = await admin
     .from('partner_mall_products')
     .insert({
@@ -70,21 +60,12 @@ export async function POST(
       color_name: payload.color_name ?? null,
       color_code: payload.color_code ?? null,
       price: null,
-      created_by_role: createdByRole,
+      created_by_role: 'guest',
       created_by_fingerprint: fingerprint,
       created_at: now,
       updated_at: now,
     })
-    .select(`
-      id, partner_mall_id, product_id,
-      display_name, color_hex, color_name, color_code,
-      logo_placements, canvas_state, preview_url, price,
-      product:products (
-        id, title, base_price, configuration,
-        size_options, discount_rates,
-        thumbnail_image_link
-      )
-    `)
+    .select(productSelect)
     .single();
 
   if (error) {
@@ -96,44 +77,17 @@ export async function POST(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ shareToken: string }> }
+  { params }: { params: Promise<{ shareToken: string }> },
 ) {
   const { shareToken } = await params;
-
-  if (!shareToken) {
-    return NextResponse.json({ error: 'Share token is required' }, { status: 400 });
-  }
-
-  // Validate the partner mall exists and is active
-  const supabase = createAnonClient();
-
-  // Try slug first, then share_token
-  let mall = null;
-  const { data: slugResult } = await supabase
-    .from('partner_malls')
-    .select('id')
-    .eq('slug', shareToken)
-    .eq('is_active', true)
-    .maybeSingle();
-
-  if (slugResult) {
-    mall = slugResult;
-  } else {
-    const { data: tokenResult } = await supabase
-      .from('partner_malls')
-      .select('id')
-      .eq('share_token', shareToken)
-      .eq('is_active', true)
-      .maybeSingle();
-    mall = tokenResult;
-  }
+  const mall = await resolveEditorMall(shareToken);
 
   if (!mall) {
-    return NextResponse.json({ error: '유효하지 않은 파트너몰입니다.' }, { status: 404 });
+    return NextResponse.json({ error: '유효하지 않은 편집 링크입니다.' }, { status: 404 });
   }
 
   const payload = await request.json().catch(() => null);
-  if (!payload?.id) {
+  if (!payload?.id || typeof payload.id !== 'string') {
     return NextResponse.json({ error: '파트너몰 제품 ID가 필요합니다.' }, { status: 400 });
   }
 
@@ -152,16 +106,7 @@ export async function PATCH(
     .update(updateData)
     .eq('id', payload.id)
     .eq('partner_mall_id', mall.id)
-    .select(`
-      id, partner_mall_id, product_id,
-      display_name, color_hex, color_name, color_code,
-      logo_placements, canvas_state, preview_url, price,
-      product:products (
-        id, title, base_price, configuration,
-        size_options, discount_rates,
-        thumbnail_image_link
-      )
-    `)
+    .select(productSelect)
     .single();
 
   if (error) {
