@@ -1,10 +1,12 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { hashNaverDesignToken, safeFileExtension } from '@/lib/naver-design-token';
 
-export { hashNaverDesignToken, safeFileExtension } from '@/lib/naver-design-token';
+export { hashNaverDesignToken, hydrateNaverDesignCanvasState, isUuid, resolveNaverDesignSaveState, safeFileExtension, sanitizeNaverDesignCanvasState } from '@/lib/naver-design-token';
 
 export const NAVER_DESIGN_BUCKET = 'naver-design-assets';
 export const NAVER_DESIGN_MAX_FILE_BYTES = 50 * 1024 * 1024;
+export const NAVER_DESIGN_MAX_ASSETS_PER_JOB = 50;
+export const NAVER_DESIGN_MAX_CANVAS_STATE_BYTES = 5 * 1024 * 1024;
 
 export async function findNaverDesignSession(token: string) {
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;

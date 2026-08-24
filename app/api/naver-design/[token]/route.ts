@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { findNaverDesignSession } from '@/lib/naver-design';
+import { findNaverDesignSession, hydrateNaverDesignCanvasState } from '@/lib/naver-design';
 
 export const runtime = 'nodejs';
 
@@ -48,7 +48,9 @@ export async function GET(_request: Request, { params }: Params) {
       status: session.status === 'draft' ? 'in_progress' : session.status,
       updated_at: now,
     }).eq('id', session.id);
-    await admin.from('naver_design_events').insert({ session_id: session.id, event_type: 'link_opened' });
+    if (!session.first_viewed_at) {
+      await admin.from('naver_design_events').insert({ session_id: session.id, event_type: 'link_opened' });
+    }
 
     return NextResponse.json({
       session: { ...session, status: session.status === 'draft' ? 'in_progress' : session.status },
@@ -64,6 +66,7 @@ export async function GET(_request: Request, { params }: Params) {
           : [];
         return {
           ...job,
+          canvas_state: hydrateNaverDesignCanvasState(job.canvas_state || {}, token),
           product: product ? { id: product.id, title: product.title, configuration } : null,
           selectedColor: selectedColor?.manufacturer_colors ?? null,
         };

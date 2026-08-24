@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { ensureNaverDesignBucket, findNaverDesignSession, NAVER_DESIGN_BUCKET, NAVER_DESIGN_MAX_FILE_BYTES, safeFileExtension } from '@/lib/naver-design';
+import { ensureNaverDesignBucket, findNaverDesignSession, NAVER_DESIGN_BUCKET, NAVER_DESIGN_MAX_ASSETS_PER_JOB, NAVER_DESIGN_MAX_FILE_BYTES, safeFileExtension } from '@/lib/naver-design';
 
 export const runtime = 'nodejs';
 type Params = { params: Promise<{ token: string; jobId: string }> };
@@ -30,6 +30,14 @@ export async function POST(request: Request, { params }: Params) {
     if (jobError) throw jobError;
     if (!job) return NextResponse.json({ error: '디자인 작업을 찾을 수 없습니다.' }, { status: 404 });
     if (['approved', 'cancelled'].includes(job.status)) return NextResponse.json({ error: '업로드할 수 없는 작업입니다.' }, { status: 409 });
+    const { count: assetCount, error: countError } = await admin
+      .from('naver_design_assets')
+      .select('id', { count: 'exact', head: true })
+      .eq('job_id', jobId);
+    if (countError) throw countError;
+    if ((assetCount ?? 0) >= NAVER_DESIGN_MAX_ASSETS_PER_JOB) {
+      return NextResponse.json({ error: `작업당 파일은 최대 ${NAVER_DESIGN_MAX_ASSETS_PER_JOB}개까지 업로드할 수 있습니다.` }, { status: 429 });
+    }
 
     await ensureNaverDesignBucket();
     const assetId = randomUUID();

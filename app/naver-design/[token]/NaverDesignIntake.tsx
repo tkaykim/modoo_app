@@ -256,10 +256,11 @@ export default function NaverDesignIntake({ token }: { token: string }) {
           {payload?.jobs.map((job) => {
             const unavailable = !job.product || job.status === 'needs_mapping';
             const submitted = ['submitted', 'reviewed', 'approved'].includes(job.status);
+            const locked = submitted || job.status === 'cancelled';
             return (
               <button
                 key={job.id}
-                disabled={unavailable || job.status === 'cancelled'}
+                disabled={unavailable || locked}
                 onClick={() => {
                   setError(null);
                   setSaveState('idle');
