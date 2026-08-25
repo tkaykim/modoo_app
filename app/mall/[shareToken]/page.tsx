@@ -339,8 +339,8 @@ export default function PartnerMallPage() {
         <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">{isPreview ? 'Review your proposal' : 'Choose your design'}</p>
-              <h2 className="mt-1 text-xl font-black sm:text-2xl">{isPreview ? '미리 준비한 유니폼 시안' : '주문할 디자인을 골라보세요'}</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">Choose your design</p>
+              <h2 className="mt-1 text-xl font-black sm:text-2xl">주문할 디자인을 골라보세요</h2>
             </div>
             <p className="hidden text-sm text-neutral-500 sm:block">카드를 누르면 앞면·뒷면·양옆을 크게 볼 수 있어요.</p>
           </div>
@@ -374,7 +374,7 @@ export default function PartnerMallPage() {
                         <div className="flex h-full items-center justify-center"><Package className="h-12 w-12 text-neutral-300" /></div>
                       )}
                       <span className="absolute left-4 top-4 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-bold text-neutral-700 shadow-sm backdrop-blur">
-                        <Check className="h-3.5 w-3.5 text-emerald-600" /> {isPreview ? '제안 시안' : '완성 디자인'}
+                        <Check className="h-3.5 w-3.5 text-emerald-600" /> 완성 디자인
                       </span>
                       <span className="absolute bottom-4 right-4 inline-flex items-center gap-1 rounded-full bg-neutral-950/85 px-3 py-1.5 text-[11px] font-bold text-white opacity-0 transition group-hover:opacity-100">
                         자세히 보기 <ChevronRight className="h-3.5 w-3.5" />
@@ -463,26 +463,20 @@ export default function PartnerMallPage() {
                     <span className="text-xs text-neutral-500">/ 1장 기준</span>
                   </div>
                 </div>
-                {isPreview ? (
-                  <div className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-6 text-sm font-black text-sky-800 sm:w-auto sm:min-w-[230px]">
-                    공개 전 비공개 시안
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => openProductOrder(selectedProduct)}
-                    className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-6 text-base font-black text-white transition hover:bg-neutral-700 sm:w-auto sm:min-w-[230px]"
-                  >
-                    사이즈·수량 선택하고 주문하기 <ArrowRight className="h-5 w-5" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => openProductOrder(selectedProduct)}
+                  className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-6 text-base font-black text-white transition hover:bg-neutral-700 sm:w-auto sm:min-w-[230px]"
+                >
+                  사이즈·수량 선택하고 주문하기 <ArrowRight className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {selectedProduct?.product && !isPreview && (
+      {selectedProduct?.product && (
         <QuantitySelectorModal
           isOpen={isQuantityModalOpen}
           onClose={() => setIsQuantityModalOpen(false)}
