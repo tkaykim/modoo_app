@@ -1,9 +1,5 @@
-import {
-  isPartnerMallCapabilityToken,
-  isPartnerMallPreviewRequest,
-} from '@/lib/partnerMallAccess';
+import { isPartnerMallCapabilityToken } from '@/lib/partnerMallAccess';
 import { createAnonClient } from '@/lib/supabase';
-import { createAdminClient } from '@/lib/supabase-admin';
 import { NextResponse } from 'next/server';
 
 const selectQuery = `
@@ -29,7 +25,7 @@ const selectQuery = `
 `;
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ shareToken: string }> },
 ) {
   const { shareToken } = await params;
@@ -38,44 +34,29 @@ export async function GET(
     return NextResponse.json({ error: 'Share token is required' }, { status: 400 });
   }
 
-  const isPreview = isPartnerMallPreviewRequest(request);
-  if (isPreview && !isPartnerMallCapabilityToken(shareToken)) {
-    return NextResponse.json({ error: '찾을 수 없는 페이지입니다.' }, { status: 404 });
-  }
-
-  const supabase = isPreview ? createAdminClient() : createAnonClient();
+  const supabase = createAnonClient();
   let mall = null;
   let error = null;
 
-  if (isPreview) {
-    const result = await supabase
+  const slugResult = await supabase
+    .from('partner_malls')
+    .select(selectQuery)
+    .eq('slug', shareToken)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (slugResult.data) {
+    mall = slugResult.data;
+    error = slugResult.error;
+  } else if (isPartnerMallCapabilityToken(shareToken)) {
+    const tokenResult = await supabase
       .from('partner_malls')
       .select(selectQuery)
       .eq('share_token', shareToken)
-      .maybeSingle();
-    mall = result.data;
-    error = result.error;
-  } else {
-    const slugResult = await supabase
-      .from('partner_malls')
-      .select(selectQuery)
-      .eq('slug', shareToken)
       .eq('is_active', true)
       .maybeSingle();
-
-    if (slugResult.data) {
-      mall = slugResult.data;
-      error = slugResult.error;
-    } else if (isPartnerMallCapabilityToken(shareToken)) {
-      const tokenResult = await supabase
-        .from('partner_malls')
-        .select(selectQuery)
-        .eq('share_token', shareToken)
-        .eq('is_active', true)
-        .maybeSingle();
-      mall = tokenResult.data;
-      error = tokenResult.error;
-    }
+    mall = tokenResult.data;
+    error = tokenResult.error;
   }
 
   if (error || !mall) {
@@ -93,7 +74,7 @@ export async function GET(
   } | null = null;
 
   const ownerSalesmanId = (mall as { salesman_id?: string | null }).salesman_id;
-  if (ownerSalesmanId && !isPreview) {
+  if (ownerSalesmanId) {
     const { data: coupon } = await supabase
       .from('coupons')
       .select('id, code, discount_type, discount_value, min_order_amount, max_discount_amount, salesman_profile_id, is_active, expires_at')
@@ -119,15 +100,8 @@ export async function GET(
   const response = NextResponse.json({
     data: {
       ...mall,
-      is_preview: isPreview,
       salesman_coupon: salesmanCoupon,
     },
   });
-
-  if (isPreview) {
-    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
-    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
-  }
-
   return response;
 }

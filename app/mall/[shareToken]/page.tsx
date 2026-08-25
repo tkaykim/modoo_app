@@ -10,7 +10,9 @@ import {
   ChevronRight,
   Layers3,
   Loader2,
+  MessageCircle,
   Package,
+  Phone,
   ShoppingBag,
   Sparkles,
   X,
@@ -74,27 +76,10 @@ export default function PartnerMallPage() {
   useEffect(() => {
     if (!shareToken) return;
     let alive = true;
-    const preview = new URLSearchParams(window.location.search).get('preview') === '1';
-    const previewMeta = preview
-      ? [
-          ['robots', 'noindex, nofollow, noarchive'],
-          ['referrer', 'no-referrer'],
-        ].map(([name, content]) => {
-          const element = document.createElement('meta');
-          element.name = name;
-          element.content = content;
-          element.dataset.partnerMallPreview = 'true';
-          document.head.appendChild(element);
-          return element;
-        })
-      : [];
 
     const loadMall = async () => {
       try {
-        const res = await fetch(
-          `/api/partner-mall/${encodeURIComponent(shareToken)}${preview ? '?preview=1' : ''}`,
-          preview ? { cache: 'no-store' } : undefined,
-        );
+        const res = await fetch(`/api/partner-mall/${encodeURIComponent(shareToken)}`);
         if (!res.ok) throw new Error('찾을 수 없는 페이지입니다.');
         const result = await res.json();
         if (!alive) return;
@@ -130,7 +115,6 @@ export default function PartnerMallPage() {
     loadMall();
     return () => {
       alive = false;
-      previewMeta.forEach((element) => element.remove());
     };
   }, [shareToken]);
 
@@ -151,7 +135,6 @@ export default function PartnerMallPage() {
   }, [selectedProduct]);
 
   const products = useMemo(() => mall?.partner_mall_products || [], [mall]);
-  const isPreview = Boolean(mall?.is_preview);
 
   const getProductPrice = (product: PartnerMallProductPublic): number => {
     if (product.price !== null && product.price !== undefined) return product.price;
@@ -295,17 +278,6 @@ export default function PartnerMallPage() {
       <Header back />
 
       <main>
-        {isPreview && (
-          <section className="border-b border-sky-200 bg-sky-50">
-            <div className="mx-auto flex max-w-6xl items-start gap-3 px-5 py-4 text-sm text-sky-950 sm:px-8">
-              <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
-              <div>
-                <p className="font-black">박람회 상담용 비공개 시안입니다.</p>
-                <p className="mt-1 text-xs leading-5 text-sky-800">공개 전 디자인을 미리 확인하는 화면이며 주문 기능은 열려 있지 않습니다.</p>
-              </div>
-            </div>
-          </section>
-        )}
         <section className="border-b border-neutral-200 bg-white">
           <div className="mx-auto max-w-6xl px-5 pb-9 pt-8 sm:px-8 sm:pb-12 sm:pt-12">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
@@ -320,9 +292,27 @@ export default function PartnerMallPage() {
                   </div>
                 )}
                 <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">{isPreview ? 'Private uniform preview' : 'Official uniform shop'}</p>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">Official uniform shop</p>
                   <h1 className="text-2xl font-black tracking-tight sm:text-4xl">{mall.name}</h1>
-                  <p className="mt-2 text-sm text-neutral-500 sm:text-base">{isPreview ? '모두의유니폼이 미리 준비한 제품 구성을 확인해보세요.' : '완성된 디자인을 확인하고 필요한 수량만 주문하세요.'}</p>
+                  <p className="mt-2 text-sm text-neutral-500 sm:text-base">원하는 디자인을 확인하고 사이즈·수량을 선택해 바로 주문하세요.</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                    <a
+                      href="https://pf.kakao.com/_xjSdYG/chat"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#f4d33d] bg-[#fee500] px-4 font-bold text-[#3c1e1e] transition hover:brightness-95"
+                    >
+                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                      카카오톡으로 문의하기
+                    </a>
+                    <a
+                      href="tel:01081400621"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-neutral-300 bg-white px-4 font-bold text-neutral-800 transition hover:border-neutral-500"
+                    >
+                      <Phone className="h-4 w-4" aria-hidden="true" />
+                      010-8140-0621
+                    </a>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-500">
