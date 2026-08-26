@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Header from '@/app/components/Header';
 import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
+import PartnerMallJourneyTracker from '@/app/components/PartnerMallJourneyTracker';
 import { addToCartDB } from '@/lib/cartService';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
 import { track } from '@/lib/analytics-tracker';
@@ -325,6 +326,7 @@ export default function PartnerMallPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f7f4] text-neutral-950">
+      <PartnerMallJourneyTracker partnerMallId={mall.id} sourceKey={mall.source_key} />
       <Header back />
 
       <main>
@@ -350,6 +352,7 @@ export default function PartnerMallPage() {
                       href="https://pf.kakao.com/_xjSdYG/chat"
                       target="_blank"
                       rel="noreferrer"
+                      data-partner-action="header_kakao_inquiry"
                       onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: 'header_kakao' })}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#f4d33d] bg-[#fee500] px-4 font-bold text-[#3c1e1e] transition hover:brightness-95"
                     >
@@ -358,6 +361,7 @@ export default function PartnerMallPage() {
                     </a>
                     <a
                       href="tel:01081400621"
+                      data-partner-action="header_phone_inquiry"
                       onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: 'header_phone' })}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-neutral-300 bg-white px-4 font-bold text-neutral-800 transition hover:border-neutral-500"
                     >
@@ -427,6 +431,7 @@ export default function PartnerMallPage() {
                   <article key={product.id} className="group overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_8px_30px_rgba(28,25,23,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(28,25,23,0.1)]">
                     <button
                       type="button"
+                      data-partner-action={`product_preview:${product.id}`}
                       onClick={() => openProductPreview(product)}
                       className="relative block aspect-[1.08] w-full overflow-hidden bg-[#f1efeb] text-left"
                       aria-label={`${product.display_name || product.product?.title || '디자인'} 상세 보기`}
@@ -465,6 +470,7 @@ export default function PartnerMallPage() {
                         </div>
                         <button
                           type="button"
+                          data-partner-action={`product_preview:${product.id}`}
                           onClick={() => openProductPreview(product)}
                           className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-neutral-700"
                         >
@@ -494,7 +500,7 @@ export default function PartnerMallPage() {
                 <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Design preview</p>
                 <h2 id="partner-design-title" className="truncate text-lg font-black sm:text-xl">{selectedProduct.display_name || selectedProduct.product.title}</h2>
               </div>
-              <button type="button" onClick={() => setSelectedProduct(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200" aria-label="닫기">
+              <button type="button" data-partner-action="product_preview_close" onClick={() => setSelectedProduct(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200" aria-label="닫기">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -530,6 +536,7 @@ export default function PartnerMallPage() {
                 </div>
                 <button
                   type="button"
+                  data-partner-action={`order_start:${selectedProduct.id}`}
                   onClick={() => openProductOrder(selectedProduct)}
                   className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 px-6 text-base font-black text-white transition hover:bg-neutral-700 sm:w-auto sm:min-w-[230px]"
                 >
@@ -574,6 +581,7 @@ export default function PartnerMallPage() {
             href="https://pf.kakao.com/_xjSdYG/chat"
             target="_blank"
             rel="noreferrer"
+            data-partner-action={`floating_inquiry:${type}`}
             onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: type })}
             className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#d8bd00] bg-[#fee500] px-4 text-xs font-black text-[#3c1e1e] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:brightness-95 sm:px-5 sm:text-sm"
           >
