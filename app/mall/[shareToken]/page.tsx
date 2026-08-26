@@ -416,12 +416,12 @@ export default function PartnerMallPage() {
       </main>
 
       {selectedProduct && selectedProduct.product && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-neutral-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={() => setSelectedProduct(null)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-neutral-950/60 px-0 pb-0 pt-14 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={() => setSelectedProduct(null)}>
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="partner-design-title"
-            className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[28px]"
+            className="flex max-h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[28px]"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-5 py-4 sm:px-7">
