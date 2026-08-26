@@ -525,6 +525,21 @@ export default function PartnerMallPage() {
           }
         />
       )}
+
+      <div className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2 sm:bottom-6 sm:right-6" aria-label="문의하기">
+        {['다른 의류 제작 문의', '디자인 수정 문의', '단가 협의 문의'].map((label) => (
+          <a
+            key={label}
+            href="https://pf.kakao.com/_xjSdYG/chat"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#d8bd00] bg-[#fee500] px-4 text-xs font-black text-[#3c1e1e] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:brightness-95 sm:px-5 sm:text-sm"
+          >
+            <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{label}</span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
