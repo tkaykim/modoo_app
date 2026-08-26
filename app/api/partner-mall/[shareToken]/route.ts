@@ -3,7 +3,7 @@ import { createAnonClient } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
 const selectQuery = `
-  id, name, logo_url, is_active, slug, salesman_id,
+  id, name, logo_url, is_active, slug, source_key, salesman_id,
   partner_mall_products (
     id, partner_mall_id, product_id,
     display_name, color_hex, color_name, color_code,

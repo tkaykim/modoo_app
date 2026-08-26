@@ -959,6 +959,7 @@ export interface PartnerMallPublic {
   name: string;
   logo_url: string;
   slug: string | null;
+  source_key?: string | null;
   is_active: boolean;
   is_preview?: boolean;
   salesman_id: string | null;

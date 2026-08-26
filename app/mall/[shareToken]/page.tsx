@@ -135,18 +135,29 @@ export default function PartnerMallPage() {
   }, [selectedProduct]);
 
   const products = useMemo(() => mall?.partner_mall_products || [], [mall]);
+  const isFranchiseExpoMall = mall?.source_key?.startsWith('franchise-coex:84:') ?? false;
 
-  const getProductPrice = (product: PartnerMallProductPublic): number => {
+  const getBaseProductPrice = (product: PartnerMallProductPublic): number => {
     if (product.price !== null && product.price !== undefined) return product.price;
     const base = product.product?.base_price ?? 0;
     if (!product.product?.configuration || !product.logo_placements) return base;
     return base + calculateLogoAdditionalPrice(product.product.configuration, product.logo_placements);
   };
 
+  const getProductPrice = (product: PartnerMallProductPublic): number => {
+    const basePrice = getBaseProductPrice(product);
+    return isFranchiseExpoMall ? Math.round(basePrice * 0.7) : basePrice;
+  };
+
   const applySalesmanDiscount = (price: number): number | null => {
     if (!salesmanCoupon || salesmanCoupon.discount_type !== 'percentage') return null;
     const discounted = Math.floor(price * (1 - salesmanCoupon.discount_value / 100));
     return Math.max(0, discounted);
+  };
+
+  const getFinalProductPrice = (product: PartnerMallProductPublic): number => {
+    const partnerPrice = getProductPrice(product);
+    return applySalesmanDiscount(partnerPrice) ?? partnerPrice;
   };
 
   const openProductOrder = (product: PartnerMallProductPublic) => {
@@ -318,6 +329,12 @@ export default function PartnerMallPage() {
                     기본 의류 외에도 기능성, 앞치마, 모자 등 제작 가능합니다.<br />
                     편히 문의 부탁드립니다.
                   </p>
+                  {isFranchiseExpoMall && (
+                    <p className="mt-2 text-xs font-semibold leading-5 text-neutral-700 sm:text-sm">
+                      할인가에 본사 납품 제공.<br />
+                      지점 판매가 조정 가능.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-500">
@@ -359,8 +376,10 @@ export default function PartnerMallPage() {
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {products.map((product) => {
-                const originalPrice = getProductPrice(product);
-                const discountedPrice = applySalesmanDiscount(originalPrice);
+                const originalPrice = getBaseProductPrice(product);
+                const partnerPrice = getProductPrice(product);
+                const discountedPrice = applySalesmanDiscount(partnerPrice);
+                const finalPrice = discountedPrice ?? partnerPrice;
                 const sideNames = product.product?.configuration?.map((side) => side.name).filter(Boolean) || [];
 
                 return (
@@ -400,8 +419,8 @@ export default function PartnerMallPage() {
 
                       <div className="mt-5 flex items-end justify-between gap-3">
                         <div>
-                          {discountedPrice !== null && discountedPrice < originalPrice && <p className="text-xs text-neutral-400 line-through">{formatPrice(originalPrice)}</p>}
-                          <p className="text-lg font-black text-neutral-950">{formatPrice(discountedPrice ?? originalPrice)}</p>
+                          {finalPrice < originalPrice && <p className="text-xs text-neutral-400 line-through">{formatPrice(originalPrice)}</p>}
+                          <p className="text-lg font-black text-neutral-950">{formatPrice(finalPrice)}</p>
                         </div>
                         <button
                           type="button"
@@ -463,8 +482,8 @@ export default function PartnerMallPage() {
                     {selectedProduct.product.configuration?.map((side) => side.name).filter(Boolean).length ? <><span className="text-neutral-300">·</span><span>앞면·뒷면·양옆 확인 가능</span></> : null}
                   </div>
                   <div className="mt-1 flex items-baseline gap-2">
-                    {applySalesmanDiscount(getProductPrice(selectedProduct)) !== null && applySalesmanDiscount(getProductPrice(selectedProduct))! < getProductPrice(selectedProduct) && <span className="text-sm text-neutral-400 line-through">{formatPrice(getProductPrice(selectedProduct))}</span>}
-                    <strong className="text-2xl font-black">{formatPrice(applySalesmanDiscount(getProductPrice(selectedProduct)) ?? getProductPrice(selectedProduct))}</strong>
+                    {getFinalProductPrice(selectedProduct) < getBaseProductPrice(selectedProduct) && <span className="text-sm text-neutral-400 line-through">{formatPrice(getBaseProductPrice(selectedProduct))}</span>}
+                    <strong className="text-2xl font-black">{formatPrice(getFinalProductPrice(selectedProduct))}</strong>
                     <span className="text-xs text-neutral-500">/ 1장 기준</span>
                   </div>
                 </div>
