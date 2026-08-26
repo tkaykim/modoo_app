@@ -313,6 +313,11 @@ export default function PartnerMallPage() {
                       010-8140-0621
                     </a>
                   </div>
+                  <p className="mt-3 text-xs leading-5 text-neutral-500 sm:text-sm">
+                    수량에 따라 가격 할인이 가능합니다.<br />
+                    기본 의류 외에도 기능성, 앞치마, 모자 등 제작 가능합니다.<br />
+                    편히 문의 부탁드립니다.
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm font-semibold text-neutral-500">
