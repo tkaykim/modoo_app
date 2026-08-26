@@ -21,6 +21,7 @@ import Header from '@/app/components/Header';
 import QuantitySelectorModal from '@/app/components/QuantitySelectorModal';
 import { addToCartDB } from '@/lib/cartService';
 import { calculateLogoAdditionalPrice } from '@/lib/partnerMallPricing';
+import { track } from '@/lib/analytics-tracker';
 import { clearMallAutoCoupon, setMallAutoCoupon, type MallAutoCoupon } from '@/lib/mallSalesmanCoupon';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -49,6 +50,12 @@ interface SalesmanCouponPayload {
 }
 
 const formatPrice = (price: number) => `${price.toLocaleString('ko-KR')}원`;
+
+const floatingInquiries = [
+  { label: '다른 의류 제작 문의', type: 'other_apparel' },
+  { label: '디자인 수정 문의', type: 'design_revision' },
+  { label: '단가 협의 문의', type: 'price_negotiation' },
+] as const;
 
 function getCanvasState(product: PartnerMallProductPublic): Record<string, string> {
   const source = (product.canvas_state || {}) as Record<string, unknown>;
@@ -155,6 +162,27 @@ export default function PartnerMallPage() {
     return Math.max(0, discounted);
   };
 
+  const trackPartnerMallEvent = (eventType: string, meta: Record<string, unknown> = {}) => {
+    if (!mall) return;
+    track({
+      event_type: eventType,
+      meta: {
+        partner_mall_id: mall.id,
+        source_key: mall.source_key ?? null,
+        ...meta,
+      },
+    });
+  };
+
+  const openProductPreview = (product: PartnerMallProductPublic) => {
+    setSelectedProduct(product);
+    trackPartnerMallEvent('partner_mall_product_view', {
+      partner_mall_product_id: product.id,
+      product_id: product.product_id,
+      color_code: product.color_code,
+    });
+  };
+
   const getFinalProductPrice = (product: PartnerMallProductPublic): number => {
     const partnerPrice = getProductPrice(product);
     return applySalesmanDiscount(partnerPrice) ?? partnerPrice;
@@ -163,6 +191,10 @@ export default function PartnerMallPage() {
   const openProductOrder = (product: PartnerMallProductPublic) => {
     setSelectedProduct(product);
     setIsQuantityModalOpen(true);
+    trackPartnerMallEvent('partner_mall_order_start', {
+      partner_mall_product_id: product.id,
+      product_id: product.product_id,
+    });
   };
 
   const handlePartnerMallOrder = async (
@@ -184,6 +216,13 @@ export default function PartnerMallPage() {
       : getProductPrice(selectedProduct);
     const canvasState = getCanvasState(selectedProduct);
     const thumbnailUrl = selectedProduct.preview_url || product.thumbnail_image_link?.[0] || undefined;
+
+    trackPartnerMallEvent('partner_mall_checkout_start', {
+      partner_mall_product_id: selectedProduct.id,
+      product_id: product.id,
+      total_quantity: selectedItems.reduce((sum, item) => sum + item.quantity, 0),
+      price_per_item: price,
+    });
 
     setIsOrdering(true);
     try {
@@ -311,6 +350,7 @@ export default function PartnerMallPage() {
                       href="https://pf.kakao.com/_xjSdYG/chat"
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: 'header_kakao' })}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#f4d33d] bg-[#fee500] px-4 font-bold text-[#3c1e1e] transition hover:brightness-95"
                     >
                       <MessageCircle className="h-4 w-4" aria-hidden="true" />
@@ -318,6 +358,7 @@ export default function PartnerMallPage() {
                     </a>
                     <a
                       href="tel:01081400621"
+                      onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: 'header_phone' })}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-neutral-300 bg-white px-4 font-bold text-neutral-800 transition hover:border-neutral-500"
                     >
                       <Phone className="h-4 w-4" aria-hidden="true" />
@@ -386,7 +427,7 @@ export default function PartnerMallPage() {
                   <article key={product.id} className="group overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_8px_30px_rgba(28,25,23,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(28,25,23,0.1)]">
                     <button
                       type="button"
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => openProductPreview(product)}
                       className="relative block aspect-[1.08] w-full overflow-hidden bg-[#f1efeb] text-left"
                       aria-label={`${product.display_name || product.product?.title || '디자인'} 상세 보기`}
                     >
@@ -424,7 +465,7 @@ export default function PartnerMallPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setSelectedProduct(product)}
+                          onClick={() => openProductPreview(product)}
                           className="inline-flex items-center gap-1.5 rounded-full bg-neutral-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-neutral-700"
                         >
                           디자인 확인 <ArrowRight className="h-3.5 w-3.5" />
@@ -527,12 +568,13 @@ export default function PartnerMallPage() {
       )}
 
       <div className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2 sm:bottom-6 sm:right-6" aria-label="문의하기">
-        {['다른 의류 제작 문의', '디자인 수정 문의', '단가 협의 문의'].map((label) => (
+        {floatingInquiries.map(({ label, type }) => (
           <a
             key={label}
             href="https://pf.kakao.com/_xjSdYG/chat"
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackPartnerMallEvent('partner_mall_inquiry_click', { inquiry_type: type })}
             className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-[#d8bd00] bg-[#fee500] px-4 text-xs font-black text-[#3c1e1e] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:brightness-95 sm:px-5 sm:text-sm"
           >
             <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
