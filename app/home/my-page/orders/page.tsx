@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Package } from 'lucide-react';
 import { formatKstDateNumeric } from '@/lib/kst';
+import { getOrderItemColorLabel } from '@/lib/order-item-display';
 
 type OrderItem = {
   id: string;
@@ -14,6 +15,21 @@ type OrderItem = {
   product_title: string | null;
   quantity: number | null;
   thumbnail_url: string | null;
+  item_options: {
+    size_id?: string | null;
+    size_name?: string | null;
+    color_name?: string | null;
+    color_code?: string | null;
+    color_hex?: string | null;
+    variants?: Array<{
+      size_id?: string | null;
+      size_name?: string | null;
+      color_name?: string | null;
+      color_code?: string | null;
+      color_hex?: string | null;
+      quantity?: number | null;
+    }> | null;
+  } | null;
 };
 
 type Order = {
@@ -59,7 +75,7 @@ export default function OrdersPage() {
 
       const { data, error: fetchError } = await supabase
         .from('orders')
-        .select('id, created_at, order_status, payment_status, total_amount, order_items(id, product_id, product_title, quantity, thumbnail_url)')
+        .select('id, created_at, order_status, payment_status, total_amount, order_items(id, product_id, product_title, quantity, thumbnail_url, item_options)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -132,7 +148,6 @@ export default function OrdersPage() {
               const statusKey = (order.order_status || 'payment_completed').toLowerCase();
               const status = statusMap[statusKey] || statusMap.payment_completed;
               const itemCount = order.order_items?.length || 0;
-              const totalQuantity = order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
               const formattedDate = formatKstDateNumeric(order.created_at);
               const formattedTotal = (order.total_amount || 0).toLocaleString('ko-KR');
 
@@ -179,13 +194,21 @@ export default function OrdersPage() {
                       ))}
                     </div>
 
-                    <div className="text-xs text-gray-700 min-w-0">
+                    <div className="min-w-0 flex-1 space-y-0.5 text-xs text-gray-700">
                       {itemCount > 0 ? (
-                        <span className="line-clamp-1">
-                          {order.order_items?.[0]?.product_title || '주문 상품'}
-                          {itemCount > 1 ? ` 외 ${itemCount - 1}건` : ''}
-                          <span className="ml-1 text-gray-500">({totalQuantity}개)</span>
-                        </span>
+                        <>
+                          {(order.order_items || []).slice(0, 3).map((item) => {
+                            const colorLabel = getOrderItemColorLabel(item);
+                            return (
+                              <p key={item.id} className="truncate">
+                                <span>{item.product_title || '주문 상품'}</span>
+                                <span className="text-gray-500"> · {item.quantity || 0}개</span>
+                                {colorLabel && <span className="text-gray-500"> · 색상: {colorLabel}</span>}
+                              </p>
+                            );
+                          })}
+                          {itemCount > 3 && <p className="text-gray-500">외 {itemCount - 3}건</p>}
+                        </>
                       ) : (
                         <span>주문 상품 없음</span>
                       )}
@@ -261,7 +284,11 @@ export default function OrdersPage() {
                       {item.product_title || '주문 상품'}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      수량: {item.quantity || 0}
+                      {(() => {
+                        const colorLabel = getOrderItemColorLabel(item);
+                        return colorLabel ? `색상: ${colorLabel} · ` : '';
+                      })()}
+                      수량: {item.quantity || 0}개
                     </div>
                   </div>
                 </button>

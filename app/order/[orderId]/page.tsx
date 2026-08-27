@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { OrderItem } from '@/types/types';
 import DesignChatSection from '@/app/components/DesignChatSection';
 import ReorderButton from '@/app/components/ReorderButton';
+import { formatOrderVariantQuantity, getOrderItemColorLabel, getOrderItemVariants } from '@/lib/order-item-display';
 
 interface OrderDetail {
   id: string;
@@ -346,8 +347,9 @@ export default function OrderDetailPage() {
 
         {/* Order Items */}
         {order.order_items.map((item) => {
-          const variants = item.item_options?.variants || [];
-          const totalQuantity = variants.reduce((sum, v) => sum + v.quantity, 0) || item.quantity;
+          const variants = getOrderItemVariants(item).filter((variant) => (variant.quantity ?? 0) > 0);
+          const totalQuantity = variants.reduce((sum, variant) => sum + (variant.quantity ?? 0), 0) || item.quantity;
+          const colorLabel = getOrderItemColorLabel(item);
 
           return (
             <div key={item.id} className="bg-white mt-2 px-4 py-4">
@@ -391,6 +393,9 @@ export default function OrderDetailPage() {
                   {item.design_title && (
                     <p className="text-xs text-gray-500 mt-0.5">디자인: {item.design_title}</p>
                   )}
+                  {colorLabel && (
+                    <p className="text-xs text-gray-500 mt-0.5">색상: {colorLabel}</p>
+                  )}
                   <p className="text-sm text-gray-700 mt-1">
                     {formatPrice(item.price_per_item)}원 · {totalQuantity}개
                   </p>
@@ -400,19 +405,17 @@ export default function OrderDetailPage() {
               {/* Variants */}
               {variants.length > 0 && (
                 <div className="mt-2 ml-19 space-y-1">
-                  {variants.map((variant, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-1.5 text-xs text-gray-500"
-                    >
-                      <div
-                        className="w-2.5 h-2.5 rounded-full border border-gray-300"
-                        style={{ backgroundColor: variant.color_hex }}
-                      />
-                      <span>{variant.color_name} / {variant.size_name}</span>
-                      <span>x {variant.quantity}</span>
-                    </div>
-                  ))}
+                  <p className="text-xs font-medium text-gray-600">사이즈별 수량</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {variants.map((variant, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600"
+                      >
+                        {formatOrderVariantQuantity(variant)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 

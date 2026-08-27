@@ -9,6 +9,7 @@ import { CustomOrderData, SizingData } from '@/types/types';
 import SizeChartTable from '@/app/components/SizeChartTable';
 import PhoneInput from '@/app/components/PhoneInput';
 import { checkPhone } from '@/lib/phone';
+import { formatOrderVariantQuantity, getOrderItemColorLabel, getOrderItemVariants } from '@/lib/order-item-display';
 import DesignPreviewModal from './DesignPreviewModal';
 
 type ShippingMethod = 'domestic' | 'pickup';
@@ -468,6 +469,7 @@ export default function CustomOrderPage() {
                   ? variants.reduce((s, v) => s + v.quantity, 0)
                   : item.quantity;
                 const itemSub = item.price_per_item * itemQty;
+                const colorLabel = getOrderItemColorLabel(item);
 
                 return (
                   <div key={item.id || idx} className="p-4">
@@ -510,6 +512,9 @@ export default function CustomOrderPage() {
                         {(item as any).design_title && (
                           <p className="text-xs text-gray-400 mt-0.5">{(item as any).design_title}</p>
                         )}
+                        {colorLabel && (
+                          <p className="text-xs text-gray-500 mt-0.5">색상: {colorLabel}</p>
+                        )}
                         <p className="text-sm text-gray-500 mt-1">
                           {item.price_per_item.toLocaleString()}원{isQtyEditable ? '/개' : ` × ${item.quantity}개`}
                         </p>
@@ -521,10 +526,10 @@ export default function CustomOrderPage() {
 
                     {(() => {
                       const readOnlyVariants = !isQtyEditable
-                        ? (item.item_options?.variants || []).filter(v => v.quantity > 0)
+                        ? getOrderItemVariants(item).filter(v => (v.quantity ?? 0) > 0)
                         : [];
                       const showEditable = isQtyEditable && variants.length > 0;
-                      const showReadOnly = !isQtyEditable && readOnlyVariants.length > 1;
+                      const showReadOnly = !isQtyEditable && readOnlyVariants.length > 0;
                       const showSizeChart = !!item.sizing_chart_image;
 
                       if (!showEditable && !showReadOnly && !showSizeChart) return null;
@@ -532,19 +537,19 @@ export default function CustomOrderPage() {
                       return (
                         <div className="mt-3 pl-1">
                           <div className="flex items-center justify-between mb-2">
-                            {(showEditable || showReadOnly) ? (
+                            {showEditable ? (
                               <button
                                 type="button"
                                 onClick={() => setExpandedQtyItems(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
                                 className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${showEditable && itemQty === 0 ? 'text-brand' : 'text-gray-800 hover:text-gray-900'}`}
                               >
                                 <span>
-                                  {showEditable
-                                    ? (itemQty > 0 ? `사이즈별 수량 · 총 ${itemQty}개` : '사이즈별 수량 선택')
-                                    : `사이즈별 수량 (${readOnlyVariants.length}개)`}
+                                  {itemQty > 0 ? `사이즈별 수량 · 총 ${itemQty}개` : '사이즈별 수량 선택'}
                                 </span>
                                 {expandedQtyItems[item.id] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                               </button>
+                            ) : showReadOnly ? (
+                              <span className="text-sm font-semibold text-gray-800">사이즈별 수량</span>
                             ) : <div />}
                             {showSizeChart && (
                               item.sizing_data ? (
@@ -620,13 +625,15 @@ export default function CustomOrderPage() {
                             </div>
                           )}
 
-                          {expandedQtyItems[item.id] && showReadOnly && (
-                            <div className="space-y-1.5">
-                              {readOnlyVariants.map(v => (
-                                <div key={v.size_id} className="flex items-center justify-between py-1.5 px-3 bg-gray-50 rounded-lg">
-                                  <span className="text-sm text-gray-700 font-medium">{v.size_name}</span>
-                                  <span className="text-sm text-gray-600">{v.quantity}개</span>
-                                </div>
+                          {showReadOnly && (
+                            <div className="flex flex-wrap gap-1.5" aria-label="사이즈별 수량">
+                              {readOnlyVariants.map((v, vi) => (
+                                <span
+                                  key={`${v.size_id || v.size_name || 'size'}-${vi}`}
+                                  className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1.5 text-sm font-medium text-gray-700"
+                                >
+                                  {formatOrderVariantQuantity(v)}
+                                </span>
                               ))}
                             </div>
                           )}

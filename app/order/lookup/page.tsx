@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Header from '@/app/components/Header';
 import { Search, Package, AlertCircle } from 'lucide-react';
 import { formatKstDateOnly } from '@/lib/kst';
+import { formatOrderVariantQuantity, getOrderItemColorLabel, getOrderItemVariants } from '@/lib/order-item-display';
 
 interface OrderItemData {
   id: string;
@@ -20,6 +21,8 @@ interface OrderItemData {
       size_name: string;
       color_id: string;
       color_name: string;
+      color_code?: string;
+      color_hex?: string;
       quantity: number;
     }>;
   } | null;
@@ -213,15 +216,22 @@ function OrderLookupContent() {
                       <h3 className="text-sm font-medium text-black truncate">
                         {item.design_title || item.product_title}
                       </h3>
-                      {item.item_options?.variants && (
-                        <div className="mt-1 space-y-0.5">
-                          {item.item_options.variants.map((v, idx) => (
-                            <p key={idx} className="text-xs text-gray-500">
-                              {v.color_name} / {v.size_name} - {v.quantity}개
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const colorLabel = getOrderItemColorLabel(item);
+                        return colorLabel ? <p className="mt-0.5 text-xs text-gray-500">색상: {colorLabel}</p> : null;
+                      })()}
+                      {(() => {
+                        const variants = getOrderItemVariants(item).filter((variant) => (variant.quantity ?? 0) > 0);
+                        return variants.length > 0 ? (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {variants.map((variant, idx) => (
+                              <span key={idx} className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+                                {formatOrderVariantQuantity(variant)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
                       <div className="flex justify-between items-center mt-1">
                         <span className="text-xs text-gray-600">총 {item.quantity}개</span>
                         <span className="text-sm font-medium text-black">

@@ -582,12 +582,19 @@ export interface OrderItem {
   canvas_state: Record<string, unknown>;
   color_selections: Record<string, unknown>;
   item_options: {
+    size_id?: string;
+    size_name?: string;
+    color_id?: string;
+    color_name?: string;
+    color_hex?: string;
+    color_code?: string;
     variants: Array<{
       size_id: string;
       size_name: string;
       color_id: string;
       color_name: string;
       color_hex: string;
+      color_code?: string;
       quantity: number;
     }>;
   };
