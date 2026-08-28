@@ -4,6 +4,7 @@ import { countObjectColors } from '@/lib/colorExtractor';
 import { getPrintPricingConfig, getPrintMethodIdByKey } from '@/lib/printPricingConfig';
 import { getCustomerPricingForPrintMethodId } from '@/lib/customerPricingFetch';
 import { pickUnitPriceForArtwork } from '@/lib/customerPricingMatcher';
+import { intersectRectWithBounds } from '@/lib/canvasUtils';
 
 // Size thresholds in mm
 const SIZE_THRESHOLDS = {
@@ -127,18 +128,30 @@ function calculateObjectDimensionsMm(
 }
 
 /**
- * Calculate combined bounding box for a group of objects
+ * Calculate combined bounding box for a group of objects.
+ * 캔버스 경계(boundsWidthPx × boundsHeightPx)가 주어지면 각 개체의 캔버스 교차
+ * 영역만 집계한다 — 캔버스 밖 부분은 실제 인쇄물이 아니므로 단가에 반영하지
+ * 않는다. 모든 개체가 완전히 밖이면 {0, 0}.
  */
 function calculateCombinedBoundingBox(
   objects: fabric.FabricObject[],
-  pixelToMmRatio: number
+  pixelToMmRatio: number,
+  boundsWidthPx?: number,
+  boundsHeightPx?: number
 ): { width: number; height: number } {
   if (objects.length === 0) {
     return { width: 0, height: 0 };
   }
 
-  // Get bounding rectangles for all objects
-  const bounds = objects.map(obj => obj.getBoundingRect());
+  // Get bounding rectangles for all objects (clipped to canvas bounds when known)
+  const bounds = objects
+    .map(obj => obj.getBoundingRect())
+    .map(b => intersectRectWithBounds(b, boundsWidthPx ?? 0, boundsHeightPx ?? 0))
+    .filter((b): b is NonNullable<typeof b> => b !== null);
+
+  if (bounds.length === 0) {
+    return { width: 0, height: 0 };
+  }
 
   // Find the overall bounding box
   const minLeft = Math.min(...bounds.map(b => b.left));
@@ -202,9 +215,17 @@ export async function calculateSidePricing(
       : 0;
   const pixelToMmRatio = calibratedRatio > 0 ? calibratedRatio : realWorldProductWidth / scaledImageWidth;
 
-  // All objects use DTF — calculate combined bounding box for the entire side
-  const combinedDimensions = calculateCombinedBoundingBox(userObjects, pixelToMmRatio);
+  // All objects use DTF — calculate combined bounding box for the entire side.
+  // 캔버스 밖으로 나간 부분은 인쇄되지 않으므로 캔버스 교차 영역만 과금한다.
+  const combinedDimensions = calculateCombinedBoundingBox(
+    userObjects,
+    pixelToMmRatio,
+    canvas.getWidth(),
+    canvas.getHeight()
+  );
   const combinedPrintSize = determinePrintSize(combinedDimensions.width, combinedDimensions.height);
+  // 개체 전부가 캔버스 완전 밖(레거시 저장 디자인) → 인쇄 면적 0 → 인쇄비 0원
+  const hasPrintableArtwork = combinedDimensions.width > 0 && combinedDimensions.height > 0;
 
   // 신규: customer_print_method_pricing DB 룩업 (회전 인식 매칭)
   //   - 매칭 성공 → 그 행의 unit_price 사용
@@ -212,7 +233,7 @@ export async function calculateSidePricing(
   //   - DB 페치 실패 / DTF id 미상 → 기존 하드코드 (calculateTransferPrice) 최종 안전망
   const dtfMethodId = getPrintMethodIdByKey('dtf');
   let groupPrice = 0;
-  if (dtfMethodId) {
+  if (hasPrintableArtwork && dtfMethodId) {
     try {
       const rows = await getCustomerPricingForPrintMethodId(dtfMethodId);
       if (rows.length > 0) {
@@ -227,7 +248,7 @@ export async function calculateSidePricing(
       console.warn('[canvasPricing] customer pricing lookup failed, falling back to legacy', e);
     }
   }
-  if (groupPrice <= 0) {
+  if (hasPrintableArtwork && groupPrice <= 0) {
     // 최종 안전망: 기존 print_methods.pricing JSON 캐시 (DEFAULT_PRINT_PRICING)
     groupPrice = calculateTransferPrice('dtf', combinedPrintSize);
   }

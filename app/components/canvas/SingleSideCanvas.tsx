@@ -5,7 +5,9 @@ import * as fabric from "fabric";
 import { ProductSide, ProductLayer } from '@/types/types';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import ScaleBox from './ScaleBox';
-import { formatCm, calculateObjectDimensionsMm, updateObjectDimensionsData } from '@/lib/canvasUtils';
+import { Trash2 } from 'lucide-react';
+import { formatCm, calculateObjectDimensionsMm, updateObjectDimensionsData, calculateContainmentDelta } from '@/lib/canvasUtils';
+import { trackDesignAction } from '@/lib/gtm-events';
 import { fetchProductCalibrations, calibrationToCanvasMmPerPx } from '@/lib/calibrationFetch';
 // Import CurvedText to register the class with fabric.js for deserialization
 import '@/lib/curvedText';
@@ -87,6 +89,21 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
   useEffect(() => {
     isEditRef.current = isEdit;
   }, [isEdit]);
+
+  // 선택 개체 바로 아래 "삭제" 버튼의 핸들러.
+  // 상단 헤더 휴지통을 못 찾은 고객이 개체를 캔버스 밖으로 끌어내 숨기는
+  // 우회(화면엔 안 보이는데 단가에는 잡히는 사고)를 막기 위한 근접 삭제 동선.
+  const handleDeleteSelected = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const activeObjects = canvas.getActiveObjects();
+    if (activeObjects.length === 0) return;
+    activeObjects.forEach((obj) => canvas.remove(obj));
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+    setScaleBoxVisible(false);
+    trackDesignAction({ action_type: 'object_delete', product_id: productId, side_id: side.id });
+  };
 
   // Fetch product calibration once per (productId, side.id). Stored as native
   // mmPerPx; canvas-px override is computed at use sites where displayScale is known.
@@ -1150,6 +1167,28 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         setScaleBoxVisible(true);
     };
 
+    // 캔버스 경계 이탈 방지: 사용자 변형(이동/스케일/회전) 시 개체 bbox를
+    // 캔버스 안으로 되민다. 밖으로 끌어내 숨긴 개체는 화면에 안 보이는데
+    // 단가 bbox·저장 디자인에는 남아 과금되는 사고가 있었다 (ORD-20260828-H5MQ7P).
+    // 이벤트 기반이라 저장 디자인 복원·프로그램적 배치는 건드리지 않는다.
+    const clampTargetToCanvasBounds = (obj: fabric.FabricObject) => {
+      if (obj.excludeFromExport) return;
+      // @ts-expect-error - Checking custom data property
+      if (obj.data?.id === 'background-product-image') return;
+      const { dx, dy } = calculateContainmentDelta(
+        obj.getBoundingRect(),
+        canvas.getWidth(),
+        canvas.getHeight()
+      );
+      if (dx !== 0 || dy !== 0) {
+        obj.set({
+          left: (obj.left ?? 0) + dx,
+          top: (obj.top ?? 0) + dy,
+        });
+        obj.setCoords();
+      }
+    };
+
     // Show when an object is selected
     canvas.on('selection:created', () => {
         // Get the active object (which could be a single object or ActiveSelection for multiple)
@@ -1252,6 +1291,8 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
 
     canvas.on('object:modified', (e) => {
         if (e.target) {
+          // 스케일·회전 종료 시 캔버스 밖으로 나간 부분을 되민 뒤 치수를 갱신
+          clampTargetToCanvasBounds(e.target);
           updateScaleBox(e.target);
           // Update dimensions in mm
           // @ts-expect-error - Custom property
@@ -1278,9 +1319,6 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
     canvas.on('object:moving', (e) => {
         const obj = e.target;
         if (!obj) return;
-
-        // Update scale box position during movement
-        updateScaleBox(obj);
 
         const objCenter = obj.getCenterPoint();
 
@@ -1317,6 +1355,10 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
           });
           obj.setCoords();
         }
+
+        // 스냅 적용 후 캔버스 밖 이탈 보정 → 최종 위치 기준으로 크기표시 갱신
+        clampTargetToCanvasBounds(obj);
+        updateScaleBox(obj);
 
         canvas.requestRenderAll();
     });
@@ -1516,16 +1558,39 @@ const SingleSideCanvas: React.FC<SingleSideCanvasProps> = ({
         ref={canvasEl}
         style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.3s', touchAction: isEdit ? 'none' : 'pan-y' }}
       />
-      {showScaleBox && (
-        <ScaleBox
-          x={scaleBoxDimensions.x}
-          y={scaleBoxDimensions.y}
-          width={scaleBoxDimensions.width}
-          height={scaleBoxDimensions.height}
-          position={scaleBoxPosition}
-          visible={scaleBoxVisible}
-          forceShow={sizeDisplayEnabled}
-        />
+      {scaleBoxVisible && (showScaleBox || isEdit) && (
+        <div
+          className="absolute z-50 flex flex-col items-center gap-1.5 pointer-events-none"
+          style={{
+            left: `${scaleBoxPosition.x}px`,
+            top: `${scaleBoxPosition.y}px`,
+            transform: 'translate(-50%, 0)',
+          }}
+        >
+          {showScaleBox && (
+            <ScaleBox
+              inline
+              x={scaleBoxDimensions.x}
+              y={scaleBoxDimensions.y}
+              width={scaleBoxDimensions.width}
+              height={scaleBoxDimensions.height}
+              position={scaleBoxPosition}
+              visible={scaleBoxVisible}
+              forceShow={sizeDisplayEnabled}
+            />
+          )}
+          {isEdit && (
+            <button
+              type="button"
+              onClick={handleDeleteSelected}
+              aria-label="선택한 개체 삭제"
+              className="pointer-events-auto flex items-center gap-1 rounded-full bg-white pl-2.5 pr-3 py-1.5 text-xs font-semibold text-red-500 shadow-lg ring-1 ring-black/10 active:bg-red-50"
+            >
+              <Trash2 className="size-3.5" />
+              삭제
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

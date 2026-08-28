@@ -14,6 +14,11 @@ interface ScaleBoxProps {
   visible: boolean;
   /** 인쇄영역 실측이 있는 면에서 고객에게도 크기(cm)를 노출. ?show-size 없이도 Size만 표시. */
   forceShow?: boolean;
+  /**
+   * true면 부모가 위치를 잡는 인라인 요소로 렌더 (absolute 래퍼 생략).
+   * SingleSideCanvas가 크기표시·삭제 버튼을 한 컬럼으로 쌓을 때 사용.
+   */
+  inline?: boolean;
 }
 
 /**
@@ -25,19 +30,12 @@ interface ScaleBoxProps {
  *   정확한 면에서만 켜져 실측 오차 컴플레인을 피한다.
  * - 둘 다 아니면 숨김. 내부 계산·저장은 항상 유지되어 admin은 그대로 봄.
  */
-const ScaleBox: React.FC<ScaleBoxProps> = ({ x, y, width, height, position, visible, forceShow = false }) => {
+const ScaleBox: React.FC<ScaleBoxProps> = ({ x, y, width, height, position, visible, forceShow = false, inline = false }) => {
   const showSize = useShowSize();
   if (!visible || (!showSize && !forceShow)) return null;
 
-  return (
-    <div
-      className="absolute pointer-events-none z-50"
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        transform: 'translate(-50%, 0)',
-      }}
-    >
+  const content = (
+    <>
       <div className="bg-black/80 text-white px-3 py-2 rounded-lg shadow-lg backdrop-blur-sm">
         <div className="flex flex-col gap-1 text-xs font-medium whitespace-nowrap">
           {showSize && (
@@ -67,6 +65,23 @@ const ScaleBox: React.FC<ScaleBoxProps> = ({ x, y, width, height, position, visi
           borderBottom: '6px solid rgba(0, 0, 0, 0.8)',
         }}
       />
+    </>
+  );
+
+  if (inline) {
+    return <div className="relative pointer-events-none">{content}</div>;
+  }
+
+  return (
+    <div
+      className="absolute pointer-events-none z-50"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: 'translate(-50%, 0)',
+      }}
+    >
+      {content}
     </div>
   );
 };

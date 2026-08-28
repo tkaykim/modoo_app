@@ -75,6 +75,76 @@ export function formatMmNumber(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+// ── 캔버스 경계 강제(containment) 유틸 ───────────────────────────────
+// 고객이 개체를 "삭제" 대신 캔버스 밖으로 끌어내 숨기면, 화면·시안에는 안 보이는데
+// 인쇄단가 bbox와 저장 디자인에는 남는 사고가 난다 (2026-08 ORD-…-H5MQ7P).
+// 에디터는 이 유틸로 사용자 변형 시 개체를 캔버스 안으로 되밀고,
+// 단가·bbox 계산은 캔버스 교차 영역만 집계한다.
+
+export interface RectPx {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * 개체 bbox가 캔버스 사각형 [0, 0, boundsWidth, boundsHeight]를 벗어나지 않게
+ * 하는 이동 보정치(px)를 계산한다.
+ * - 개체가 캔버스보다 작으면: 캔버스 안에 전체가 들어오도록.
+ * - 개체가 캔버스보다 크면: 개체가 캔버스를 빈틈없이 덮도록.
+ * 경계 정보가 유효하지 않으면 보정하지 않는다(0,0).
+ */
+export function calculateContainmentDelta(
+  rect: RectPx,
+  boundsWidth: number,
+  boundsHeight: number
+): { dx: number; dy: number } {
+  const clampAxis = (start: number, size: number, boundsSize: number): number => {
+    if (!Number.isFinite(start) || !Number.isFinite(size) || !(boundsSize > 0)) {
+      return 0;
+    }
+    if (size <= boundsSize) {
+      if (start < 0) return -start;
+      if (start + size > boundsSize) return boundsSize - (start + size);
+      return 0;
+    }
+    // 개체가 경계보다 큰 축: 경계가 개체 안에 완전히 포함되게 유지
+    if (start > 0) return -start;
+    if (start + size < boundsSize) return boundsSize - (start + size);
+    return 0;
+  };
+
+  return {
+    dx: clampAxis(rect.left, rect.width, boundsWidth),
+    dy: clampAxis(rect.top, rect.height, boundsHeight),
+  };
+}
+
+/**
+ * bbox와 캔버스 사각형 [0, 0, boundsWidth, boundsHeight]의 교차 영역.
+ * 겹치는 면적이 없으면 null (완전히 캔버스 밖 = 인쇄 대상 아님).
+ * 경계 정보가 유효하지 않으면 클립 없이 원본 rect를 돌려준다(fail-open —
+ * 초기화 덜 된 캔버스에서 가격이 0으로 무너지지 않게).
+ */
+export function intersectRectWithBounds(
+  rect: RectPx,
+  boundsWidth: number,
+  boundsHeight: number
+): RectPx | null {
+  if (!(boundsWidth > 0) || !(boundsHeight > 0)) {
+    return rect;
+  }
+  const left = Math.max(rect.left, 0);
+  const top = Math.max(rect.top, 0);
+  const right = Math.min(rect.left + rect.width, boundsWidth);
+  const bottom = Math.min(rect.top + rect.height, boundsHeight);
+  if (right <= left || bottom <= top) {
+    return null;
+  }
+  return { left, top, width: right - left, height: bottom - top };
+}
+
 // Object dimension calculation utilities
 
 export interface ObjectDimensionsMm {
@@ -238,19 +308,28 @@ export function calculateTotalBoundingBoxMm(
     return null;
   }
 
-  // Calculate the bounding box that encompasses all objects
+  // Calculate the bounding box that encompasses all objects.
+  // 캔버스 밖 부분은 실제 인쇄물이 아니므로 캔버스 교차 영역만 집계한다.
+  const boundsWidth = canvas.getWidth();
+  const boundsHeight = canvas.getHeight();
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
 
   userObjects.forEach(obj => {
-    const bound = obj.getBoundingRect();
+    const bound = intersectRectWithBounds(obj.getBoundingRect(), boundsWidth, boundsHeight);
+    if (!bound) return;
     minX = Math.min(minX, bound.left);
     minY = Math.min(minY, bound.top);
     maxX = Math.max(maxX, bound.left + bound.width);
     maxY = Math.max(maxY, bound.top + bound.height);
   });
+
+  // 모든 개체가 캔버스 완전 밖: 개체는 있지만 인쇄 가능한 영역이 없다.
+  if (minX === Infinity) {
+    return { widthMm: 0, heightMm: 0 };
+  }
 
   const widthPixels = maxX - minX;
   const heightPixels = maxY - minY;
