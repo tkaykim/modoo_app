@@ -53,3 +53,6 @@ next-env.d.ts
 .app-dev.log
 *-dev.log
 .env*.local
+
+# 세션 스크래치 폴더 (커밋 금지)
+.tmp/
