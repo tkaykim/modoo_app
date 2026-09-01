@@ -30,6 +30,14 @@ export async function POST(
     const { orderId, itemId } = await params;
     const body = await request.json().catch(() => ({}));
     const token = body?.token;
+    // 색상 차이 안내 동의는 확정의 필수 조건 (동의 시각 = CS 분쟁 근거)
+    const colorNoticeAgreed = body?.colorNoticeAgreed === true;
+    if (!colorNoticeAgreed) {
+      return NextResponse.json(
+        { error: '색상 안내 확인에 동의해야 시안을 확정할 수 있습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.' },
+        { status: 400 }
+      );
+    }
 
     // Token-based auth (from email link) or session-based auth
     const supabase = await createClient();
@@ -79,6 +87,7 @@ export async function POST(
       .update({
         design_status: 'confirmed',
         design_confirmed_at: new Date().toISOString(),
+        color_notice_agreed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', itemId);

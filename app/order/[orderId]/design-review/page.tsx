@@ -46,6 +46,19 @@ export default function DesignReviewPage() {
   const [showRevisionForm, setShowRevisionForm] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [proofReadiness, setProofReadiness] = useState<Record<string, { version: string; ready: boolean }>>({});
+  // 색상 차이 안내 동의 — 체크해야 확정 가능. 동의 시각은 서버가 order_items.color_notice_agreed_at에 기록.
+  const [colorNoticeAgreed, setColorNoticeAgreed] = useState(false);
+  const [colorNoticeError, setColorNoticeError] = useState(false);
+
+  const requireColorNotice = () => {
+    if (colorNoticeAgreed) return true;
+    setColorNoticeError(true);
+    try {
+      document.getElementById('color-notice-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch { /* noop */ }
+    setTimeout(() => setColorNoticeError(false), 2500);
+    return false;
+  };
 
   const proofVersion = (item: DesignItem) => `${item.design_shared_at || ''}:${item.thumbnail_url || ''}`;
   const hasLiveProof = (item: DesignItem) => Boolean(item.product_sides?.length && item.canvas_state);
@@ -105,13 +118,14 @@ export default function DesignReviewPage() {
       alert('시안 전체가 화면에 표시된 후 확정할 수 있습니다.');
       return;
     }
+    if (!requireColorNotice()) return;
     if (!confirm('이 시안을 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.\n\n※ 화면 색상과 실제 제품 색상은 다소 차이가 있을 수 있습니다.')) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/orders/${orderId}/items/${item.id}/confirm-design`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, colorNoticeAgreed: true }),
       });
       if (res.ok) {
         await fetchItems();
@@ -161,6 +175,7 @@ export default function DesignReviewPage() {
       alert('모든 시안이 화면에 표시된 후 한 번에 확정할 수 있습니다.');
       return;
     }
+    if (!requireColorNotice()) return;
     if (!confirm(`${targets.length}개 시안을 모두 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.\n\n※ 화면 색상과 실제 제품 색상은 다소 차이가 있을 수 있습니다.`)) return;
     setSubmitting(true);
     try {
@@ -168,7 +183,7 @@ export default function DesignReviewPage() {
         const res = await fetch(`/api/orders/${orderId}/items/${it.id}/confirm-design`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ token, colorNoticeAgreed: true }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -267,12 +282,35 @@ export default function DesignReviewPage() {
         )}
 
         {/* 색상 차이 안내 — 확정 전 반드시 지나가는 위치. CS 분쟁 예방 (짧게 유지) */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4">
+        <div
+          id="color-notice-box"
+          className={`rounded-xl px-4 py-3 mb-4 border transition ${
+            colorNoticeError
+              ? 'bg-red-50 border-red-300 ring-2 ring-red-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}
+        >
           <p className="text-sm font-semibold text-blue-800">🖥️ 화면 색상 안내</p>
           <p className="text-xs text-blue-700 mt-1 leading-relaxed">
             화면(RGB)과 실제 인쇄·원단(CMYK)은 색 표현 방식이 달라, 보시는 색상과 실제 제품 색상은 다소 차이가 있을 수 있어요.
             특히 형광·고채도·어두운 색에서 차이가 더 느껴질 수 있는 점 참고 부탁드려요.
           </p>
+          {items.some((i) => i.design_status === 'design_shared') && (
+            <label className="flex items-center gap-2 mt-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={colorNoticeAgreed}
+                onChange={(e) => { setColorNoticeAgreed(e.target.checked); if (e.target.checked) setColorNoticeError(false); }}
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-xs font-medium text-blue-900">위 내용을 확인했습니다</span>
+            </label>
+          )}
+          {colorNoticeError && (
+            <p className="text-xs text-red-600 font-medium mt-1.5" role="alert">
+              시안 확정 전에 색상 안내 확인에 체크해주세요.
+            </p>
+          )}
         </div>
 
         {/* 다중 디자인 안내 배너 — "여러 개 확정해야 함" 인지 */}
