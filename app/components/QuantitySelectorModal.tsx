@@ -479,6 +479,9 @@ export default function QuantitySelectorModal({
             +/- 버튼 위치가 점프하는 layout shift 차단 (사용자 rage 클릭 유발). */}
         {!showSuccess && (
           <div className="border-t border-gray-200 bg-white px-4 py-3 shrink-0">
+            <p className="text-[11px] text-gray-400 mb-2 text-center">
+              화면 색상은 실제 제품(인쇄·원단)과 다소 차이가 있을 수 있어요.
+            </p>
             <div className="p-3 bg-gray-50 rounded-lg mb-3">
               <div className="flex items-center justify-between text-sm mb-1 pb-1 border-b border-gray-200">
                 <span className="text-gray-600">개당 가격 (디자인 포함)</span>

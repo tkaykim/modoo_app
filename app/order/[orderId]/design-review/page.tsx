@@ -105,7 +105,7 @@ export default function DesignReviewPage() {
       alert('시안 전체가 화면에 표시된 후 확정할 수 있습니다.');
       return;
     }
-    if (!confirm('이 시안을 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.')) return;
+    if (!confirm('이 시안을 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.\n\n※ 화면 색상과 실제 제품 색상은 다소 차이가 있을 수 있습니다.')) return;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/orders/${orderId}/items/${item.id}/confirm-design`, {
@@ -161,7 +161,7 @@ export default function DesignReviewPage() {
       alert('모든 시안이 화면에 표시된 후 한 번에 확정할 수 있습니다.');
       return;
     }
-    if (!confirm(`${targets.length}개 시안을 모두 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.`)) return;
+    if (!confirm(`${targets.length}개 시안을 모두 확정하시겠습니까? 확정 후에는 변경이 어렵습니다.\n\n※ 화면 색상과 실제 제품 색상은 다소 차이가 있을 수 있습니다.`)) return;
     setSubmitting(true);
     try {
       for (const it of targets) {
@@ -265,6 +265,15 @@ export default function DesignReviewPage() {
             </div>
           </div>
         )}
+
+        {/* 색상 차이 안내 — 확정 전 반드시 지나가는 위치. CS 분쟁 예방 (짧게 유지) */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4">
+          <p className="text-sm font-semibold text-blue-800">🖥️ 화면 색상 안내</p>
+          <p className="text-xs text-blue-700 mt-1 leading-relaxed">
+            화면(RGB)과 실제 인쇄·원단(CMYK)은 색 표현 방식이 달라, 보시는 색상과 실제 제품 색상은 다소 차이가 있을 수 있어요.
+            특히 형광·고채도·어두운 색에서 차이가 더 느껴질 수 있는 점 참고 부탁드려요.
+          </p>
+        </div>
 
         {/* 다중 디자인 안내 배너 — "여러 개 확정해야 함" 인지 */}
         {items.length > 1 && (
