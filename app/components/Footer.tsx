@@ -10,7 +10,7 @@ const Footer = () => {
             <ul className="text-[11px] md:text-sm text-gray-500 mt-2 md:mt-4 space-y-0.5 md:space-y-1">
               <li>상호명: 피스코프</li>
               <li>주소지: 서울특별시 마포구 새터산 4길 2, b102호</li>
-              <li>전화번호: 010-2087-0621</li>
+              <li>전화번호: 010-8140-0621</li>
               <li>사업자등록번호: 118-08-15095</li>
               <li>대표자 이름: 김현준</li>
               <li>개인정보 책임자: 이은원</li>

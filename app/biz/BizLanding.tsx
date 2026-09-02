@@ -445,8 +445,8 @@ export default function BizLanding() {
                 남겨주신 연락처로 도입 상담 연락을 드리겠습니다.<br />
                 가격 정책과 도입 절차를 함께 안내드립니다.
               </p>
-              <a href="tel:01020870621" className="mt-5 inline-block rounded-[15px] bg-[#17191f] px-5 py-3 text-[13.5px] font-black text-white">
-                급하시면 바로 통화 010-2087-0621
+              <a href="tel:01081400621" className="mt-5 inline-block rounded-[15px] bg-[#17191f] px-5 py-3 text-[13.5px] font-black text-white">
+                급하시면 바로 통화 010-8140-0621
               </a>
             </div>
           ) : (
@@ -547,7 +547,7 @@ export default function BizLanding() {
                 {sending ? '접수 중…' : '상담 요청하기'}
               </button>
               <p className="mt-2.5 text-center text-[12px] text-[#8b93a3]">
-                또는 바로 통화 <a href="tel:01020870621" className="font-bold text-[#0052cc]">010-2087-0621</a>
+                또는 바로 통화 <a href="tel:01081400621" className="font-bold text-[#0052cc]">010-8140-0621</a>
               </p>
             </>
           )}

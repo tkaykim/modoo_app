@@ -291,7 +291,7 @@ export default async function IntroductionLanding() {
           <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[#60708b]">카페24 연동이 맞는지, 홈페이지를 새로 만드는 게 맞는지, 생산 파트너로 시작할 수 있는지 화면을 놓고 설명드립니다.</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <a href="/biz#contact" className="rounded-2xl bg-[#08111f] px-6 py-4 text-sm font-black text-white transition hover:bg-[#1d3554]">도입 문의 남기기</a>
-            <a href="tel:01020870621" className="rounded-2xl border border-[#c5d5f5] bg-white px-6 py-4 text-sm font-black text-[#08111f] transition hover:border-[#2f6df6]">010-2087-0621로 바로 통화</a>
+            <a href="tel:01081400621" className="rounded-2xl border border-[#c5d5f5] bg-white px-6 py-4 text-sm font-black text-[#08111f] transition hover:border-[#2f6df6]">010-8140-0621로 바로 통화</a>
           </div>
         </div>
       </section>

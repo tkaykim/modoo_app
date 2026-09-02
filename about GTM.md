@@ -52,7 +52,7 @@ view_search_results: /home/search 진입 시 검색 행동 측정.
 
 Scroll Depth 트리거 기반 scroll 이벤트: 25%, 50%, 75%, 90% 지점에서 발동. 제작가이드·공지·메인 랜딩에 대한 몰입도 측정.
 외부 링크 클릭(outbound click): Click URL의 호스트가 modoouniform.com이 아닌 경우 발동.
-전화번호(010-2087-0621) 클릭 추적: tel: 링크 클릭이나 전화번호 영역 클릭을 click_to_call 이벤트로. 모바일 유입 상담 문의의 실제 성과 측정에 매우 유용합니다.
+전화번호(010-8140-0621) 클릭 추적: tel: 링크 클릭이나 전화번호 영역 클릭을 click_to_call 이벤트로. 모바일 유입 상담 문의의 실제 성과 측정에 매우 유용합니다.
 카카오톡 상담 버튼 클릭 추적: 우측 하단 챗봇·카카오 아이콘 클릭 → kakao_chat_click 이벤트.
 File Download 트리거: 제작가이드 PDF 등 다운로드 측정.
 Video 트리거(유튜브 등 임베드 영상이 있다면): 영상 시청 측정.
@@ -102,7 +102,7 @@ GTM의 미리보기 모드를 반드시 써서 한 태그씩 발동 여부와 �
 2-3. 디자인/견적 문의 퍼널
 /inquiries/new 제출 성공 시 generate_lead(form_type=quote, estimated_quantity, desired_date)를 발동합니다. 이전 보고와 동일하되 개인정보(단체명·담당자명·연락처·카카오톡 ID)는 절대 이벤트 파라미터로 원문 전송하지 않고, 필요한 집계용 메타데이터(수량 구간화: 1-20/21-50/51-100/100+ 등)만 보냅니다.
 2-4. 보조 마이크로 전환
-상품 카드 하트 클릭 → add_to_wishlist, 헤더 장바구니 아이콘 → view_cart, 검색창 사용 → search(search_term), 제작가이드/공지 글 읽기 → content_view + Scroll Depth 25/50/75/90%, 전화번호(010-2087-0621) 클릭 → click_to_call, 카카오 상담 → kakao_chat_click, 리뷰 전체보기·제작사례 카드 클릭도 별도 이벤트로 분리해 둡니다.
+상품 카드 하트 클릭 → add_to_wishlist, 헤더 장바구니 아이콘 → view_cart, 검색창 사용 → search(search_term), 제작가이드/공지 글 읽기 → content_view + Scroll Depth 25/50/75/90%, 전화번호(010-8140-0621) 클릭 → click_to_call, 카카오 상담 → kakao_chat_click, 리뷰 전체보기·제작사례 카드 클릭도 별도 이벤트로 분리해 둡니다.
 3. GTM 실제 구성안 (태그·트리거·변수)
 변수
 Data Layer Variable로 dlv.design_id, dlv.product_id, dlv.product_name, dlv.brand, dlv.category, dlv.base_price, dlv.design_fee, dlv.color, dlv.face, dlv.action_type, dlv.step_number, dlv.step_name, dlv.value, dlv.currency, dlv.items, dlv.transaction_id, dlv.form_type, dlv.quantity_range 를 생성합니다. URL Parameter 변수로 utm_source/medium/campaign/term/content, 1st Party Cookie 변수로 user_pseudo_id(최초 방문 시 심은 UUID) 를 만들어 모든 이벤트에 자동 첨부합니다. 내장 변수에서는 Click(Text/URL/Element/Classes/ID), Form(ID/Classes), Scroll Depth, History Source를 활성화합니다.
