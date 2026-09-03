@@ -59,48 +59,63 @@ function ProductRow({
     );
   }
 
+  const cover = p.gallery[0] ?? null;
+  const extraPhotos = Math.max(0, p.gallery.length - 1);
+
   return (
     <div
       data-testid="ai-product-row"
       data-product-id={p.id}
       onClick={() => !loading && onSelect(p)}
-      className={`px-4 pt-4 pb-[18px] border-b border-gray-100 cursor-pointer transition-colors ${
+      className={`px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
         selected ? 'bg-brand-softer' : 'bg-white active:bg-gray-50'
       }`}
     >
-      {/* 사진 레일: 1장이면 1장, 여러 장이면 가로 스크롤 */}
-      <div className={`flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5 ${HIDE_SCROLLBAR}`}>
-        {p.gallery.length === 0 && (
-          <div className="shrink-0 w-36 h-36 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
-            <ImagePlus className="w-8 h-8" aria-hidden />
-          </div>
-        )}
-        {p.gallery.map((src, gi) => (
-          <div
-            key={`${p.id}-g${gi}`}
-            className="relative shrink-0 w-36 h-36 rounded-2xl overflow-hidden bg-[#fafaf7] border border-gray-100"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={gi === 0 ? p.title : `${p.title} ${gi + 1}`} loading="lazy" className="w-full h-full object-cover" />
-            {gi === 0 && badge && (
-              <span
-                className={`absolute top-2 left-2 px-2 py-[3px] rounded-md text-[10px] font-bold tracking-wider text-white ${
-                  badge === 'BEST' ? 'bg-brand' : badge === 'HOT' ? 'bg-red-500' : 'bg-gray-900'
-                }`}
-              >
-                {badge}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* 압축 카드: 왼쪽 썸네일 + 오른쪽 정보 (한 화면에 더 많은 상품이 보이도록 높이 최소화) */}
+      <div className="flex gap-3">
+        <div className="relative shrink-0 w-[104px] h-[104px] rounded-xl overflow-hidden bg-[#fafaf7] border border-gray-100">
+          {cover ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover} alt={p.title} loading="lazy" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <ImagePlus className="w-7 h-7" aria-hidden />
+            </div>
+          )}
+          {badge && (
+            <span
+              className={`absolute top-1.5 left-1.5 px-1.5 py-[2px] rounded text-[9px] font-bold tracking-wider text-white ${
+                badge === 'BEST' ? 'bg-brand' : badge === 'HOT' ? 'bg-red-500' : 'bg-gray-900'
+              }`}
+            >
+              {badge}
+            </span>
+          )}
+          {extraPhotos > 0 && (
+            <span className="absolute bottom-1.5 right-1.5 px-1.5 py-[2px] rounded bg-black/55 text-white text-[10px] font-semibold tabular-nums">
+              +{extraPhotos}
+            </span>
+          )}
+        </div>
 
-      {/* 본문 */}
-      <div className="mt-3 flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-bold text-gray-900 leading-snug tracking-tight">{p.title}</p>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex items-start gap-2">
+            <p className="flex-1 min-w-0 text-[15px] font-bold text-gray-900 leading-snug tracking-tight line-clamp-2">
+              {p.title}
+            </p>
+            <a
+              href={`/product/${p.id}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 mt-0.5 text-[11px] font-semibold text-gray-500 underline underline-offset-2"
+              aria-label={`${p.title} 상세 보기 (새 창)`}
+            >
+              상세
+            </a>
+          </div>
           {meta.length > 0 && (
-            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs font-medium text-gray-500">
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-medium text-gray-500">
               {meta.map((node, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && <span className="text-gray-300">·</span>}
@@ -109,71 +124,52 @@ function ProductRow({
               ))}
             </div>
           )}
-        </div>
-        <a
-          href={`/product/${p.id}`}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0 px-2.5 py-1.5 rounded-full border border-gray-200 bg-white text-[11px] font-semibold text-gray-600"
-          aria-label={`${p.title} 상세 보기 (새 창)`}
-        >
-          상세
-        </a>
-      </div>
-
-      {/* 가격: 얼마부터 시작 */}
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-[19px] font-extrabold tracking-tight text-gray-900 tabular-nums">
-          ₩{p.base_price.toLocaleString()}
-        </span>
-        <span className="text-[13px] font-semibold text-gray-500">부터</span>
-        <span className="text-[11px] text-gray-400">/ 장 · 인쇄 별도</span>
-        {p.originalPrice !== null && (
-          <span className="ml-auto text-[11px] font-semibold text-brand">수량 할인</span>
-        )}
-      </div>
-
-      {/* 해시태그 (admin 키워드가 있을 때만) */}
-      {hashtags.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {hashtags.map((h) => (
-            <span key={h} className="px-2.5 py-1 rounded-full bg-brand-softer text-brand text-[11px] font-semibold">
-              #{h}
+          <div className="mt-auto pt-1 flex items-baseline gap-1">
+            <span className="text-[17px] font-extrabold tracking-tight text-gray-900 tabular-nums">
+              ₩{p.base_price.toLocaleString()}
             </span>
-          ))}
+            <span className="text-xs font-semibold text-gray-500">부터</span>
+            <span className="text-[10px] text-gray-400">/ 장 · 인쇄 별도</span>
+            {p.originalPrice !== null && (
+              <span className="text-[10px] font-semibold text-brand">수량 할인</span>
+            )}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(p);
+              }}
+              className={`ml-auto shrink-0 self-center h-7 px-2.5 rounded-lg text-[11px] font-bold flex items-center gap-1 transition ${
+                selected ? 'bg-brand text-white' : 'bg-gray-900 text-white active:bg-gray-800'
+              } disabled:opacity-70`}
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : selected ? '선택됨' : '선택'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 해시태그 한 줄 + 대표 리뷰 한 줄 */}
+      {(hashtags.length > 0 || p.reviewSnippet) && (
+        <div className="mt-2 space-y-1">
+          {hashtags.length > 0 && (
+            <div className="flex gap-1.5 overflow-hidden whitespace-nowrap">
+              {hashtags.map((h) => (
+                <span key={h} className="shrink-0 px-2 py-0.5 rounded-full bg-brand-softer text-brand text-[10px] font-semibold">
+                  #{h}
+                </span>
+              ))}
+            </div>
+          )}
+          {p.reviewSnippet && (
+            <p className="text-[11px] text-gray-600 truncate">
+              <span className="text-yellow-400 mr-1" aria-hidden>★</span>
+              “{p.reviewSnippet}”
+            </p>
+          )}
         </div>
       )}
-
-      {/* 대표 리뷰 한 줄 */}
-      {p.reviewSnippet && (
-        <p className="mt-2.5 text-xs text-gray-600 truncate">
-          <span className="text-yellow-400 mr-1" aria-hidden>★</span>
-          “{p.reviewSnippet}”
-        </p>
-      )}
-
-      <button
-        type="button"
-        disabled={loading}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(p);
-        }}
-        className={`mt-3 w-full h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition ${
-          selected ? 'bg-brand text-white' : 'bg-gray-900 text-white active:bg-gray-800'
-        } disabled:opacity-70`}
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> 상품 정보를 불러오는 중…
-          </>
-        ) : selected ? (
-          '선택됨 · 다음 단계로'
-        ) : (
-          '이 옷으로 만들기'
-        )}
-      </button>
     </div>
   );
 }

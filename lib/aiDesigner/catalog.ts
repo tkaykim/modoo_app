@@ -27,6 +27,11 @@ interface ReviewDigest {
 }
 
 const SNIPPET_MAX = 60;
+/** product_categories 테이블에 없는 products.category 값의 표시 이름(개편 전 위저드 표기와 동일) */
+const LEGACY_CATEGORY_LABELS: Record<string, string> = {
+  outerwear: '아우터',
+  etc: '기타',
+};
 /** PostgREST 기본 응답 상한(1,000행)을 넘는 리뷰 테이블을 빠짐없이 읽기 위한 페이지 크기 */
 const REVIEW_PAGE = 1000;
 
@@ -118,9 +123,14 @@ export async function getAiDesignerCatalog(): Promise<{
     isHot: p.isHot,
   }));
 
-  // 상품이 하나도 없는 카테고리 칩은 숨긴다.
+  // 상품이 하나도 없는 카테고리 칩은 숨기고, product_categories에 없는 상품 카테고리
+  // (예: 'outerwear' — 개편 전 위저드가 '아우터'로 표기하던 레거시 키)는 칩을 만들어 붙인다.
   const present = new Set(products.map((p) => p.category));
-  const categories = v2Categories.filter((c) => present.has(c.key));
+  const categories: AiCatalogCategory[] = v2Categories.filter((c) => present.has(c.key));
+  for (const key of present) {
+    if (!key || categories.some((c) => c.key === key)) continue;
+    categories.push({ key, name: LEGACY_CATEGORY_LABELS[key] ?? key, icon: null });
+  }
 
   return { products, categories };
 }

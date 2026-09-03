@@ -24,6 +24,7 @@ import {
 } from '@/lib/aiDesigner/placement';
 import type { AiCatalogCategory, AiCatalogProduct } from '@/lib/aiDesigner/catalogTypes';
 import ProductPicker from './ProductPicker';
+import ProductGrid from './ProductGrid';
 
 /* ---------- 타입 ---------- */
 
@@ -454,16 +455,28 @@ export default function AiDesignerWizard({
           <section>
             <h1 className="text-xl font-black text-gray-900">어떤 옷을 만들까요?</h1>
             <p className="text-sm text-gray-500 mt-1">
-              사진·리뷰·가격을 한눈에 비교하고 고르면 색상과 디자인 위치를 이어서 정합니다.
+              <span className="md:hidden">사진·리뷰·가격을 한눈에 비교하고 고르면 색상과 디자인 위치를 이어서 정합니다.</span>
+              <span className="hidden md:inline">의류를 고르면 색상과 디자인 위치를 이어서 정합니다.</span>
             </p>
-            {/* /v2/mall 카탈로그와 같은 구성의 상품 목록 (검색·카테고리·정렬·사진 레일·평점·해시태그) */}
-            <ProductPicker
-              products={products}
-              categories={categories}
-              selectedId={product?.id ?? null}
-              loadingId={infoLoading ? product?.id ?? null : null}
-              onSelect={selectProduct}
-            />
+            {/* 모바일(md 미만): /v2/mall식 리스트 / PC(md 이상): 개편 전 2열 카드 — 2026-09-03 대표 의견 */}
+            <div className="md:hidden">
+              <ProductPicker
+                products={products}
+                categories={categories}
+                selectedId={product?.id ?? null}
+                loadingId={infoLoading ? product?.id ?? null : null}
+                onSelect={selectProduct}
+              />
+            </div>
+            <div className="hidden md:block">
+              <ProductGrid
+                products={products}
+                categories={categories}
+                selectedId={product?.id ?? null}
+                loadingId={infoLoading ? product?.id ?? null : null}
+                onSelect={selectProduct}
+              />
+            </div>
           </section>
         )}
 
