@@ -27,11 +27,21 @@ interface ReviewDigest {
 }
 
 const SNIPPET_MAX = 60;
-/** product_categories 테이블에 없는 products.category 값의 표시 이름(개편 전 위저드 표기와 동일) */
-const LEGACY_CATEGORY_LABELS: Record<string, string> = {
+/**
+ * 카테고리 키 → 표시 이름 폴백. product_categories 조회가 비거나(캐시된 빈 결과·일시 장애)
+ * 테이블에 없는 레거시 키(outerwear 등)일 때 원문 키가 그대로 노출되지 않게 한다.
+ * 순서 = 개편 전 위저드 칩 순서.
+ */
+const FALLBACK_CATEGORY_LABELS: Record<string, string> = {
+  't-shirts': '티셔츠',
+  hoodie: '후드티',
+  sweater: '맨투맨',
+  zipup: '후드집업',
+  jacket: '자켓',
   outerwear: '아우터',
   etc: '기타',
 };
+const FALLBACK_CATEGORY_ORDER = Object.keys(FALLBACK_CATEGORY_LABELS);
 /** PostgREST 기본 응답 상한(1,000행)을 넘는 리뷰 테이블을 빠짐없이 읽기 위한 페이지 크기 */
 const REVIEW_PAGE = 1000;
 
@@ -96,11 +106,25 @@ export async function getAiDesignerCatalog(): Promise<{
   products: AiCatalogProduct[];
   categories: AiCatalogCategory[];
 }> {
-  const [v2Products, v2Categories, digest] = await Promise.all([
+  const [v2Products, cachedCategories, digest] = await Promise.all([
     getV2CatalogProducts(),
     getV2Categories(),
     getReviewDigest(),
   ]);
+  // 캐시된 카테고리가 비어 오면(일시 장애가 빈 결과로 캐시된 경우 등) 한 번 더 직접 조회한다.
+  let v2Categories = cachedCategories;
+  if (v2Categories.length === 0) {
+    const { data, error } = await createAnonClient()
+      .from('product_categories')
+      .select('key, name, icon')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    console.warn('[aiDesigner/catalog] cached categories empty → direct fetch', {
+      rows: data?.length ?? 0,
+      error: error?.message ?? null,
+    });
+    v2Categories = (data ?? []) as AiCatalogCategory[];
+  }
 
   const products: AiCatalogProduct[] = v2Products.map((p) => ({
     id: p.id,
@@ -125,12 +149,19 @@ export async function getAiDesignerCatalog(): Promise<{
 
   // 상품이 하나도 없는 카테고리 칩은 숨기고, product_categories에 없는 상품 카테고리
   // (예: 'outerwear' — 개편 전 위저드가 '아우터'로 표기하던 레거시 키)는 칩을 만들어 붙인다.
+  // DB 카테고리가 비어 오면(일시 장애·빈 결과 캐시) 폴백 표에서 이름을 찾고, 폴백 순서로 정렬한다.
   const present = new Set(products.map((p) => p.category));
   const categories: AiCatalogCategory[] = v2Categories.filter((c) => present.has(c.key));
+  const missing: AiCatalogCategory[] = [];
   for (const key of present) {
     if (!key || categories.some((c) => c.key === key)) continue;
-    categories.push({ key, name: LEGACY_CATEGORY_LABELS[key] ?? key, icon: null });
+    missing.push({ key, name: FALLBACK_CATEGORY_LABELS[key] ?? key, icon: null });
   }
+  const orderOf = (key: string) => {
+    const i = FALLBACK_CATEGORY_ORDER.indexOf(key);
+    return i === -1 ? FALLBACK_CATEGORY_ORDER.length : i;
+  };
+  missing.sort((a, b) => orderOf(a.key) - orderOf(b.key) || a.key.localeCompare(b.key));
 
-  return { products, categories };
+  return { products, categories: [...categories, ...missing] };
 }
