@@ -10,7 +10,7 @@
  *   미설정이어도 로컬 합성 미리보기로 전체 플로우가 동작한다.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,12 +22,13 @@ import { useAuthStore } from '@/store/useAuthStore';
 import {
   computePlacement, computeSideScale, type SideGeometry,
 } from '@/lib/aiDesigner/placement';
+import type { AiCatalogCategory, AiCatalogProduct } from '@/lib/aiDesigner/catalogTypes';
+import ProductPicker from './ProductPicker';
 
 /* ---------- 타입 ---------- */
 
-interface ProductLite {
-  id: string; title: string; category: string; base_price: number; thumbnail: string | null;
-}
+/** 상품 선택 목록 항목 = /v2/mall 카탈로그와 같은 소스(lib/aiDesigner/catalog) */
+type ProductLite = AiCatalogProduct;
 interface SideInfo {
   sideId: string; name: string; mockupUrl: string; geometry: SideGeometry;
   anchors: Array<{ id: string; label?: string; xMm: number; yMm: number; recommendedWidthMm: number; recommendedHeightMm: number }>;
@@ -49,10 +50,6 @@ interface ProductInfoResponse {
   colors: ColorInfo[];
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  't-shirts': '티셔츠', hoodie: '후드티', sweater: '맨투맨', zipup: '집업',
-  jacket: '자켓', outerwear: '아우터', etc: '기타',
-};
 const SIZE_PRESETS = [
   { key: 'sm', label: '작게 (8cm)', widthMm: 80 },
   { key: 'md', label: '보통 (12cm)', widthMm: 120 },
@@ -147,7 +144,13 @@ function SidePreview({
 
 /* ---------- 메인 위저드 ---------- */
 
-export default function AiDesignerWizard({ products }: { products: ProductLite[] }) {
+export default function AiDesignerWizard({
+  products,
+  categories,
+}: {
+  products: ProductLite[];
+  categories: AiCatalogCategory[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuthStore();
@@ -156,7 +159,6 @@ export default function AiDesignerWizard({ products }: { products: ProductLite[]
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
 
-  const [category, setCategory] = useState<string>('t-shirts');
   const [product, setProduct] = useState<ProductLite | null>(null);
   const [info, setInfo] = useState<ProductInfoResponse | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
@@ -179,11 +181,6 @@ export default function AiDesignerWizard({ products }: { products: ProductLite[]
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
-  const categories = useMemo(() => {
-    const seen = new Set(products.map((p) => p.category));
-    return Object.keys(CATEGORY_LABELS).filter((c) => seen.has(c));
-  }, [products]);
-
   /* --- 세션 생성/복원 --- */
   useEffect(() => {
     const existing = searchParams?.get('session');
@@ -197,7 +194,7 @@ export default function AiDesignerWizard({ products }: { products: ProductLite[]
           const s = d.session;
           if (s.product_id) {
             const p = products.find((x) => x.id === s.product_id);
-            if (p) { setProduct(p); setCategory(p.category); }
+            if (p) setProduct(p);
             // 복원 시에도 면 지오메트리·색상·사이즈를 다시 로드해야 이후 스텝이 동작한다
             fetch(`/api/ai-designer/product-info?productId=${s.product_id}`)
               .then((r) => r.json())
@@ -456,51 +453,17 @@ export default function AiDesignerWizard({ products }: { products: ProductLite[]
         {step === 0 && (
           <section>
             <h1 className="text-xl font-black text-gray-900">어떤 옷을 만들까요?</h1>
-            <p className="text-sm text-gray-500 mt-1">의류를 고르면 색상과 디자인 위치를 이어서 정합니다.</p>
-            <div className="flex gap-2 overflow-x-auto mt-4 pb-1 -mx-4 px-4">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${
-                    category === c ? 'bg-brand text-white border-brand' : 'bg-white text-gray-700 border-gray-200'
-                  }`}
-                >
-                  {CATEGORY_LABELS[c] ?? c}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {products.filter((p) => p.category === category).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => selectProduct(p)}
-                  className={`text-left bg-white rounded-2xl border overflow-hidden transition ${
-                    product?.id === p.id ? 'border-brand ring-2 ring-brand/30' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="aspect-square bg-gray-50">
-                    {p.thumbnail ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <ImagePlus className="w-8 h-8" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-gray-900 line-clamp-2">{p.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{p.base_price.toLocaleString()}원~</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            {infoLoading && (
-              <div className="flex items-center justify-center gap-2 mt-6 text-gray-500 text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" /> 상품 정보를 불러오는 중…
-              </div>
-            )}
+            <p className="text-sm text-gray-500 mt-1">
+              사진·리뷰·가격을 한눈에 비교하고 고르면 색상과 디자인 위치를 이어서 정합니다.
+            </p>
+            {/* /v2/mall 카탈로그와 같은 구성의 상품 목록 (검색·카테고리·정렬·사진 레일·평점·해시태그) */}
+            <ProductPicker
+              products={products}
+              categories={categories}
+              selectedId={product?.id ?? null}
+              loadingId={infoLoading ? product?.id ?? null : null}
+              onSelect={selectProduct}
+            />
           </section>
         )}
 

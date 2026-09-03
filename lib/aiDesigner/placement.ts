@@ -84,7 +84,7 @@ export function computePlacement(geo: SideGeometry, p: PlacementInput): Computed
 
   // 목표 폭 → 캔버스 px
   let targetCanvasW: number;
-  let widthMm = p.widthMm;
+  const widthMm = p.widthMm;
   if (geo.nativeMmPerPx > 0) {
     targetCanvasW = (p.widthMm / geo.nativeMmPerPx) * s.scale;
   } else {

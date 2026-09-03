@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { createAdminClient } from '@/lib/supabase-admin';
+import { getAiDesignerCatalog } from '@/lib/aiDesigner/catalog';
 import AiDesignerWizard from './AiDesignerWizard';
 
 export const dynamic = 'force-dynamic';
@@ -10,24 +10,12 @@ export const metadata = {
 };
 
 export default async function AiDesignerPage() {
-  const admin = createAdminClient();
-  const { data: products } = await admin
-    .from('products')
-    .select('id, title, category, base_price, thumbnail_image_link, popularity')
-    .eq('is_active', true)
-    .order('popularity', { ascending: false, nullsFirst: false });
-
-  const list = (products ?? []).map((p) => ({
-    id: p.id as string,
-    title: p.title as string,
-    category: (p.category as string) || 'etc',
-    base_price: Number(p.base_price) || 0,
-    thumbnail: Array.isArray(p.thumbnail_image_link) ? (p.thumbnail_image_link[0] as string) ?? null : null,
-  }));
+  // 상품 목록은 /v2/mall 카탈로그와 같은 소스(정렬·리뷰·색상 수·키워드)를 쓴다.
+  const { products, categories } = await getAiDesignerCatalog();
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#f6f7fb]" />}>
-      <AiDesignerWizard products={list} />
+      <AiDesignerWizard products={products} categories={categories} />
     </Suspense>
   );
 }
