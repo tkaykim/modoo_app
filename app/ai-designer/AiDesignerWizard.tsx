@@ -22,9 +22,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 import {
   computePlacement, computeSideScale, type SideGeometry,
 } from '@/lib/aiDesigner/placement';
-import type { AiCatalogCategory, AiCatalogProduct } from '@/lib/aiDesigner/catalogTypes';
+import type { AiCatalogCategory, AiCatalogProduct, PartLayerSide } from '@/lib/aiDesigner/catalogTypes';
 import ProductPicker from './ProductPicker';
 import ProductGrid from './ProductGrid';
+import VarsityIntake from './VarsityIntake';
 
 /* ---------- 타입 ---------- */
 
@@ -49,6 +50,10 @@ interface ProductInfoResponse {
   product: { id: string; title: string; base_price: number; size_options: Array<{ label: string; size_code: string }> | null };
   sides: SideInfo[];
   colors: ColorInfo[];
+  /** 부위별 색상 상품(바시티 자켓류) = 위저드 대신 디자이너 상담 접수 */
+  intakeOnly?: boolean;
+  partLayers?: PartLayerSide[];
+  presetLayerColors?: Record<string, Record<string, string>> | null;
 }
 
 const SIZE_PRESETS = [
@@ -163,6 +168,8 @@ export default function AiDesignerWizard({
   const [product, setProduct] = useState<ProductLite | null>(null);
   const [info, setInfo] = useState<ProductInfoResponse | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
+  /** 과잠(부위별 색상 상품) 디자이너 상담 접수 모드 — 위저드 스텝 대신 VarsityIntake 표시 */
+  const [intakeMode, setIntakeMode] = useState(false);
   const [color, setColor] = useState<ColorInfo | null>(null);
   const [images, setImages] = useState<SourceImage[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -199,7 +206,11 @@ export default function AiDesignerWizard({
             // 복원 시에도 면 지오메트리·색상·사이즈를 다시 로드해야 이후 스텝이 동작한다
             fetch(`/api/ai-designer/product-info?productId=${s.product_id}`)
               .then((r) => r.json())
-              .then((d) => { if (d?.product) setInfo(d); })
+              .then((d) => {
+                if (!d?.product) return;
+                setInfo(d);
+                if (d.intakeOnly) { setIntakeMode(true); setStep(0); }
+              })
               .catch(() => {});
           }
           if (s.product_color) setColor(s.product_color as ColorInfo);
@@ -244,7 +255,14 @@ export default function AiDesignerWizard({
       if (!res.ok) throw new Error(data.error || '상품 정보를 불러오지 못했습니다.');
       setInfo(data);
       saveSession({ product_id: p.id });
-      setStep(1);
+      if (data.intakeOnly) {
+        // 바시티 자켓류: 부위별 색·엠블럼·학번은 위저드가 아직 못 다루므로 디자이너 상담 접수로 진행
+        setIntakeMode(true);
+        setStep(0);
+        window.scrollTo({ top: 0 });
+      } else {
+        setStep(1);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '상품 정보를 불러오지 못했습니다.');
     } finally {
@@ -423,7 +441,14 @@ export default function AiDesignerWizard({
       {/* 헤더 */}
       <div className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-100">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          {step > 0 ? (
+          {intakeMode ? (
+            <button
+              onClick={() => { setIntakeMode(false); setProduct(null); setInfo(null); }}
+              aria-label="이전"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-700" />
+            </button>
+          ) : step > 0 ? (
             <button onClick={() => setStep((s) => Math.max(0, s - 1))} aria-label="이전">
               <ArrowLeft className="w-5 h-5 text-gray-700" />
             </button>
@@ -434,14 +459,18 @@ export default function AiDesignerWizard({
             <Sparkles className="w-4 h-4 text-brand" />
             <span className="font-bold text-gray-900">AI 디자이너</span>
           </div>
-          <div className="ml-auto flex gap-1">
-            {STEPS.map((label, i) => (
-              <div
-                key={label}
-                className={`h-1.5 rounded-full transition-all ${i <= step ? 'bg-brand w-6' : 'bg-gray-200 w-3'}`}
-              />
-            ))}
-          </div>
+          {intakeMode ? (
+            <span className="ml-auto text-[11px] font-semibold text-brand">디자이너 상담 접수</span>
+          ) : (
+            <div className="ml-auto flex gap-1">
+              {STEPS.map((label, i) => (
+                <div
+                  key={label}
+                  className={`h-1.5 rounded-full transition-all ${i <= step ? 'bg-brand w-6' : 'bg-gray-200 w-3'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -450,8 +479,19 @@ export default function AiDesignerWizard({
           <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
         )}
 
+        {/* 과잠(부위별 색상 상품) — 디자이너 상담 접수 */}
+        {intakeMode && product && info && (
+          <VarsityIntake
+            product={{ id: product.id, title: product.title, base_price: product.base_price }}
+            partLayers={info.partLayers ?? []}
+            presetLayerColors={info.presetLayerColors ?? null}
+            sessionId={sessionId}
+            onBack={() => { setIntakeMode(false); setProduct(null); setInfo(null); }}
+          />
+        )}
+
         {/* STEP 0 — 상품 */}
-        {step === 0 && (
+        {step === 0 && !intakeMode && (
           <section>
             <h1 className="text-xl font-black text-gray-900">어떤 옷을 만들까요?</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -811,7 +851,7 @@ export default function AiDesignerWizard({
       </div>
 
       {/* 하단 CTA */}
-      <div className="fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 pb-[env(safe-area-inset-bottom)]">
+      <div className={`fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-100 pb-[env(safe-area-inset-bottom)] ${intakeMode ? 'hidden' : ''}`}>
         <div className="max-w-lg mx-auto px-4 py-3">
           {step < 5 ? (
             <button

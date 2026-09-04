@@ -24,8 +24,52 @@ export async function GET(req: Request) {
     .eq('is_active', true)
     .order('sort_order');
 
+  // 부위별 색상 레이어(바시티 자켓류): 위저드 대신 디자이너 상담 접수로 보내기 위한 정보
+  const { data: productRow } = await admin.from('products').select('configuration').eq('id', productId).single();
+  type RawLayer = { id: string; name?: string; imageUrl?: string; zIndex?: number; colorOptions?: Array<{ name?: string; hex?: string; colorCode?: string }> };
+  type RawSide = { id: string; name?: string; layers?: RawLayer[] };
+  const rawSides = (Array.isArray(productRow?.configuration) ? productRow.configuration : []) as RawSide[];
+  const partLayers = rawSides
+    .filter((s) => Array.isArray(s.layers) && s.layers.length > 0)
+    .map((s) => {
+      const geo = loaded.sides.find((ls) => ls.geometry.sideId === s.id)?.geometry;
+      return {
+        sideId: s.id,
+        sideName: s.name || s.id,
+        imgW: geo?.imgW ?? 0,
+        imgH: geo?.imgH ?? 0,
+        layers: [...(s.layers ?? [])]
+          .sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+          .map((l) => ({
+            id: l.id,
+            name: l.name || l.id,
+            imageUrl: l.imageUrl ?? null,
+            zIndex: l.zIndex ?? 0,
+            colorOptions: (l.colorOptions ?? [])
+              .filter((c) => typeof c.hex === 'string' && c.hex)
+              .map((c) => ({ name: c.name ?? c.colorCode ?? '', hex: c.hex as string, colorCode: c.colorCode ?? '' })),
+          })),
+      };
+    });
+  const intakeOnly = partLayers.length > 0;
+  let presetLayerColors: Record<string, Record<string, string>> | null = null;
+  if (intakeOnly) {
+    const { data: preset } = await admin
+      .from('design_templates')
+      .select('layer_colors')
+      .eq('product_id', productId)
+      .eq('type', 'cobuy_preset')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+    presetLayerColors = (preset?.layer_colors as Record<string, Record<string, string>> | null) ?? null;
+  }
+
   return NextResponse.json({
     product: loaded.product,
+    intakeOnly,
+    partLayers,
+    presetLayerColors,
     sides: loaded.sides.map((s) => ({
       sideId: s.geometry.sideId,
       name: s.name,

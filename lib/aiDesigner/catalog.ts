@@ -102,15 +102,34 @@ const getReviewDigest = unstable_cache(
   { revalidate: 60, tags: ['reviews'] }
 );
 
+/** 부위별 색상 레이어(sides[].layers)가 있는 활성 상품 id — 바시티 자켓류 = 상담 접수 대상 */
+const getPartColorProductIds = unstable_cache(
+  async (): Promise<string[]> => {
+    const supabase = createAnonClient();
+    const { data } = await supabase.from('products').select('id, configuration').eq('is_active', true);
+    type Row = { id: string; configuration: unknown };
+    return ((data ?? []) as Row[])
+      .filter((p) =>
+        Array.isArray(p.configuration) &&
+        (p.configuration as Array<{ layers?: unknown }>).some((s) => Array.isArray(s?.layers) && s.layers.length > 0)
+      )
+      .map((p) => p.id);
+  },
+  ['ai-designer-part-color-products'],
+  { revalidate: 300, tags: ['products'] }
+);
+
 export async function getAiDesignerCatalog(): Promise<{
   products: AiCatalogProduct[];
   categories: AiCatalogCategory[];
 }> {
-  const [v2Products, cachedCategories, digest] = await Promise.all([
+  const [v2Products, cachedCategories, digest, partColorIds] = await Promise.all([
     getV2CatalogProducts(),
     getV2Categories(),
     getReviewDigest(),
+    getPartColorProductIds(),
   ]);
+  const intakeSet = new Set(partColorIds);
   // 캐시된 카테고리가 비어 오면(일시 장애가 빈 결과로 캐시된 경우 등) 한 번 더 직접 조회한다.
   let v2Categories = cachedCategories;
   if (v2Categories.length === 0) {
@@ -145,6 +164,7 @@ export async function getAiDesignerCatalog(): Promise<{
     isBest: p.isBest,
     isNew: p.isNew,
     isHot: p.isHot,
+    intakeOnly: intakeSet.has(p.id),
   }));
 
   // 상품이 하나도 없는 카테고리 칩은 숨기고, product_categories에 없는 상품 카테고리

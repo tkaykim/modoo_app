@@ -124,6 +124,11 @@ function ProductRow({
               ))}
             </div>
           )}
+          {p.intakeOnly && (
+            <span className="mt-1 self-start px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-semibold">
+              디자이너 상담 접수
+            </span>
+          )}
           <div className="mt-auto pt-1 flex items-baseline gap-1">
             <span className="text-[17px] font-extrabold tracking-tight text-gray-900 tabular-nums">
               ₩{p.base_price.toLocaleString()}
@@ -144,7 +149,7 @@ function ProductRow({
                 selected ? 'bg-brand text-white' : 'bg-gray-900 text-white active:bg-gray-800'
               } disabled:opacity-70`}
             >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : selected ? '선택됨' : '선택'}
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : selected ? '선택됨' : p.intakeOnly ? '상담 접수' : '선택'}
             </button>
           </div>
         </div>

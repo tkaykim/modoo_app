@@ -28,10 +28,33 @@ export interface AiCatalogProduct {
   isBest: boolean;
   isNew: boolean;
   isHot: boolean;
+  /**
+   * 부위별 색상 레이어(몸통·팔·쉬보리 등)가 있는 상품 = 바시티 자켓류.
+   * 위저드 자동 시안 대신 디자이너 상담 접수(VarsityIntake)로 진행한다.
+   */
+  intakeOnly: boolean;
 }
 
 export interface AiCatalogCategory {
   key: string;
   name: string;
   icon: string | null;
+}
+
+/** 부위(레이어) 하나의 색상 선택지 */
+export interface PartLayer {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  zIndex: number;
+  colorOptions: Array<{ name: string; hex: string; colorCode: string }>;
+}
+
+/** 부위별 색상 레이어가 있는 면 */
+export interface PartLayerSide {
+  sideId: string;
+  sideName: string;
+  imgW: number;
+  imgH: number;
+  layers: PartLayer[];
 }

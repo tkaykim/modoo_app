@@ -84,6 +84,9 @@ export default function ProductGrid({
             <div className="p-3">
               <p className="text-sm font-semibold text-gray-900 line-clamp-2">{p.title}</p>
               <p className="text-xs text-gray-500 mt-0.5">{p.base_price.toLocaleString()}원~</p>
+              {p.intakeOnly && (
+                <p className="mt-1 text-[11px] font-semibold text-amber-700">디자이너 상담 접수</p>
+              )}
             </div>
           </button>
         ))}
