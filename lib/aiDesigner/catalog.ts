@@ -9,6 +9,7 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { createAnonClient } from '@/lib/supabase';
 import { getV2CatalogProducts, getV2Categories } from '@/app/v2/_lib/queries';
+import type { V2CatalogProduct } from '@/app/v2/_lib/types';
 import type { AiCatalogCategory, AiCatalogProduct } from './catalogTypes';
 
 interface ReviewRow {
@@ -119,17 +120,89 @@ const getPartColorProductIds = unstable_cache(
   { revalidate: 300, tags: ['products'] }
 );
 
+/**
+ * v2 카탈로그 캐시가 빈 배열로 돌아올 때(배포 직후 콜드스타트에서 일시 장애 응답이 60초 캐시되는 현상)
+ * 같은 select로 한 번 더 직접 조회한다. 필드 매핑은 getV2CatalogProducts와 동일하게 유지한다.
+ */
+async function fetchCatalogProductsDirect(
+  reviewCounts: Record<string, number>
+): Promise<V2CatalogProduct[]> {
+  const supabase = createAnonClient();
+  const [productsRes, colorsRes] = await Promise.all([
+    supabase
+      .from('products')
+      .select('id, title, thumbnail_image_link, base_price, discount_rates, category, is_featured, created_at, keywords, manufacturers(name)')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(60),
+    supabase.from('product_colors').select('product_id').eq('is_active', true),
+  ]);
+  if (productsRes.error) {
+    console.warn('[aiDesigner/catalog] direct products fetch failed', productsRes.error.message);
+  }
+  type Row = {
+    id: string;
+    title: string;
+    thumbnail_image_link: string[] | null;
+    base_price: number;
+    discount_rates: { min_quantity: number; discount_rate: number }[] | null;
+    category: string | null;
+    is_featured: boolean | null;
+    created_at: string;
+    keywords: string[] | null;
+    manufacturers?: { name: string } | { name: string }[] | null;
+  };
+  const colorCounts: Record<string, number> = {};
+  for (const c of (colorsRes.data ?? []) as Array<{ product_id: string }>) {
+    colorCounts[c.product_id] = (colorCounts[c.product_id] || 0) + 1;
+  }
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  return ((productsRes.data as Row[] | null) ?? []).map((p) => {
+    const reviewCount = reviewCounts[p.id] || 0;
+    const tier = (p.discount_rates ?? []).reduce<{ min_quantity: number; discount_rate: number } | null>(
+      (acc, t) => (!acc || t.min_quantity < acc.min_quantity ? t : acc),
+      null
+    );
+    const discounted = tier && tier.discount_rate > 0 ? Math.round(p.base_price * (1 - tier.discount_rate / 100)) : null;
+    const manuName = Array.isArray(p.manufacturers) ? p.manufacturers[0]?.name ?? null : p.manufacturers?.name ?? null;
+    return {
+      id: p.id,
+      title: p.title,
+      thumbnail: p.thumbnail_image_link?.[0] ?? null,
+      gallery: p.thumbnail_image_link ?? [],
+      keywords: p.keywords ?? [],
+      price: discounted ?? p.base_price,
+      originalPrice: discounted ? p.base_price : null,
+      category: p.category,
+      manufacturerName: manuName,
+      colorCount: colorCounts[p.id] || 0,
+      reviewCount,
+      isBest: reviewCount >= 100 || !!p.is_featured,
+      isNew: new Date(p.created_at).getTime() > cutoff,
+      isHot: reviewCount >= 50 && reviewCount < 100,
+    };
+  });
+}
+
 export async function getAiDesignerCatalog(): Promise<{
   products: AiCatalogProduct[];
   categories: AiCatalogCategory[];
 }> {
-  const [v2Products, cachedCategories, digest, partColorIds] = await Promise.all([
+  const [cachedProducts, cachedCategories, digest, partColorIds] = await Promise.all([
     getV2CatalogProducts(),
     getV2Categories(),
     getReviewDigest(),
     getPartColorProductIds(),
   ]);
   const intakeSet = new Set(partColorIds);
+  let v2Products = cachedProducts;
+  if (v2Products.length === 0) {
+    const reviewCounts: Record<string, number> = {};
+    for (const [pid, d] of Object.entries(digest)) reviewCounts[pid] = d.reviewCount;
+    v2Products = await fetchCatalogProductsDirect(reviewCounts);
+    console.warn('[aiDesigner/catalog] cached products empty → direct fetch', { rows: v2Products.length });
+  }
   // 캐시된 카테고리가 비어 오면(일시 장애가 빈 결과로 캐시된 경우 등) 한 번 더 직접 조회한다.
   let v2Categories = cachedCategories;
   if (v2Categories.length === 0) {
