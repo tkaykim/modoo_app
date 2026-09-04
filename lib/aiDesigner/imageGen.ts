@@ -1,25 +1,17 @@
 /**
- * AI 디자이너 — 이미지 생성 어댑터 (서버 전용).
+ * AI 디자이너 — 이미지 생성 진입점 (서버 전용). 호환 레이어.
  *
- * env AI_DESIGNER_IMAGE_PROVIDER:
- *   - 'gemini' : GEMINI_API_KEY 필요 (이미지 모델은 유료 결제 프로젝트 키여야 함.
- *                무료 티어는 이미지 모델 쿼터 0 — 2026-08-24 실측)
- *   - 'openai' : OPENAI_API_KEY 필요 (gpt-image 계열)
- *   - 미설정/'none' : AI 생성 비활성 — 클라이언트 로컬 합성 미리보기만 사용.
+ * 제공자 선택·설정은 lib/aiDesigner/providers/index.ts 가 정본이다.
+ *   AI_DESIGNER_IMAGE_PROVIDER = gemini | openai | recraft | ideogram | mock | none
+ *   (mock 은 개발 환경 또는 AI_DESIGNER_ALLOW_MOCK=1 에서만 활성 — 키 없이 전체 파이프라인 테스트)
  *
  * 절대 throw로 플로우를 죽이지 않는다 — 실패 시 null 반환, 호출자가 폴백.
  */
+import { geminiComposeDraft } from './providers/gemini.ts';
+import { activeProvider, draftMode, resolveProvider } from './providers/index.ts';
 
-export type AiImageProvider = 'gemini' | 'openai' | 'none';
-
-export function activeProvider(): AiImageProvider {
-  const p = (process.env.AI_DESIGNER_IMAGE_PROVIDER || '').toLowerCase();
-  if (p === 'gemini' && process.env.GEMINI_API_KEY) return 'gemini';
-  if (p === 'openai' && process.env.OPENAI_API_KEY) return 'openai';
-  return 'none';
-}
-
-const GEMINI_IMAGE_MODEL = process.env.AI_DESIGNER_GEMINI_MODEL || 'gemini-3-pro-image';
+export { activeProvider, aiPublicStatus, draftMode, resolveProvider, resolveVectorizer } from './providers/index.ts';
+export type AiImageProvider = 'gemini' | 'openai' | 'recraft' | 'ideogram' | 'mock' | 'none';
 
 interface InlineImage {
   mimeType: string;
@@ -40,56 +32,18 @@ async function fetchAsInline(url: string): Promise<InlineImage | null> {
   }
 }
 
-async function geminiGenerate(
-  parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>
-): Promise<Buffer | null> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return null;
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: { responseModalities: ['IMAGE'] },
-        }),
-      }
-    );
-    if (!res.ok) {
-      console.warn('[aiDesigner/imageGen] gemini status', res.status, (await res.text()).slice(0, 300));
-      return null;
-    }
-    const data = await res.json();
-    const outParts = data?.candidates?.[0]?.content?.parts ?? [];
-    for (const p of outParts) {
-      const inline = p.inlineData || p.inline_data;
-      if (inline?.data) return Buffer.from(inline.data, 'base64');
-    }
-    return null;
-  } catch (e) {
-    console.warn('[aiDesigner/imageGen] gemini error', e);
-    return null;
-  }
-}
-
-/** 텍스트 프롬프트 → 로고/도안 이미지 1장 (PNG 버퍼). */
+/** 텍스트 프롬프트 → 도안 이미지 1장 (PNG 버퍼). 단순 호환용 — 위저드는 generate-logo 라우트의 후보 흐름을 쓴다. */
 export async function generateLogoImage(prompt: string): Promise<Buffer | null> {
-  if (activeProvider() !== 'gemini') return null;
-  return geminiGenerate([
-    {
-      text:
-        `Create a single standalone graphic suitable for garment printing. ` +
-        `Transparent or plain white background, no mockup, no shirt, centered artwork only. ` +
-        `Design request: ${prompt}`,
-    },
-  ]);
+  const provider = resolveProvider('emblem');
+  if (!provider) return null;
+  const [img] = await provider.generate({ prompt, n: 1, purpose: 'emblem' });
+  return img?.buffer ?? null;
 }
 
 /**
- * 목업(색상 반영) + 로고들 + 배치 설명 → 착장 초안 1장 (해당 면).
- * mockupUrl: 해당 색상의 면 목업. logoUrls: 그 면에 배치된 원본 도안들.
+ * 목업(색상 반영) + 로고들 + 배치 설명 → 착장 초안 1장 (해당 면). 레거시.
+ * AI_DESIGNER_DRAFT_MODE=ai 이고 Gemini 키가 있을 때만 동작한다.
+ * 기본(local)에서는 null — 도안을 다시 그리거나 색을 바꾸는 위험 때문에 캔버스 결정적 합성을 정본으로 쓴다.
  */
 export async function composeSideDraft(args: {
   mockupUrl: string;
@@ -98,7 +52,7 @@ export async function composeSideDraft(args: {
   colorName: string;
   sideName: string;
 }): Promise<Buffer | null> {
-  if (activeProvider() !== 'gemini') return null;
+  if (draftMode() !== 'ai' || activeProvider() !== 'gemini') return null;
   const mockup = await fetchAsInline(args.mockupUrl);
   if (!mockup) return null;
   const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
@@ -117,5 +71,5 @@ export async function composeSideDraft(args: {
     const inline = await fetchAsInline(logo.url);
     if (inline) parts.push({ inlineData: { mimeType: inline.mimeType, data: inline.dataBase64 } });
   }
-  return geminiGenerate(parts);
+  return geminiComposeDraft(parts);
 }

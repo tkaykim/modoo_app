@@ -15,7 +15,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, Camera, Check, ImagePlus, Loader2,
-  ShoppingCart, Sparkles, Trash2, Wand2,
+  ShoppingCart, Sparkles, Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -27,6 +27,7 @@ import ProductPicker from './ProductPicker';
 import ProductGrid from './ProductGrid';
 import VarsityIntake from './VarsityIntake';
 import VarsityBuilder from './VarsityBuilder';
+import AiLogoPanel, { DEFAULT_AI_STATUS, readAiStatus, type AiPublicStatus, type AiReadyImage } from './AiLogoPanel';
 import { DEFAULT_VARSITY_PRICING, type VarsityPricingRule } from '@/lib/aiDesigner/varsityPricing';
 import type { VarsityBuilderState } from '@/lib/aiDesigner/varsitySlots';
 
@@ -44,6 +45,8 @@ interface ColorInfo {
 interface SourceImage {
   url: string; path: string; name: string; origin: 'upload' | 'camera' | 'ai';
   prompt?: string; width: number; height: number;
+  /** AI 초안 메타(generate-logo → finalize-logo 결과) — 주문 API가 canvas_state data 로 옮긴다 */
+  generationId?: string | null; quality?: AiReadyImage['quality']; svgUrl?: string | null; bgRemoved?: boolean;
 }
 interface Placement {
   side_id: string; image_index: number; anchor_id?: string; anchor_label?: string;
@@ -168,7 +171,7 @@ export default function AiDesignerWizard({
 
   const [step, setStep] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiPublicStatus>(DEFAULT_AI_STATUS);
 
   const [product, setProduct] = useState<ProductLite | null>(null);
   const [info, setInfo] = useState<ProductInfoResponse | null>(null);
@@ -186,8 +189,6 @@ export default function AiDesignerWizard({
   const [note, setNote] = useState('');
 
   const [uploading, setUploading] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,7 +205,7 @@ export default function AiDesignerWizard({
       fetch(`/api/ai-designer/session?id=${existing}`)
         .then((r) => r.json())
         .then((d) => {
-          setAiEnabled(!!d.aiEnabled);
+          setAiStatus(readAiStatus(d));
           if (!d.session) return;
           setSessionId(d.session.id);
           const s = d.session;
@@ -236,7 +237,7 @@ export default function AiDesignerWizard({
     } else {
       fetch('/api/ai-designer/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
         .then((r) => r.json())
-        .then((d) => { if (d.id) setSessionId(d.id); setAiEnabled(!!d.aiEnabled); })
+        .then((d) => { if (d.id) setSessionId(d.id); setAiStatus(readAiStatus(d)); })
         .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,36 +319,20 @@ export default function AiDesignerWizard({
     }
   };
 
-  const generateAiLogo = async () => {
-    if (!aiPrompt.trim()) return;
-    setAiGenerating(true); setError(null);
-    try {
-      const res = await fetch('/api/ai-designer/generate-logo', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '이미지 생성에 실패했습니다.');
-      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
-        const el = new window.Image();
-        el.onload = () => resolve({ w: el.naturalWidth, h: el.naturalHeight });
-        el.onerror = () => resolve({ w: 1024, h: 1024 });
-        el.src = data.url;
-      });
-      setImages((prev) => {
-        const next: SourceImage[] = [
-          ...prev,
-          { url: data.url, path: data.path, name: `AI 생성: ${aiPrompt.slice(0, 30)}`, origin: 'ai', prompt: aiPrompt, width: dims.w, height: dims.h },
-        ];
-        saveSession({ source_images: next });
-        return next;
-      });
-      setAiPrompt('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '이미지 생성에 실패했습니다.');
-    } finally {
-      setAiGenerating(false);
-    }
+  /** AI 패널이 확정(배경 제거·벡터화·검사 완료)한 도안을 이미지 목록에 추가 */
+  const addAiImage = (img: AiReadyImage) => {
+    setImages((prev) => {
+      const next: SourceImage[] = [
+        ...prev,
+        {
+          url: img.url, path: img.path, name: img.name, origin: 'ai', prompt: img.prompt,
+          width: img.width, height: img.height,
+          generationId: img.generationId, quality: img.quality, svgUrl: img.svgUrl, bgRemoved: img.bgRemoved,
+        },
+      ];
+      saveSession({ source_images: next });
+      return next;
+    });
   };
 
   const removeImage = (idx: number) => {
@@ -443,6 +428,9 @@ export default function AiDesignerWizard({
   })();
 
   const placedSides = info?.sides.filter((s) => placements.some((p) => p.side_id === s.sideId)) ?? [];
+  const placedAiImages = placements
+    .map((p) => images[p.image_index])
+    .filter((img): img is SourceImage => !!img && img.origin === 'ai');
 
   /* ---------- 렌더 ---------- */
   return (
@@ -628,35 +616,8 @@ export default function AiDesignerWizard({
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden
               onChange={(e) => handleFiles(e.target.files, 'camera')} />
 
-            {/* AI 생성 */}
-            <div className="mt-4 bg-white rounded-2xl border border-gray-200 p-4">
-              <div className="flex items-center gap-1.5">
-                <Wand2 className="w-4 h-4 text-brand" />
-                <span className="text-sm font-bold text-gray-900">AI로 도안 만들기</span>
-                {!aiEnabled && (
-                  <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">준비 중</span>
-                )}
-              </div>
-              <div className="flex gap-2 mt-3">
-                <input
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder='예: "파란 방패 모양의 축구팀 엠블럼"'
-                  disabled={!aiEnabled || aiGenerating}
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand disabled:bg-gray-50"
-                />
-                <button
-                  onClick={generateAiLogo}
-                  disabled={!aiEnabled || aiGenerating || !aiPrompt.trim()}
-                  className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold disabled:opacity-40"
-                >
-                  {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : '생성'}
-                </button>
-              </div>
-              {!aiEnabled && (
-                <p className="text-[11px] text-gray-400 mt-2">AI 도안 생성은 곧 열립니다. 지금은 업로드·촬영을 이용해 주세요.</p>
-              )}
-            </div>
+            {/* AI 생성 — 후보 여러 장 → 선택 → 배경 제거·벡터화·인쇄 적합성 검사 → "AI 초안"으로 추가 */}
+            <AiLogoPanel sessionId={sessionId} status={aiStatus} onImageReady={addAiImage} />
 
             {uploading && (
               <div className="flex items-center gap-2 mt-4 text-sm text-gray-500">
@@ -678,7 +639,10 @@ export default function AiDesignerWizard({
                       <Trash2 className="w-3 h-3" />
                     </button>
                     {img.origin === 'ai' && (
-                      <span className="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-brand text-white">AI</span>
+                      <span className="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-brand text-white">AI 초안</span>
+                    )}
+                    {img.quality && img.quality.dtf.grade === 'review' && (
+                      <span className="absolute bottom-1 right-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500 text-white" title={img.quality.dtf.labels.join(' / ')}>보정</span>
                     )}
                   </div>
                 ))}
@@ -826,7 +790,18 @@ export default function AiDesignerWizard({
                 </div>
               ))}
             </div>
-            {aiEnabled && (
+            {placedAiImages.length > 0 && (
+              <div className="mt-4 px-4 py-3 rounded-2xl bg-brand-softer border border-brand-soft text-xs text-gray-700" data-testid="ai-draft-notice">
+                <p className="font-semibold text-gray-900">AI 초안이 포함된 디자인입니다</p>
+                <p className="mt-1 text-gray-600">디자이너가 자수·인쇄에 맞게 정리한 확정 시안을 확인하신 뒤 제작합니다.</p>
+                {placedAiImages.some((i) => i.quality?.dtf.grade === 'review') && (
+                  <p className="mt-1 text-amber-700">
+                    보정 예정: {Array.from(new Set(placedAiImages.flatMap((i) => i.quality?.dtf.labels ?? []))).join(' · ')}
+                  </p>
+                )}
+              </div>
+            )}
+            {aiStatus.aiDraftEnabled && (
               <button
                 onClick={requestAiDrafts}
                 disabled={draftLoading}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { activeProvider, composeSideDraft } from '@/lib/aiDesigner/imageGen';
+import { activeProvider, composeSideDraft, draftMode } from '@/lib/aiDesigner/imageGen';
 import { loadProductSides } from '@/lib/aiDesigner/serverGeometry';
 
 export const runtime = 'nodejs';
@@ -30,8 +30,10 @@ export async function POST(req: Request) {
     .single();
   if (!session) return NextResponse.json({ error: '세션을 찾을 수 없습니다.' }, { status: 404 });
 
-  if (activeProvider() === 'none') {
-    return NextResponse.json({ aiEnabled: false, drafts: {} });
+  // 기본(local): AI 재합성은 도안을 다시 그리거나 색을 바꾸는 위험이 있어 끄고, 캔버스 결정적 합성만 쓴다.
+  // AI_DESIGNER_DRAFT_MODE=ai + Gemini 키가 있을 때만 레거시 합성 실행.
+  if (draftMode() !== 'ai' || activeProvider() !== 'gemini') {
+    return NextResponse.json({ aiEnabled: false, drafts: {}, mode: draftMode() });
   }
 
   const loaded = await loadProductSides(admin, session.product_id);

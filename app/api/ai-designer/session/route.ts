@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createAuthedClient } from '@/lib/supabase';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { activeProvider } from '@/lib/aiDesigner/imageGen';
+import { aiPublicStatus } from '@/lib/aiDesigner/imageGen';
 
 export const runtime = 'nodejs';
 
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     console.error('[ai-designer/session] insert failed', error);
     return NextResponse.json({ error: '세션 생성에 실패했습니다.' }, { status: 500 });
   }
-  return NextResponse.json({ id: data.id, aiEnabled: activeProvider() !== 'none' });
+  return NextResponse.json({ id: data.id, ...aiPublicStatus() });
 }
 
 export async function PATCH(req: Request) {
@@ -97,7 +97,7 @@ export async function PATCH(req: Request) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const id = url.searchParams.get('id');
-  if (!id) return NextResponse.json({ aiEnabled: activeProvider() !== 'none' });
+  if (!id) return NextResponse.json({ ...aiPublicStatus() });
   const admin = createAdminClient();
   const { data: session } = await admin
     .from('ai_designer_requests')
@@ -109,5 +109,5 @@ export async function GET(req: Request) {
   if (session.user_id && session.user_id !== userId) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
   }
-  return NextResponse.json({ session, aiEnabled: activeProvider() !== 'none' });
+  return NextResponse.json({ session, ...aiPublicStatus() });
 }

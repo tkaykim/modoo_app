@@ -10,9 +10,43 @@ import {
 } from '@/lib/aiDesigner/placement';
 import { computePrintSurcharge } from '@/lib/aiDesigner/serverPricing';
 import { fetchImageDims } from '@/lib/aiDesigner/imageDims';
+import { analyzeArtwork, compactQuality, type CompactQuality } from '@/lib/aiDesigner/quality';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+interface SourceImageRow {
+  url: string; path?: string; name?: string; width?: number; height?: number;
+  origin?: 'upload' | 'camera' | 'ai'; prompt?: string; generationId?: string | null;
+  svgUrl?: string | null; bgRemoved?: boolean;
+}
+
+/**
+ * 배치된 실제 폭(mm) 기준 인쇄 적합성 검사 — 디자이너 보정 플래그용. 실패해도 주문은 막지 않는다.
+ * 같은 이미지가 여러 면에 쓰이면 URL+폭 단위로 캐시.
+ */
+async function qualityAtSize(
+  cache: Map<string, CompactQuality | null>,
+  url: string,
+  widthMm: number
+): Promise<CompactQuality | null> {
+  const key = `${url}|${Math.round(widthMm)}`;
+  if (cache.has(key)) return cache.get(key) ?? null;
+  let result: CompactQuality | null = null;
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 0 && buf.length <= 12 * 1024 * 1024) {
+        result = compactQuality(await analyzeArtwork(buf, { widthMm }));
+      }
+    }
+  } catch (e) {
+    console.warn('[ai-designer/order] quality check skipped', e instanceof Error ? e.message : e);
+  }
+  cache.set(key, result);
+  return result;
+}
 
 interface OrderPlacement {
   side_id: string;
@@ -67,9 +101,7 @@ export async function POST(req: Request) {
   }
 
   const placements = (session.placements ?? []) as OrderPlacement[];
-  const sourceImages = (session.source_images ?? []) as Array<{
-    url: string; path?: string; name?: string; width?: number; height?: number;
-  }>;
+  const sourceImages = (session.source_images ?? []) as SourceImageRow[];
   if (placements.length === 0 || sourceImages.length === 0) {
     return NextResponse.json({ error: '배치된 이미지가 없습니다.' }, { status: 400 });
   }
@@ -86,10 +118,12 @@ export async function POST(req: Request) {
   const canvasState: Record<string, unknown> = {};
   const sideBoxesMm: Array<{ widthMm: number; heightMm: number }> = [];
   const usedImageUrls = new Set<string>();
+  const qualityCache = new Map<string, CompactQuality | null>();
 
   for (const side of loaded.sides) {
     const sidePlacements = placements.filter((p) => p.side_id === side.geometry.sideId);
     const objects: Array<{ input: PlacementInput; computed: ComputedPlacement }> = [];
+    const objectMeta: Array<{ img: SourceImageRow; widthMm: number }> = [];
     for (const p of sidePlacements) {
       const img = sourceImages[p.image_index];
       if (!img?.url) continue;
@@ -115,9 +149,30 @@ export async function POST(req: Request) {
       };
       const computed = computePlacement(side.geometry, input);
       objects.push({ input, computed });
+      objectMeta.push({ img, widthMm: computed.widthMm > 0 ? computed.widthMm : p.width_mm });
       usedImageUrls.add(img.url);
     }
     const state = buildSideCanvasState(side.geometry, colorHex, objects);
+    // AI 초안 표시 + 배치 폭 기준 인쇄 적합성(디자이너 보정 플래그) — 에디터/관리자가 그대로 읽는 data 필드
+    const stateObjects = state.objects as Array<{ data?: Record<string, unknown> }>;
+    for (let i = 0; i < objectMeta.length; i++) {
+      const { img, widthMm } = objectMeta[i];
+      const data = stateObjects[i]?.data;
+      if (!data) continue;
+      const quality = await qualityAtSize(qualityCache, img.url, widthMm);
+      Object.assign(data, {
+        bgRemoved: !!img.bgRemoved,
+        ...(quality ? { artworkQuality: quality } : {}),
+        ...(img.origin === 'ai'
+          ? {
+              aiGenerated: true,
+              aiPrompt: img.prompt ?? null,
+              aiGenerationId: img.generationId ?? null,
+              originalSvgUrl: img.svgUrl ?? null,
+            }
+          : {}),
+      });
+    }
     canvasState[side.geometry.sideId] = state;
     const bbox = state.totalBoundingBoxMm as { widthMm: number; heightMm: number } | null;
     if (objects.length > 0) {
