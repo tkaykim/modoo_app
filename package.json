@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:regression": "node --experimental-strip-types --test lib/canvasUtils.regression-1.test.ts lib/canvas-containment.test.ts lib/font-contract.test.ts lib/canvas-svg-export.test.ts lib/canvas-visual-readiness.test.ts lib/order-item-display.test.ts lib/partnerMallAccess.test.ts lib/naver-design.test.ts"
+    "test:regression": "node --experimental-strip-types --test lib/canvasUtils.regression-1.test.ts lib/canvas-containment.test.ts lib/font-contract.test.ts lib/canvas-svg-export.test.ts lib/canvas-visual-readiness.test.ts lib/order-item-display.test.ts lib/partnerMallAccess.test.ts lib/naver-design.test.ts",
+    "test:ai-designer": "node --experimental-strip-types --test lib/aiDesigner/quality.test.ts lib/aiDesigner/prompt.test.ts"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
@@ -28,6 +29,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-icons": "^5.5.0",
+    "sharp": "^0.34.5",
     "swiper": "^12.0.3",
     "zustand": "^5.0.9"
   },
@@ -40,8 +42,8 @@
     "@types/opentype.js": "^1.3.8",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10.0.0",
-    "eslint-config-next": "^0.2.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4",
     "typescript": "5.9.3"
   }
