@@ -283,12 +283,14 @@ export async function POST(request: NextRequest) {
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
       retouch_requested?: boolean;
+      /** 과잠 개인화 명단 — order_items.item_options.personalization 으로 전달 */
+      personalization?: Record<string, unknown> | null;
     }>();
 
     if (uniqueDesignIds.length > 0) {
       const { data: savedDesigns } = await supabase
         .from('saved_designs')
-        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts, retouch_requested')
+        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts, retouch_requested, personalization')
         .in('id', uniqueDesignIds);
 
       savedDesigns?.forEach(design => {
@@ -301,6 +303,7 @@ export async function POST(request: NextRequest) {
           text_svg_exports: design.text_svg_exports as TextSvgExports | undefined,
           custom_fonts: (design.custom_fonts as FontMetadata[]) || [],
           retouch_requested: design.retouch_requested || false,
+          personalization: (design as { personalization?: Record<string, unknown> | null }).personalization ?? null,
         });
       });
     }
@@ -319,6 +322,7 @@ export async function POST(request: NextRequest) {
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
       retouch_requested: boolean;
+      personalization?: Record<string, unknown> | null;
       variants: Array<{
         size_id: string;
         size_name: string;
@@ -371,6 +375,7 @@ export async function POST(request: NextRequest) {
             extractCustomFontsFromCanvasState(designCanvas)
           ),
           retouch_requested: savedDesign?.retouch_requested || item.retouchRequested || false,
+          personalization: savedDesign?.personalization ?? null,
           price_per_item: item.price_per_item,
           variants: [{
             size_id: item.size_id,
@@ -398,7 +403,10 @@ export async function POST(request: NextRequest) {
         product_variant_id: null,
         canvas_state: group.canvas_state,
         color_selections: group.color_selections,
-        item_options: { variants: group.variants },
+        item_options: {
+          variants: group.variants,
+          ...(group.personalization ? { personalization: group.personalization } : {}),
+        },
         thumbnail_url: group.thumbnail_url,
         image_urls: group.image_urls,
         text_svg_exports: group.text_svg_exports || {},

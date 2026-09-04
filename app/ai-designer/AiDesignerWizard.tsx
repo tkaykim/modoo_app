@@ -26,6 +26,9 @@ import type { AiCatalogCategory, AiCatalogProduct, PartLayerSide } from '@/lib/a
 import ProductPicker from './ProductPicker';
 import ProductGrid from './ProductGrid';
 import VarsityIntake from './VarsityIntake';
+import VarsityBuilder from './VarsityBuilder';
+import { DEFAULT_VARSITY_PRICING, type VarsityPricingRule } from '@/lib/aiDesigner/varsityPricing';
+import type { VarsityBuilderState } from '@/lib/aiDesigner/varsitySlots';
 
 /* ---------- 타입 ---------- */
 
@@ -54,6 +57,8 @@ interface ProductInfoResponse {
   intakeOnly?: boolean;
   partLayers?: PartLayerSide[];
   presetLayerColors?: Record<string, Record<string, string>> | null;
+  /** 과잠 빌더 견적 규칙(슬롯형 패키지가) */
+  pricing?: VarsityPricingRule | null;
 }
 
 const SIZE_PRESETS = [
@@ -168,8 +173,11 @@ export default function AiDesignerWizard({
   const [product, setProduct] = useState<ProductLite | null>(null);
   const [info, setInfo] = useState<ProductInfoResponse | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
-  /** 과잠(부위별 색상 상품) 디자이너 상담 접수 모드 — 위저드 스텝 대신 VarsityIntake 표시 */
+  /** 과잠(부위별 색상 상품) 모드 — 위저드 스텝 대신 VarsityBuilder(기본) 또는 VarsityIntake(디자이너에게 맡기기) 표시 */
   const [intakeMode, setIntakeMode] = useState(false);
+  const [intakeFallback, setIntakeFallback] = useState(false);
+  /** 세션에 저장된 과잠 빌더 상태(복원용) */
+  const [builderInitial, setBuilderInitial] = useState<unknown>(null);
   const [color, setColor] = useState<ColorInfo | null>(null);
   const [images, setImages] = useState<SourceImage[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
@@ -200,6 +208,7 @@ export default function AiDesignerWizard({
           if (!d.session) return;
           setSessionId(d.session.id);
           const s = d.session;
+          if (s.builder_state) setBuilderInitial(s.builder_state);
           if (s.product_id) {
             const p = products.find((x) => x.id === s.product_id);
             if (p) setProduct(p);
@@ -443,7 +452,10 @@ export default function AiDesignerWizard({
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           {intakeMode ? (
             <button
-              onClick={() => { setIntakeMode(false); setProduct(null); setInfo(null); }}
+              onClick={() => {
+                if (intakeFallback) { setIntakeFallback(false); return; }
+                setIntakeMode(false); setProduct(null); setInfo(null);
+              }}
               aria-label="이전"
             >
               <ArrowLeft className="w-5 h-5 text-gray-700" />
@@ -460,7 +472,7 @@ export default function AiDesignerWizard({
             <span className="font-bold text-gray-900">AI 디자이너</span>
           </div>
           {intakeMode ? (
-            <span className="ml-auto text-[11px] font-semibold text-brand">디자이너 상담 접수</span>
+            <span className="ml-auto text-[11px] font-semibold text-brand">{intakeFallback ? '디자이너 상담 접수' : '과잠 빌더'}</span>
           ) : (
             <div className="ml-auto flex gap-1">
               {STEPS.map((label, i) => (
@@ -479,14 +491,29 @@ export default function AiDesignerWizard({
           <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
         )}
 
-        {/* 과잠(부위별 색상 상품) — 디자이너 상담 접수 */}
-        {intakeMode && product && info && (
+        {/* 과잠(부위별 색상 상품) — 기본은 전용 빌더, "디자이너에게 맡기기"를 누르면 상담 접수 */}
+        {intakeMode && product && info && intakeFallback && (
           <VarsityIntake
             product={{ id: product.id, title: product.title, base_price: product.base_price }}
             partLayers={info.partLayers ?? []}
             presetLayerColors={info.presetLayerColors ?? null}
             sessionId={sessionId}
+            onBack={() => setIntakeFallback(false)}
+          />
+        )}
+        {intakeMode && product && info && !intakeFallback && (
+          <VarsityBuilder
+            product={{ id: product.id, title: product.title, base_price: product.base_price }}
+            partLayers={info.partLayers ?? []}
+            presetLayerColors={info.presetLayerColors ?? null}
+            sides={info.sides.map((s) => ({ sideId: s.sideId, name: s.name, geometry: s.geometry }))}
+            sizeOptions={(info.product.size_options ?? []).map((s) => s.label)}
+            pricing={info.pricing ?? DEFAULT_VARSITY_PRICING}
+            sessionId={sessionId}
+            initialState={builderInitial}
+            onSaveState={(st: VarsityBuilderState) => { setBuilderInitial(st); saveSession({ builder_state: st, product_id: product.id }); }}
             onBack={() => { setIntakeMode(false); setProduct(null); setInfo(null); }}
+            onFallbackIntake={() => { setIntakeFallback(true); window.scrollTo({ top: 0 }); }}
           />
         )}
 

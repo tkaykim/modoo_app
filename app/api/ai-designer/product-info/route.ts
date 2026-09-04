@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { loadProductSides } from '@/lib/aiDesigner/serverGeometry';
+import { DEFAULT_VARSITY_PRICING } from '@/lib/aiDesigner/varsityPricing';
 
 export const runtime = 'nodejs';
 
@@ -70,6 +71,8 @@ export async function GET(req: Request) {
     intakeOnly,
     partLayers,
     presetLayerColors,
+    // 과잠 빌더 견적 규칙(슬롯형 패키지가). 클라 견적 패널과 서버 주문 경로가 같은 표를 쓴다.
+    pricing: intakeOnly ? DEFAULT_VARSITY_PRICING : null,
     sides: loaded.sides.map((s) => ({
       sideId: s.geometry.sideId,
       name: s.name,

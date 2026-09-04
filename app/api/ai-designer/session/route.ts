@@ -22,6 +22,10 @@ function pickSessionFields(body: Record<string, unknown>) {
   if (body.placements !== undefined) out.placements = body.placements;
   if (body.draft_images !== undefined) out.draft_images = body.draft_images;
   if (body.size_quantities !== undefined) out.size_quantities = body.size_quantities;
+  // 과잠 빌더 상태(부위 색·슬롯·명단) — 객체만 허용
+  if (body.builder_state !== undefined && (body.builder_state === null || typeof body.builder_state === 'object')) {
+    out.builder_state = body.builder_state;
+  }
   if (typeof body.customer_note === 'string') out.customer_note = body.customer_note.slice(0, 2000);
   if (typeof body.status === 'string' && ['draft', 'drafted'].includes(body.status)) out.status = body.status;
   return out;

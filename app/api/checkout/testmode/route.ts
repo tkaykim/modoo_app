@@ -159,13 +159,14 @@ export async function POST(request: NextRequest) {
       image_urls: Record<string, unknown>;
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
+      personalization?: Record<string, unknown> | null;
     }>();
 
     // Fetch saved designs from database if there are any
     if (uniqueDesignIds.length > 0) {
       const { data: savedDesigns, error: designsError } = await supabase
         .from('saved_designs')
-        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts')
+        .select('id, title, color_selections, canvas_state, preview_url, image_urls, text_svg_exports, custom_fonts, personalization')
         .in('id', uniqueDesignIds);
 
       if (designsError) {
@@ -180,6 +181,7 @@ export async function POST(request: NextRequest) {
             image_urls: design.image_urls || {},
             text_svg_exports: design.text_svg_exports as TextSvgExports | undefined,
             custom_fonts: (design.custom_fonts as FontMetadata[]) || [],
+            personalization: (design as { personalization?: Record<string, unknown> | null }).personalization ?? null,
           });
         });
       }
@@ -198,6 +200,7 @@ export async function POST(request: NextRequest) {
       image_urls: Record<string, unknown>;
       text_svg_exports?: TextSvgExports;
       custom_fonts?: FontMetadata[];
+      personalization?: Record<string, unknown> | null;
       variants: Array<{
         size_id: string;
         size_name: string;
@@ -250,6 +253,7 @@ export async function POST(request: NextRequest) {
             item.customFonts,
             extractCustomFontsFromCanvasState(designCanvas)
           ),
+          personalization: savedDesign?.personalization ?? null,
           price_per_item: item.price_per_item,
           variants: [{
             size_id: item.size_id,
@@ -282,6 +286,7 @@ export async function POST(request: NextRequest) {
         color_selections: group.color_selections,
         item_options: {
           variants: group.variants,
+          ...(group.personalization ? { personalization: group.personalization } : {}),
         },
         thumbnail_url: group.thumbnail_url,
         image_urls: group.image_urls,
