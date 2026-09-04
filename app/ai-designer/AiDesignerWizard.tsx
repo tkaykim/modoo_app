@@ -28,6 +28,8 @@ import ProductGrid from './ProductGrid';
 import VarsityIntake from './VarsityIntake';
 import VarsityBuilder from './VarsityBuilder';
 import AiLogoPanel, { DEFAULT_AI_STATUS, readAiStatus, type AiPublicStatus, type AiReadyImage } from './AiLogoPanel';
+import ColorMockupPreview from './ColorMockupPreview';
+import { tintImage } from '@/lib/aiDesigner/mockupTint';
 import { DEFAULT_VARSITY_PRICING, type VarsityPricingRule } from '@/lib/aiDesigner/varsityPricing';
 import type { VarsityBuilderState } from '@/lib/aiDesigner/varsitySlots';
 
@@ -89,9 +91,11 @@ const STEPS = ['상품', '색상', '이미지', '배치', '미리보기', '주�
 /* ---------- 면 합성 미리보기 캔버스 ---------- */
 
 function SidePreview({
-  side, colorMockup, placements, images, height = 240, draftUrl,
+  side, colorMockup, colorHex, placements, images, height = 240, draftUrl,
 }: {
   side: SideInfo; colorMockup?: string | null;
+  /** 실사 색상 목업이 없을 때 흰 목업에 입힐 원단 색(에디터 multiply와 동일) */
+  colorHex?: string | null;
   placements: Placement[]; images: SourceImage[]; height?: number; draftUrl?: string | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -115,8 +119,10 @@ function SidePreview({
       // 색상 목업은 크기가 다를 수 있으므로 항상 side geometry 기준으로 fit
       const geo = side.geometry;
       const s = computeSideScale(geo);
+      // 실사 색상 목업이 없으면 흰 목업에 원단 색을 입힌다(에디터 BlendColor multiply와 동일)
+      const base = colorMockup || !colorHex ? mockup : tintImage(mockup, colorHex);
       ctx.drawImage(
-        mockup,
+        base,
         (W - geo.imgW * s.scale) / 2, (H - geo.imgH * s.scale) / 2,
         geo.imgW * s.scale, geo.imgH * s.scale
       );
@@ -140,7 +146,7 @@ function SidePreview({
       });
     };
     mockup.src = mockupSrc;
-  }, [side, colorMockup, placements, images, draftUrl]);
+  }, [side, colorMockup, colorHex, placements, images, draftUrl]);
 
   if (draftUrl) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -540,7 +546,11 @@ export default function AiDesignerWizard({
           <section>
             <h1 className="text-xl font-black text-gray-900">원단 색상을 골라주세요</h1>
             <p className="text-sm text-gray-500 mt-1">{product?.title}</p>
-            <div className="grid grid-cols-4 gap-3 mt-5">
+            {/* 고른 색을 목업에 입혀 보여준다 — 에디터와 같은 multiply 합성, 면 전환 가능 */}
+            <div className="mt-4">
+              <ColorMockupPreview sides={info.sides} color={color} />
+            </div>
+            <div className="grid grid-cols-4 gap-3 mt-4">
               {info.colors.map((c) => (
                 <button
                   key={c.id}
@@ -683,6 +693,7 @@ export default function AiDesignerWizard({
                             <SidePreview
                               side={side}
                               colorMockup={color?.side_mockups?.[side.sideId]}
+                    colorHex={color?.hex}
                               placements={placements}
                               images={images}
                               height={160}
@@ -781,6 +792,7 @@ export default function AiDesignerWizard({
                   <SidePreview
                     side={side}
                     colorMockup={color?.side_mockups?.[side.sideId]}
+                    colorHex={color?.hex}
                     placements={placements}
                     images={images}
                     height={200}
